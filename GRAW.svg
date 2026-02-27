@@ -1,0 +1,7 @@
+<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="40" height="40" rx="12" fill="#0C0A09"/>
+  <rect x="0.5" y="0.5" width="39" height="39" rx="11.5" stroke="rgba(232,146,74,0.35)" stroke-width="1"/>
+  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
+        font-family="DM Sans, -apple-system, sans-serif" font-weight="800" font-size="22"
+        fill="#E8924A" letter-spacing="-1">G</text>
+</svg>
