@@ -162,7 +162,7 @@ export function Onboarding({ onComplete }) {
     if (showCompletion) {
       const t = setTimeout(() => {
         onComplete({ name: name.trim() || 'Atleta', level, goal })
-      }, 1000)
+      }, 1100)
       return () => clearTimeout(t)
     }
   }, [showCompletion]) // eslint-disable-line react-hooks/exhaustive-deps

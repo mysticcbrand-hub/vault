@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Onboarding } from './components/Onboarding.jsx'
+import { personalizeFromOnboarding } from './data/presetPrograms.js'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
 import { WorkoutTab } from './components/tabs/WorkoutTab.jsx'
@@ -238,6 +239,8 @@ export default function App() {
       <Onboarding
         onComplete={(data) => {
           updateUser({ name: data.name, level: data.level, goal: data.goal, startDate: new Date().toISOString() })
+          // Personalize: auto-activate best program + configure rest timer + rep range
+          personalizeFromOnboarding(data.level, data.goal, useStore.getState())
         }}
       />
     )

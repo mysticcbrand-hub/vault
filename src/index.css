@@ -36,6 +36,8 @@
   --shoulders: #4DB896; --shoulders-dim: rgba(77, 184, 150, 0.14);
   --arms:      #D4A843; --arms-dim:      rgba(212, 168, 67, 0.14);
   --core:      #C46B3A; --core-dim:      rgba(196, 107, 58, 0.14);
+  --forearms:  #7EB8A0; --forearms-dim:  rgba(126, 184, 160, 0.14);
+  --calves:    #9B8EC4; --calves-dim:    rgba(155, 142, 196, 0.14);
 
   --r-xs:   10px;
   --r-sm:   14px;

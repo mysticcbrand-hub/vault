@@ -33,12 +33,14 @@ export function cn(...classes) {
 
 export function getMuscleVars(muscle) {
   const map = {
-    chest:     { color: 'var(--chest)',     dim: 'var(--chest-dim)' },
-    back:      { color: 'var(--back)',      dim: 'var(--back-dim)' },
-    legs:      { color: 'var(--legs)',      dim: 'var(--legs-dim)' },
+    chest:     { color: 'var(--chest)',     dim: 'var(--chest-dim)'     },
+    back:      { color: 'var(--back)',      dim: 'var(--back-dim)'      },
+    legs:      { color: 'var(--legs)',      dim: 'var(--legs-dim)'      },
     shoulders: { color: 'var(--shoulders)', dim: 'var(--shoulders-dim)' },
-    arms:      { color: 'var(--arms)',      dim: 'var(--arms-dim)' },
-    core:      { color: 'var(--core)',      dim: 'var(--core-dim)' },
+    arms:      { color: 'var(--arms)',      dim: 'var(--arms-dim)'      },
+    forearms:  { color: 'var(--forearms)',  dim: 'var(--forearms-dim)'  },
+    calves:    { color: 'var(--calves)',    dim: 'var(--calves-dim)'    },
+    core:      { color: 'var(--core)',      dim: 'var(--core-dim)'      },
   }
   return map[muscle] || { color: 'var(--accent)', dim: 'var(--accent-dim)' }
 }

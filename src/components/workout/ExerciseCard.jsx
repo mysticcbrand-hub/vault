@@ -13,9 +13,11 @@ export const ExerciseCard = memo(function ExerciseCard({
   const sessions = useStore(s => s.sessions)
   const prs = useStore(s => s.prs)
 
+  const settings = useStore(s => s.settings)
   const exData = getExerciseById(exercise.exerciseId)
   const mv = getMuscleVars(exData?.muscle)
   const currentPR = prs[exercise.exerciseId]
+  const repRange = settings?.repRangeGuidance || null
 
   // Last session data for this exercise — "Última vez" reference
   const lastSession = (() => {
@@ -99,6 +101,19 @@ export const ExerciseCard = memo(function ExerciseCard({
           <span className="muscle-pill" style={{ background: mv.dim, color: mv.color, border: `1px solid ${mv.color}22` }}>
             {MUSCLE_NAMES[exData?.muscle] || exData?.muscle}
           </span>
+
+          {/* Rep range guidance — based on user goal */}
+          {repRange && (
+            <span style={{
+              fontSize: 10, padding: '2px 6px', borderRadius: 'var(--r-pill)',
+              border: '0.5px solid var(--border2)',
+              color: repRange.color || 'var(--text3)',
+              background: 'transparent',
+              fontFamily: 'DM Mono, monospace', fontWeight: 600, whiteSpace: 'nowrap',
+            }}>
+              {repRange.range}
+            </span>
+          )}
 
           {/* Menu */}
           <div style={{ position: 'relative' }}>
