@@ -12,13 +12,6 @@ const updateSW = registerSW({
   }
 })
 
-// Hard reset old SW cache if user is stuck on stale UI
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(reg => reg.unregister())
-  })
-}
-
 // One-time data reset — run once, then set a flag
 if (!localStorage.getItem('lv_v2_clean')) {
   Object.keys(localStorage)
