@@ -1,31 +1,34 @@
-import { motion } from 'framer-motion'
-
 export function Button({ children, variant = 'primary', size = 'md', className = '', disabled, onClick, type = 'button', ...props }) {
-  const base = 'inline-flex items-center justify-center font-semibold rounded-xl transition-colors select-none cursor-pointer'
+  const base = 'pressable'
   const variants = {
-    primary: 'bg-[#6C63FF] text-white active:bg-[#5a52e0] disabled:opacity-40',
-    secondary: 'bg-[rgba(240,240,245,0.08)] border border-[rgba(255,255,255,0.08)] text-[#F0F0F5] active:bg-[rgba(240,240,245,0.12)]',
-    ghost: 'text-[rgba(240,240,245,0.45)] active:text-[#F0F0F5]',
-    danger: 'bg-[rgba(248,113,113,0.15)] border border-[rgba(248,113,113,0.3)] text-[#F87171]',
-    success: 'bg-[rgba(52,211,153,0.15)] border border-[rgba(52,211,153,0.3)] text-[#34D399]',
+    primary: { background: 'var(--accent)', color: 'white', border: 'none' },
+    secondary: { background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border2)' },
+    ghost: { background: 'transparent', color: 'var(--text2)', border: 'none' },
+    danger: { background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid rgba(229,83,75,0.3)' },
+    success: { background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid rgba(52,199,123,0.3)' },
   }
   const sizes = {
-    sm: 'text-sm px-3 py-2 min-h-[36px]',
-    md: 'text-base px-4 py-3 min-h-[48px]',
-    lg: 'text-base px-6 py-4 min-h-[56px]',
-    xl: 'text-lg px-8 py-4 min-h-[60px]',
-    icon: 'w-10 h-10 p-0',
+    sm: { height: 36, padding: '0 12px', fontSize: 13 },
+    md: { height: 44, padding: '0 16px', fontSize: 14 },
+    lg: { height: 52, padding: '0 18px', fontSize: 16 },
   }
   return (
-    <motion.button
+    <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      whileTap={{ scale: disabled ? 1 : 0.97 }}
-      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={base}
+      style={{
+        borderRadius: 'var(--r-sm)',
+        fontWeight: 600,
+        cursor: 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        ...sizes[size],
+        ...variants[variant],
+      }}
       {...props}
     >
       {children}
-    </motion.button>
+    </button>
   )
 }

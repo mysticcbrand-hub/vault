@@ -124,7 +124,7 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
       <div className="si" style={{ marginBottom: 20, animationDelay: '0.05s' }}>
         {todaySession ? (
           <div style={{
-            background: 'linear-gradient(135deg, #0e1f18 0%, var(--bg) 100%)',
+            background: 'linear-gradient(135deg, rgba(24,21,16,0.9) 0%, var(--bg) 100%)',
             border: '1px solid rgba(62,207,142,0.2)',
             borderRadius: 'var(--r)', padding: 20, position: 'relative', overflow: 'hidden',
           }}>

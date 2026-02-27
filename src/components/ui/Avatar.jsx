@@ -1,12 +1,19 @@
 export function Avatar({ name = 'U', size = 'md', onClick }) {
-  const sizes = { sm: 'w-8 h-8 text-sm', md: 'w-10 h-10 text-base', lg: 'w-14 h-14 text-xl' }
-  const initial = name.charAt(0).toUpperCase()
+  const sizes = { sm: 32, md: 40, lg: 56 }
+  const px = sizes[size] || 40
   return (
     <button
       onClick={onClick}
-      className={`${sizes[size]} rounded-full bg-[#6C63FF] flex items-center justify-center font-bold text-white flex-shrink-0 cursor-pointer select-none active:scale-95 transition-transform`}
+      className="pressable"
+      style={{
+        width: px, height: px, borderRadius: '50%',
+        background: 'var(--accent-dim)',
+        border: '1.5px solid var(--accent-border)',
+        color: 'var(--accent)', fontWeight: 700, fontSize: px / 2.2,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
     >
-      {initial}
+      {name.charAt(0).toUpperCase()}
     </button>
   )
 }

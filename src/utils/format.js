@@ -45,12 +45,12 @@ export function getMuscleVars(muscle) {
 
 export function getMuscleGradient(muscle) {
   const map = {
-    chest:     'linear-gradient(135deg, #0D1E35 0%, #09090E 100%)',
-    back:      'linear-gradient(135deg, #1C0F3D 0%, #09090E 100%)',
-    legs:      'linear-gradient(135deg, #2A0F0F 0%, #09090E 100%)',
-    shoulders: 'linear-gradient(135deg, #0F2A1C 0%, #09090E 100%)',
-    arms:      'linear-gradient(135deg, #2A1A00 0%, #09090E 100%)',
-    core:      'linear-gradient(135deg, #2A2200 0%, #09090E 100%)',
+    chest:     'linear-gradient(135deg, var(--chest-dim) 0%, var(--bg) 100%)',
+    back:      'linear-gradient(135deg, var(--back-dim) 0%, var(--bg) 100%)',
+    legs:      'linear-gradient(135deg, var(--legs-dim) 0%, var(--bg) 100%)',
+    shoulders: 'linear-gradient(135deg, var(--shoulders-dim) 0%, var(--bg) 100%)',
+    arms:      'linear-gradient(135deg, var(--arms-dim) 0%, var(--bg) 100%)',
+    core:      'linear-gradient(135deg, var(--core-dim) 0%, var(--bg) 100%)',
   }
-  return map[muscle] || 'linear-gradient(135deg, #141428 0%, #09090E 100%)'
+  return map[muscle] || 'linear-gradient(135deg, var(--surface2) 0%, var(--bg) 100%)'
 }

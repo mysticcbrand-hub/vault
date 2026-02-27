@@ -59,12 +59,12 @@ export const EXERCISES = [
 ]
 
 export const MUSCLE_COLORS = {
-  chest:     { bg: '#1E3A5F', text: '#60A5FA', border: '#2563EB' },
-  back:      { bg: '#2D1B69', text: '#A78BFA', border: '#7C3AED' },
-  shoulders: { bg: '#0F3D3D', text: '#34D399', border: '#059669' },
-  arms:      { bg: '#3D1F00', text: '#FB923C', border: '#EA580C' },
-  legs:      { bg: '#3D0F0F', text: '#F87171', border: '#DC2626' },
-  core:      { bg: '#3D3000', text: '#FCD34D', border: '#D97706' },
+  chest:     { bg: 'var(--chest-dim)', text: 'var(--chest)', border: 'rgba(232,146,74,0.35)' },
+  back:      { bg: 'var(--back-dim)', text: 'var(--back)', border: 'rgba(163,127,212,0.35)' },
+  shoulders: { bg: 'var(--shoulders-dim)', text: 'var(--shoulders)', border: 'rgba(77,184,150,0.35)' },
+  arms:      { bg: 'var(--arms-dim)', text: 'var(--arms)', border: 'rgba(212,168,67,0.35)' },
+  legs:      { bg: 'var(--legs-dim)', text: 'var(--legs)', border: 'rgba(229,83,75,0.35)' },
+  core:      { bg: 'var(--core-dim)', text: 'var(--core)', border: 'rgba(196,107,58,0.35)' },
 }
 
 export const MUSCLE_NAMES = {
@@ -74,15 +74,6 @@ export const MUSCLE_NAMES = {
   arms: 'Brazos',
   legs: 'Piernas',
   core: 'Core',
-}
-
-export const MUSCLE_EMOJIS = {
-  chest: '💪',
-  back: '🔙',
-  shoulders: '🏋️',
-  arms: '💪',
-  legs: '🦵',
-  core: '⚡',
 }
 
 export function getExerciseById(id) {

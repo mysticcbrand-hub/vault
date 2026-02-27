@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { SEED_PROGRAMS, SEED_TEMPLATES, generateSeedSessions, computePRsSync, generateBodyMetrics } from './seedData.js'
+import { SEED_PROGRAMS, SEED_TEMPLATES } from './seedData.js'
 
 function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
@@ -18,22 +18,18 @@ function computeE1RM(weight, reps) {
   return weight * 36 / (37 - Math.min(reps, 36))
 }
 
-const initialState = () => {
-  const sessions = generateSeedSessions()
-  const prs = computePRsSync(sessions)
-  return {
-    user: { name: 'Atleta', startDate: new Date(Date.now() - 42 * 86400000).toISOString(), unit: 'kg' },
-    programs: SEED_PROGRAMS,
-    activeProgram: 'ppl',
-    templates: SEED_TEMPLATES,
-    sessions,
-    activeWorkout: null,
-    prs,
-    bodyMetrics: generateBodyMetrics(),
-    settings: { unit: 'kg', theme: 'dark', restTimerDefault: 90 },
-    toasts: [],
-  }
-}
+const initialState = () => ({
+  user: { name: 'Atleta', startDate: new Date().toISOString(), unit: 'kg' },
+  programs: SEED_PROGRAMS,
+  activeProgram: 'ppl',
+  templates: SEED_TEMPLATES,
+  sessions: [],
+  activeWorkout: null,
+  prs: {},
+  bodyMetrics: [],
+  settings: { unit: 'kg', theme: 'dark', restTimerDefault: 120 },
+  toasts: [],
+})
 
 const useStore = create(
   persist(

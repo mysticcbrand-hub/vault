@@ -9,7 +9,7 @@ export const RestTimerPill = memo(function RestTimerPill({ timer }) {
   const add30 = () => start(remaining + 30)
 
   return (
-    <div className="rest-pill">
+    <div className="rest-timer-pill">
       <span className="rest-dot" />
       <span style={{fontSize:13,color:'var(--text2)',fontWeight:500}}>Descansando</span>
       <span style={{

@@ -41,7 +41,7 @@ export function WorkoutTab() {
         <button className="pressable shimmer si" onClick={() => startWorkout({ templateId: nextTemplate.id, programId: activeProgram, name: nextDay.name })}
           style={{
             width: '100%', marginBottom: 12, height: 88, borderRadius: 'var(--r)',
-            background: 'linear-gradient(135deg, var(--accent) 0%, #4857c4 100%)',
+            background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%)',
             boxShadow: '0 8px 32px var(--accent-glow)',
             border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16,

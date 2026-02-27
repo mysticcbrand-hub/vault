@@ -17,7 +17,7 @@ export function useWorkoutTimer() {
   return elapsed
 }
 
-export function useRestTimer(defaultSeconds = 90) {
+export function useRestTimer(defaultSeconds = 120) {
   const [active, setActive] = useState(false)
   const [remaining, setRemaining] = useState(defaultSeconds)
   const [total, setTotal] = useState(defaultSeconds)

@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Trash2, GripVertical } from 'lucide-react'
 import { Sheet } from '../layout/Sheet.jsx'
 import { Button } from '../ui/Button.jsx'
 import { Input } from '../ui/Input.jsx'
-import { MuscleBadge } from '../ui/Badge.jsx'
 import { ExercisePicker } from '../workout/ExercisePicker.jsx'
 import { EXERCISES, MUSCLE_NAMES, MUSCLE_COLORS } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
@@ -17,9 +15,7 @@ export function TemplateEditor({ open, onClose, template }) {
 
   const [name, setName] = useState(template?.name || '')
   const [muscles, setMuscles] = useState(template?.muscles || [])
-  const [exercises, setExercises] = useState(
-    (template?.exercises || []).map((e, i) => ({ ...e, _id: i }))
-  )
+  const [exercises, setExercises] = useState((template?.exercises || []).map((e, i) => ({ ...e, _id: i })))
   const [notes, setNotes] = useState(template?.notes || '')
   const [showPicker, setShowPicker] = useState(false)
   const [error, setError] = useState('')
@@ -52,19 +48,14 @@ export function TemplateEditor({ open, onClose, template }) {
 
   return (
     <Sheet open={open} onClose={onClose} title={template ? 'Editar Template' : 'Nuevo Template'} fullHeight>
-      <div className="px-4 py-4 flex flex-col gap-4 pb-32">
-        <Input
-          label="Nombre del template"
-          placeholder="Ej: Push A, Full Body..."
-          value={name}
-          onChange={e => { setName(e.target.value); setError('') }}
-          error={error && !name.trim() ? error : ''}
-        />
+      <div style={{ padding: '16px 20px 110px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Input label="Nombre del template" placeholder="Ej: Push" value={name} onChange={e => { setName(e.target.value); setError('') }} />
+        {error && !name.trim() && <span style={{ fontSize: 12, color: 'var(--red)' }}>{error}</span>}
 
         {/* Muscle multi-select */}
         <div>
-          <label className="text-sm font-medium text-[rgba(240,240,245,0.6)] block mb-2">Grupos musculares</label>
-          <div className="flex flex-wrap gap-2">
+          <label className="t-label" style={{ marginBottom: 8, display: 'block' }}>Grupos musculares</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {ALL_MUSCLES.map(m => {
               const colors = MUSCLE_COLORS[m]
               const active = muscles.includes(m)
@@ -72,11 +63,15 @@ export function TemplateEditor({ open, onClose, template }) {
                 <button
                   key={m}
                   onClick={() => toggleMuscle(m)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors"
-                  style={active
-                    ? { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }
-                    : { backgroundColor: 'transparent', color: 'rgba(240,240,245,0.4)', borderColor: 'rgba(255,255,255,0.1)' }
-                  }
+                  className="pressable"
+                  style={{
+                    padding: '6px 10px', borderRadius: 'var(--r-xs)',
+                    fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+                    background: active ? colors.bg : 'var(--surface2)',
+                    color: active ? colors.text : 'var(--text2)',
+                    border: `1px solid ${active ? colors.border : 'var(--border)'}`,
+                    cursor: 'pointer',
+                  }}
                 >
                   {MUSCLE_NAMES[m]}
                 </button>
@@ -87,64 +82,56 @@ export function TemplateEditor({ open, onClose, template }) {
 
         {/* Exercises */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-[rgba(240,240,245,0.6)]">Ejercicios</label>
-            {error && exercises.length === 0 && <span className="text-xs text-[#F87171]">{error}</span>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <label className="t-label">Ejercicios</label>
+            {error && exercises.length === 0 && <span style={{ fontSize: 12, color: 'var(--red)' }}>{error}</span>}
           </div>
-          <div className="flex flex-col gap-2">
-            {exercises.map((ex, i) => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {exercises.map((ex) => {
               const exData = EXERCISES.find(e => e.id === ex.exerciseId)
               return (
-                <motion.div
-                  key={ex._id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10 }}
-                  className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-xl p-3"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <GripVertical size={14} className="text-[rgba(240,240,245,0.2)] flex-shrink-0" />
-                    <span className="flex-1 text-sm font-semibold text-[#F0F0F5] truncate">{exData?.name || ex.exerciseId}</span>
-                    {exData && <MuscleBadge muscle={exData.muscle} />}
-                    <button onClick={() => removeExercise(ex._id)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-[rgba(248,113,113,0.1)]">
-                      <Trash2 size={12} className="text-[#F87171]" />
+                <div key={ex._id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <GripVertical size={14} color="var(--text3)" />
+                    <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{exData?.name || ex.exerciseId}</span>
+                    <button onClick={() => removeExercise(ex._id)} className="pressable" style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--red-dim)', border: '1px solid rgba(229,83,75,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Trash2 size={12} color="var(--red)" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[['Series', 'sets', 1, 20], ['Reps', 'reps', 1, 100], ['Peso (kg)', 'weight', 0, 500]].map(([label, field, min, max]) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    {[['Series','sets'],['Reps','reps'],['Peso','weight']].map(([label, field]) => (
                       <div key={field}>
-                        <label className="text-[10px] text-[rgba(240,240,245,0.35)] block mb-1">{label}</label>
+                        <label className="t-label" style={{ marginBottom: 6, display: 'block' }}>{label}</label>
                         <input
-                          type="number"
-                          inputMode="decimal"
+                          type="number" inputMode="decimal"
                           value={ex[field]}
                           onChange={e => updateExercise(ex._id, field, parseFloat(e.target.value) || 0)}
-                          className="w-full bg-[#111120] border border-[rgba(255,255,255,0.08)] rounded-lg px-2 py-2 text-sm text-center text-[#F0F0F5] focus:outline-none focus:border-[#6C63FF]"
-                          min={min} max={max}
+                          className="input"
+                          style={{ textAlign: 'center', fontFamily: 'DM Mono,monospace' }}
                           onFocus={e => e.target.select()}
                         />
                       </div>
                     ))}
                   </div>
-                </motion.div>
+                </div>
               )
             })}
           </div>
-          <button
-            onClick={() => setShowPicker(true)}
-            className="mt-2 w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border border-dashed border-[rgba(108,99,255,0.3)] text-[#6C63FF] text-sm font-semibold"
-          >
-            <Plus size={14} />Añadir ejercicio
+          <button onClick={() => setShowPicker(true)} className="pressable" style={{
+            marginTop: 10, width: '100%', height: 44,
+            borderRadius: 'var(--r-sm)', border: '1px dashed var(--accent-border)',
+            background: 'var(--surface2)', color: 'var(--accent)', fontSize: 13, fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}>
+            <Plus size={14} /> Añadir ejercicio
           </button>
         </div>
 
-        <Input label="Notas" placeholder="Instrucciones, consejos..." value={notes} onChange={e => setNotes(e.target.value)} />
+        <Input label="Notas" placeholder="Opcional" value={notes} onChange={e => setNotes(e.target.value)} />
       </div>
 
-      {/* Fixed save */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111120] border-t border-[rgba(255,255,255,0.06)]"
-        style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom,0px))' }}>
-        <Button onClick={handleSave} size="lg" className="w-full">Guardar template</Button>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: 16, background: 'var(--surface3)', borderTop: '1px solid var(--border)', paddingBottom: 'calc(16px + env(safe-area-inset-bottom,0px))' }}>
+        <Button onClick={handleSave} size="lg" className="pressable" style={{ width: '100%' }}>Guardar template</Button>
       </div>
 
       <ExercisePicker open={showPicker} onClose={() => setShowPicker(false)} onSelect={addExercise} />
