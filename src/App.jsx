@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Onboarding } from './components/Onboarding.jsx'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
 import { WorkoutTab } from './components/tabs/WorkoutTab.jsx'
@@ -158,6 +159,18 @@ export default function App() {
   const activeWorkout = useStore(s => s.activeWorkout)
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
+
+  // Onboarding: show if user has no level/goal set (first launch)
+  const isOnboarded = user?.name && user?.level && user?.goal
+  if (!isOnboarded && !splash) {
+    return (
+      <Onboarding
+        onComplete={(data) => {
+          updateUser({ name: data.name, level: data.level, goal: data.goal, startDate: new Date().toISOString() })
+        }}
+      />
+    )
+  }
 
   // Splash: 800ms show → 300ms fade
   useEffect(() => {
