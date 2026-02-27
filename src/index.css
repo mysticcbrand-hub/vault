@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+@layer base {
 /* ─── DESIGN TOKENS ─────────────────────────────────────────────────────── */
 :root {
   --accent:        #E8924A;
@@ -338,4 +339,5 @@ textarea.input { resize: none; }
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
 }
