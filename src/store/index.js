@@ -274,6 +274,17 @@ const useStore = create(
       })),
       deleteMetric: (id) => set(s => ({ metrics: s.metrics.filter(m => m.id !== id) })),
 
+      // ── TOASTS ──────────────────────────────────────────────────────────────
+      toasts: [],
+      addToast: (message, type = 'info', duration = 3500) => {
+        const id = crypto.randomUUID()
+        set(s => ({ toasts: [...s.toasts, { id, message, type }] }))
+        setTimeout(() => {
+          useStore.setState(s => ({ toasts: s.toasts.filter(t => t.id !== id) }))
+        }, duration)
+      },
+      removeToast: (id) => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
+
     }),
     {
       name: 'graw_store',
@@ -287,6 +298,7 @@ const useStore = create(
         prs: state.prs,
         metrics: state.metrics,
         activeWorkout: state.activeWorkout,
+        // toasts intentionally excluded — ephemeral, never persisted
       }),
     }
   )
