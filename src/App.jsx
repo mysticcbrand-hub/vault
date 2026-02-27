@@ -160,17 +160,7 @@ export default function App() {
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
 
-  // Onboarding: show if user has no level/goal set (first launch)
-  const isOnboarded = user?.name && user?.level && user?.goal
-  if (!isOnboarded && !splash) {
-    return (
-      <Onboarding
-        onComplete={(data) => {
-          updateUser({ name: data.name, level: data.level, goal: data.goal, startDate: new Date().toISOString() })
-        }}
-      />
-    )
-  }
+  const isOnboarded = !!(user?.name && user?.level && user?.goal)
 
   // Splash: 800ms show → 300ms fade
   useEffect(() => {
@@ -240,6 +230,17 @@ export default function App() {
           ? `${direction > 0 ? 'tabExitRight' : 'tabExitLeft'} ${DUR}ms cubic-bezier(0.32,0.72,0,1) both`
           : 'none',
     }
+  }
+
+  // Onboarding — rendered INSIDE return, after all hooks
+  if (!splash && !isOnboarded) {
+    return (
+      <Onboarding
+        onComplete={(data) => {
+          updateUser({ name: data.name, level: data.level, goal: data.goal, startDate: new Date().toISOString() })
+        }}
+      />
+    )
   }
 
   return (
