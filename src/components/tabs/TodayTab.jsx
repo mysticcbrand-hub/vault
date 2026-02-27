@@ -97,7 +97,7 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
   const recentSessions = sessions.slice(0, 3)
 
   return (
-    <div className="pb-nav" style={{ paddingLeft: 20, paddingRight: 20, paddingTop: 24 }}>
+    <div style={{ paddingLeft: 20, paddingRight: 20, paddingTop: 24, paddingBottom: 'calc(var(--nav-h) + 24px)', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
       {/* [A] Header */}
       <div className="si" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
