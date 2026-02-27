@@ -300,6 +300,24 @@ const useStore = create(
         activeWorkout: state.activeWorkout,
         // toasts intentionally excluded — ephemeral, never persisted
       }),
+      // Defensive merge — prevents null/undefined from old storage from crashing UI
+      merge: (persisted, current) => {
+        const p = persisted || {}
+        const safeArray = (val, fallback) => Array.isArray(val) ? val : fallback
+        const safeObject = (val, fallback) => (val && typeof val === 'object' && !Array.isArray(val)) ? val : fallback
+
+        return {
+          ...current,
+          ...p,
+          user: safeObject(p.user, current.user),
+          settings: safeObject(p.settings, current.settings),
+          programs: safeArray(p.programs, current.programs),
+          templates: safeArray(p.templates, current.templates),
+          sessions: safeArray(p.sessions, current.sessions),
+          prs: safeObject(p.prs, current.prs),
+          metrics: safeArray(p.metrics, current.metrics),
+        }
+      },
     }
   )
 )

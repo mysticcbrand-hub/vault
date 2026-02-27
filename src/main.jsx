@@ -37,6 +37,14 @@ function migrateStorage() {
 
 migrateStorage()
 
+// Guard against corrupted persisted state (prevents blank screen)
+try {
+  const raw = localStorage.getItem('graw_store')
+  if (raw) JSON.parse(raw)
+} catch (e) {
+  localStorage.removeItem('graw_store')
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
