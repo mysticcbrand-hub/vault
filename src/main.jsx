@@ -3,13 +3,39 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// One-time data reset — run once, then set a flag
-if (!localStorage.getItem('lv_v2_clean')) {
-  Object.keys(localStorage)
-    .filter(k => k.startsWith('lv') || k.startsWith('liftvault') || k.startsWith('vault'))
-    .forEach(k => localStorage.removeItem(k))
-  localStorage.setItem('lv_v2_clean', 'true')
+// ─── Storage Migration: lv_ → graw_ ──────────────────────────────────────────
+// Runs once on first launch after rebrand. Backward compat: reads old keys,
+// writes to new keys, then removes old ones.
+function migrateStorage() {
+  const migrated = localStorage.getItem('graw_migrated_v1')
+  if (migrated) return
+
+  const keyMap = {
+    'lv_user':      'graw_user',
+    'lv_templates': 'graw_templates',
+    'lv_programs':  'graw_programs',
+    'lv_sessions':  'graw_sessions',
+    'lv_prs':       'graw_prs',
+    'lv_metrics':   'graw_metrics',
+    'lv_settings':  'graw_settings',
+  }
+
+  Object.entries(keyMap).forEach(([oldKey, newKey]) => {
+    const val = localStorage.getItem(oldKey)
+    if (val && !localStorage.getItem(newKey)) {
+      localStorage.setItem(newKey, val)
+    }
+    // Keep old keys readable for now, remove after confirmed migration
+    localStorage.removeItem(oldKey)
+  })
+
+  // Clean any old seed/debug flags
+  ;['lv_v2_clean', 'liftvault_store', 'vault_store'].forEach(k => localStorage.removeItem(k))
+
+  localStorage.setItem('graw_migrated_v1', 'true')
 }
+
+migrateStorage()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

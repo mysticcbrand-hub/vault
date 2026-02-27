@@ -10,7 +10,7 @@ import { ToastContainer } from './components/ui/Toast.jsx'
 import useStore from './store/index.js'
 import './App.css'
 
-const TABS = ['today','history','workout','progress','programs']
+const TABS = ['today', 'history', 'workout', 'progress', 'programs']
 const TAB_GLOWS = {
   today:    'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,146,74,0.10) 0%, transparent 70%)',
   workout:  'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,146,74,0.14) 0%, transparent 70%)',
@@ -20,6 +20,128 @@ const TAB_GLOWS = {
 }
 const DUR = 260
 
+// GRAW SVG mark — inline for zero network dependency
+function GrawMark({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="12" fill="rgba(232,146,74,0.12)" />
+      <rect x="0.5" y="0.5" width="39" height="39" rx="11.5" stroke="rgba(232,146,74,0.3)" strokeWidth="1" />
+      <text
+        x="50%" y="54%"
+        dominantBaseline="middle"
+        textAnchor="middle"
+        fontFamily="DM Sans, -apple-system, sans-serif"
+        fontWeight="800"
+        fontSize="22"
+        fill="#E8924A"
+        letterSpacing="-1"
+      >G</text>
+    </svg>
+  )
+}
+
+// Splash screen — 800ms display, 300ms fade
+function SplashScreen() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 999,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg)',
+      animation: 'fadeIn 0.3s ease',
+    }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', gap: 20,
+        animation: 'scaleIn 0.5s cubic-bezier(0.32,0.72,0,1)',
+      }}>
+        {/* Large GRAW mark */}
+        <div style={{
+          width: 80, height: 80, borderRadius: 22,
+          background: 'rgba(232,146,74,0.12)',
+          border: '1px solid rgba(232,146,74,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 48px rgba(232,146,74,0.18)',
+        }}>
+          <svg width="44" height="44" viewBox="0 0 40 40" fill="none">
+            <text
+              x="50%" y="54%"
+              dominantBaseline="middle"
+              textAnchor="middle"
+              fontFamily="DM Sans, -apple-system, sans-serif"
+              fontWeight="800"
+              fontSize="28"
+              fill="#E8924A"
+              letterSpacing="-2"
+            >G</text>
+          </svg>
+        </div>
+        {/* Wordmark */}
+        <div style={{ textAlign: 'center' }}>
+          <p style={{
+            fontSize: 28, fontWeight: 800,
+            letterSpacing: '-0.04em',
+            color: 'var(--text)',
+            lineHeight: 1,
+          }}>GRAW</p>
+          <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, letterSpacing: '0.01em' }}>
+            Entrena. Progresa. Domina.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Recovery sheet — shown when app restarts with an orphaned workout session
+function RecoverySheet({ elapsed, onContinue, onDiscard }) {
+  const m = Math.floor(elapsed / 60)
+  const s = elapsed % 60
+  const timeStr = `${m}:${String(s).padStart(2, '0')}`
+
+  return (
+    <>
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500, animation: 'fadeIn 0.2s ease' }} />
+      <div style={{
+        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 501,
+        background: 'rgba(16,13,9,0.88)',
+        backdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
+        WebkitBackdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
+        borderRadius: '32px 32px 0 0',
+        boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
+        padding: '20px 24px',
+        paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+        animation: 'sheetIn 0.36s cubic-bezier(0.32,0.72,0,1)',
+      }}>
+        <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 20px' }} />
+        <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6, letterSpacing: '-0.02em' }}>
+          Sesión en progreso
+        </p>
+        <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 24, lineHeight: 1.5 }}>
+          Tenías una sesión activa · <span style={{ color: 'var(--accent)', fontFamily: 'DM Mono, monospace', fontWeight: 600 }}>{timeStr}</span> · ¿Continuar o descartar?
+        </p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onDiscard} className="pressable" style={{
+            flex: 1, padding: 14, borderRadius: 14,
+            background: 'var(--red-dim)', border: '1px solid rgba(229,83,75,0.3)',
+            color: 'var(--red)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}>
+            Descartar
+          </button>
+          <button onClick={onContinue} className="pressable" style={{
+            flex: 2, padding: 14, borderRadius: 14,
+            background: 'var(--accent)', border: 'none',
+            color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(232,146,74,0.3)',
+          }}>
+            Continuar sesión
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('today')
   const [prevTab, setPrevTab] = useState(null)
@@ -27,18 +149,35 @@ export default function App() {
   const [transitioning, setTransitioning] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [splash, setSplash] = useState(true)
+  const [splashFading, setSplashFading] = useState(false)
   const [offline, setOffline] = useState(!navigator.onLine)
+  const [recoveryElapsed, setRecoveryElapsed] = useState(null)
 
   const user = useStore(s => s.user)
   const updateUser = useStore(s => s.updateUser)
-  const startWorkout = useStore(s => s.startWorkout)
-  const [editName, setEditName] = useState(user.name)
+  const activeWorkout = useStore(s => s.activeWorkout)
+  const cancelWorkout = useStore(s => s.cancelWorkout)
+  const [editName, setEditName] = useState(user?.name || '')
 
+  // Splash: 800ms show → 300ms fade
   useEffect(() => {
-    const t = setTimeout(() => setSplash(false), 900)
-    return () => clearTimeout(t)
+    const show = setTimeout(() => setSplashFading(true), 800)
+    const hide = setTimeout(() => setSplash(false), 1100)
+    return () => { clearTimeout(show); clearTimeout(hide) }
   }, [])
 
+  // Keyboard detection — hide bottom nav
+  useEffect(() => {
+    if (!window.visualViewport) return
+    const handler = () => {
+      const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75
+      document.body.classList.toggle('keyboard-open', keyboardOpen)
+    }
+    window.visualViewport.addEventListener('resize', handler)
+    return () => window.visualViewport.removeEventListener('resize', handler)
+  }, [])
+
+  // Online / offline
   useEffect(() => {
     const on = () => setOffline(false)
     const off = () => setOffline(true)
@@ -46,6 +185,18 @@ export default function App() {
     window.addEventListener('offline', off)
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
   }, [])
+
+  // Session recovery — check for orphaned workout timer on mount
+  useEffect(() => {
+    const savedTs = localStorage.getItem('graw_workout_start_ts')
+    if (savedTs && activeWorkout) {
+      const elapsed = Math.floor((Date.now() - Number(savedTs)) / 1000)
+      // Only show recovery if it's been more than 30 seconds (not just a hot reload)
+      if (elapsed > 30) {
+        setRecoveryElapsed(elapsed)
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTabChange = (tab) => {
     if (tab === activeTab || transitioning) return
@@ -58,7 +209,7 @@ export default function App() {
   }
 
   const handleStartWorkout = (templateId, programId, name) => {
-    startWorkout({ templateId, programId, name: name || 'Entrenamiento' })
+    useStore.getState().startWorkout({ templateId, programId, name: name || 'Entrenamiento' })
     handleTabChange('workout')
   }
 
@@ -78,70 +229,165 @@ export default function App() {
     }
   }
 
-  if (splash) return (
-    <div style={{ position:'fixed',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'var(--bg)',animation:'fadeIn 0.4s ease' }}>
-      <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:20,animation:'scaleIn 0.5s cubic-bezier(0.32,0.72,0,1)' }}>
-        <div style={{ width:80,height:80,borderRadius:22,background:'linear-gradient(145deg,var(--accent),var(--accent-deep))',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 48px var(--accent-glow)' }}>
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-            <circle cx="18" cy="18" r="14" stroke="white" strokeWidth="1.5"/>
-            <line x1="18" y1="10" x2="18" y2="26" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="10" y1="18" x2="26" y2="18" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-            <circle cx="18" cy="18" r="3" stroke="white" strokeWidth="1.5"/>
-          </svg>
-        </div>
-        <div style={{ textAlign:'center' }}>
-          <p style={{ fontSize:26,color:'var(--text)',letterSpacing:'-0.03em',lineHeight:1 }}>
-            <span style={{ fontWeight:500,color:'var(--text2)' }}>Lift</span><span style={{ fontWeight:800 }}>Vault</span>
-          </p>
-          <p style={{ fontSize:13,color:'var(--text3)',marginTop:6 }}>Track the weight. Own the progress.</p>
-        </div>
-      </div>
-    </div>
-  )
-
   return (
-    <div style={{ display:'flex',flexDirection:'column',height:'100dvh',overflow:'hidden',background:'var(--bg)',paddingTop:'env(safe-area-inset-top,0px)' }}>
-      {/* Background glow */}
-      <div className="bg-glow" style={{ background: TAB_GLOWS[activeTab] }} />
-
-      {/* Offline bar */}
-      {offline && <div className="offline-bar">SIN CONEXIÓN</div>}
-
-      <ToastContainer />
-
-      {/* Tab content */}
-      <div style={{ flex:1,position:'relative',overflow:'hidden',paddingBottom:'var(--nav-h)' }}>
-        <div style={getTabStyle('today')}><TodayTab onStartWorkout={handleStartWorkout} onOpenProfile={()=>{setEditName(user.name);setProfileOpen(true)}}/></div>
-        <div style={getTabStyle('workout')}><WorkoutTab /></div>
-        <div style={getTabStyle('history')}><HistoryTab /></div>
-        <div style={getTabStyle('progress')}><ProgressTab /></div>
-        <div style={getTabStyle('programs')}><ProgramsTab /></div>
-      </div>
-
-      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
-
-      {/* Profile sheet */}
-      <Sheet open={profileOpen} onClose={()=>setProfileOpen(false)} title="Mi perfil">
-        <div style={{ padding:'20px',display:'flex',flexDirection:'column',gap:20 }}>
-          <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:12,padding:'16px 0' }}>
-            <div style={{ width:80,height:80,borderRadius:24,background:'linear-gradient(145deg,var(--accent),var(--accent-deep))',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 30px var(--accent-glow)',fontSize:32,fontWeight:800,color:'white' }}>
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <p style={{ fontSize:18,fontWeight:700,color:'var(--text)',letterSpacing:'-0.02em' }}>{user.name}</p>
-            <p style={{ fontSize:12,color:'var(--text3)' }}>Desde {new Date(user.startDate).toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</p>
-          </div>
-          <div>
-            <p className="t-label" style={{ marginBottom:8 }}>Nombre</p>
-            <input type="text" value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Tu nombre" className="input"/>
-          </div>
-          <button onClick={()=>{updateUser({name:editName.trim()||user.name});setProfileOpen(false)}} className="pressable shimmer" style={{ width:'100%',height:52,borderRadius:14,background:'var(--accent)',border:'none',color:'white',fontSize:16,fontWeight:700,cursor:'pointer' }}>
-            Guardar
-          </button>
-          <p style={{ fontSize:12,color:'var(--text3)',textAlign:'center',lineHeight:1.6 }}>
-            Datos guardados localmente · Sin cuenta · Sin conexión
-          </p>
+    <>
+      {/* Splash */}
+      {splash && (
+        <div style={{ opacity: splashFading ? 0 : 1, transition: 'opacity 0.3s ease', pointerEvents: 'none' }}>
+          <SplashScreen />
         </div>
-      </Sheet>
-    </div>
+      )}
+
+      <div style={{
+        display: 'flex', flexDirection: 'column',
+        height: '100dvh', overflow: 'hidden',
+        background: 'var(--bg)',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+      }}>
+        {/* Ambient background glow */}
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none',
+          background: TAB_GLOWS[activeTab],
+          transition: 'background 0.6s ease',
+        }} />
+
+        {/* Offline indicator */}
+        {offline && (
+          <div style={{
+            position: 'fixed', top: 'env(safe-area-inset-top, 0px)',
+            left: 0, right: 0, height: 28, zIndex: 999,
+            background: 'var(--surface2)',
+            borderBottom: '1px solid var(--border2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10.5, fontWeight: 600, letterSpacing: '0.05em',
+            color: 'var(--text2)', animation: 'fadeIn 0.3s ease',
+            gap: 8,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)' }} />
+            SIN CONEXIÓN
+          </div>
+        )}
+
+        <ToastContainer />
+
+        {/* App header — GRAW mark + wordmark + avatar */}
+        <div style={{
+          flexShrink: 0, height: 56,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 20px',
+        }}>
+          {/* Left: GRAW mark + wordmark */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <GrawMark size={28} />
+            <span style={{
+              fontSize: 20, fontWeight: 800,
+              letterSpacing: '-0.04em',
+              color: 'var(--text)',
+              lineHeight: 1,
+            }}>GRAW</span>
+          </div>
+
+          {/* Right: user avatar */}
+          <button
+            onClick={() => { setEditName(user?.name || ''); setProfileOpen(true) }}
+            className="pressable"
+            style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: 'linear-gradient(145deg, var(--accent), var(--accent-deep))',
+              border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, fontWeight: 800, color: 'white',
+              boxShadow: '0 0 0 1.5px rgba(232,146,74,0.3)',
+              flexShrink: 0,
+            }}
+          >
+            {(user?.name || 'A').charAt(0).toUpperCase()}
+          </button>
+        </div>
+
+        {/* Tab content */}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', paddingBottom: 'var(--nav-h)' }}>
+          <div style={getTabStyle('today')}>
+            <TodayTab onStartWorkout={handleStartWorkout} onOpenProfile={() => { setEditName(user?.name || ''); setProfileOpen(true) }} />
+          </div>
+          <div style={getTabStyle('workout')}>
+            <WorkoutTab onSwitchTab={handleTabChange} />
+          </div>
+          <div style={getTabStyle('history')}>
+            <HistoryTab onStartWorkout={handleStartWorkout} />
+          </div>
+          <div style={getTabStyle('progress')}>
+            <ProgressTab />
+          </div>
+          <div style={getTabStyle('programs')}>
+            <ProgramsTab onSwitchTab={handleTabChange} />
+          </div>
+        </div>
+
+        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+
+        {/* Profile sheet */}
+        <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="Mi perfil">
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: 24,
+                background: 'linear-gradient(145deg, var(--accent), var(--accent-deep))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 0 30px rgba(232,146,74,0.22)',
+                fontSize: 32, fontWeight: 800, color: 'white',
+              }}>
+                {(user?.name || 'A').charAt(0).toUpperCase()}
+              </div>
+              <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>{user?.name}</p>
+              <p style={{ fontSize: 12, color: 'var(--text3)' }}>
+                Desde {new Date(user?.startDate || Date.now()).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+            <div>
+              <p className="t-label" style={{ marginBottom: 8 }}>Nombre</p>
+              <input
+                type="text"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="Tu nombre"
+                className="input"
+                style={{ fontSize: 16 }}
+              />
+            </div>
+            <button
+              onClick={() => { updateUser({ name: editName.trim() || user?.name }); setProfileOpen(false) }}
+              className="pressable"
+              style={{
+                width: '100%', height: 52, borderRadius: 14,
+                background: 'var(--accent)', border: 'none',
+                color: 'white', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(232,146,74,0.25)',
+              }}
+            >
+              Guardar
+            </button>
+            <p style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', lineHeight: 1.6 }}>
+              Datos guardados localmente · Sin cuenta · Sin conexión
+            </p>
+          </div>
+        </Sheet>
+
+        {/* Session recovery sheet */}
+        {recoveryElapsed !== null && (
+          <RecoverySheet
+            elapsed={recoveryElapsed}
+            onContinue={() => {
+              setRecoveryElapsed(null)
+              handleTabChange('workout')
+            }}
+            onDiscard={() => {
+              cancelWorkout()
+              setRecoveryElapsed(null)
+            }}
+          />
+        )}
+      </div>
+    </>
   )
 }
