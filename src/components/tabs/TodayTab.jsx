@@ -1,180 +1,175 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
-import { getGreeting, formatDate, getDayLabel, isSameDayAs } from '../../utils/dates.js'
-import { formatVolumeExact, formatVolume } from '../../utils/volume.js'
-import { getRandomRestQuote } from '../../data/quotes.js'
-import { getExerciseById, MUSCLE_COLORS, MUSCLE_NAMES } from '../../data/exercises.js'
-import { calculateStreak } from '../../utils/dates.js'
+import { getGreeting, formatDateHeader, getDayLabel, isSameDayAs, calculateStreak } from '../../utils/dates.js'
+import { formatKg, getMuscleVars, getMuscleGradient, relativeDate } from '../../utils/format.js'
+import { MUSCLE_NAMES, getExerciseById } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
 import { useWeeklyStats } from '../../hooks/useWeeklyStats.js'
 
-function AnimatedNumber({ value, duration = 800 }) {
-  const [display, setDisplay] = useState(0)
-  const ref = useRef(null)
+function useCountUp(target, duration = 700) {
+  const [value, setValue] = useState(0)
+  const raf = useRef(null)
   useEffect(() => {
     let start = null
-    const tick = (ts) => {
+    const step = ts => {
       if (!start) start = ts
       const p = Math.min((ts - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - p, 3)
-      setDisplay(Math.round(eased * value))
-      if (p < 1) ref.current = requestAnimationFrame(tick)
+      const ease = 1 - Math.pow(1 - p, 3)
+      setValue(Math.round(ease * target))
+      if (p < 1) raf.current = requestAnimationFrame(step)
     }
-    ref.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(ref.current)
-  }, [value, duration])
-  return <>{display.toLocaleString('es-ES')}</>
+    raf.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf.current)
+  }, [target])
+  return value
 }
 
 function MusclePill({ muscle }) {
-  const c = MUSCLE_COLORS[muscle]
-  if (!c) return null
+  const mv = getMuscleVars(muscle)
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center',
-      height: 22, padding: '0 8px',
-      borderRadius: 6, fontSize: 10, fontWeight: 600,
-      background: c.bg, color: c.text, border: `1px solid ${c.border}`,
-      letterSpacing: '0.02em',
-    }}>
-      {MUSCLE_NAMES[muscle]}
+    <span className="muscle-pill" style={{ background: mv.dim, color: mv.color, border: `1px solid ${mv.color}28` }}>
+      {MUSCLE_NAMES[muscle] || muscle}
     </span>
   )
 }
 
-const MuscleSquare = ({ muscle }) => {
-  const c = MUSCLE_COLORS[muscle] || {}
-  const letter = (MUSCLE_NAMES[muscle] || 'X')[0].toUpperCase()
+function Sparkline({ data = [], color = 'var(--accent)' }) {
+  if (!data.length) return null
+  const max = Math.max(...data, 1)
+  const pts = data.map((v, i) => {
+    const x = (i / Math.max(data.length - 1, 1)) * 46
+    const y = 14 - (v / max) * 12
+    return `${x},${y}`
+  }).join(' ')
+  const area = `${pts} 46,14 0,14`
   return (
-    <div style={{
-      width: 44, height: 44, borderRadius: 12,
-      background: c.bg || 'var(--surface3)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      <span style={{ fontSize: 18, fontWeight: 800, color: c.text || 'var(--text2)' }}>{letter}</span>
-    </div>
+    <svg width="48" height="16" viewBox="0 0 48 16" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id={`sg-${color.replace(/[^a-z]/gi,'')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill={`url(#sg-${color.replace(/[^a-z]/gi,'')})`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 
 export function TodayTab({ onStartWorkout, onOpenProfile }) {
   const user = useStore(s => s.user)
   const sessions = useStore(s => s.sessions)
-  const activeProgram = useStore(s => s.activeProgram)
   const programs = useStore(s => s.programs)
   const templates = useStore(s => s.templates)
+  const activeProgram = useStore(s => s.activeProgram)
   const prs = useStore(s => s.prs)
-  const { weekDays, thisWeekSessions, thisWeekVolume, volumeChange, sessionCount } = useWeeklyStats()
+  const { weekDays, thisWeekVolume, volumeChange, sessionCount } = useWeeklyStats()
+  const streak = useMemo(() => calculateStreak(sessions), [sessions])
 
   const program = programs.find(p => p.id === activeProgram)
-
-  const todayRecommendation = useMemo(() => {
+  const todayRec = useMemo(() => {
     if (!program?.days?.length) return null
-    const recentTemplateIds = sessions.slice(0, program.days.length + 2).map(s => s.templateId)
-    let nextDayIndex = 0
+    const recentIds = sessions.slice(0, program.days.length + 2).map(s => s.templateId)
+    let idx = 0
     for (let i = program.days.length - 1; i >= 0; i--) {
-      if (recentTemplateIds.includes(program.days[i].templateId)) {
-        nextDayIndex = (i + 1) % program.days.length; break
-      }
+      if (recentIds.includes(program.days[i].templateId)) { idx = (i + 1) % program.days.length; break }
     }
-    const nextDay = program.days[nextDayIndex]
-    const template = templates.find(t => t.id === nextDay?.templateId)
-    return { day: nextDay, template, program }
+    const day = program.days[idx]
+    const template = templates.find(t => t.id === day?.templateId)
+    return { day, template, program }
   }, [program, sessions, templates])
 
   const todaySession = sessions.find(s => isSameDayAs(s.date, new Date()))
-  const streak = useMemo(() => calculateStreak(sessions), [sessions])
+  const primaryMuscle = todayRec?.day?.muscles?.[0] || 'chest'
+  const mv = getMuscleVars(primaryMuscle)
+
+  const volCountUp = useCountUp(Math.round(thisWeekVolume / 1000 * 10) / 10 * 10, 700)
+  const sessCountUp = useCountUp(sessionCount)
+  const streakCountUp = useCountUp(streak.current)
+
+  // Last 7 days volume for sparkline
+  const last7Vol = useMemo(() => {
+    return weekDays.map(d => {
+      const daySessions = sessions.filter(s => isSameDayAs(s.date, d))
+      return daySessions.reduce((t, s) => t + (s.totalVolume || 0), 0)
+    })
+  }, [sessions, weekDays])
 
   const recentSessions = sessions.slice(0, 3)
 
-  const greeting = getGreeting(user.name).split(',')[0]
-  const name = user.name
-
   return (
-    <div style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px) + 20px)' }}>
-
-      {/* [A] HEADER */}
-      <div className="anim-fade-up" style={{ padding: '24px 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="pb-nav" style={{ paddingLeft: 20, paddingRight: 20, paddingTop: 24 }}>
+      {/* [A] Header */}
+      <div className="si" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text2)', marginBottom: 4 }}>
-            {greeting}
+          <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text2)', marginBottom: 5 }}>
+            {getGreeting('').split(',')[0]}
           </p>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1.1 }}>
-            {name}
+          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text)', lineHeight: 1 }}>
+            {user.name}
           </h1>
         </div>
         <button onClick={onOpenProfile} className="pressable" style={{
           width: 40, height: 40, borderRadius: '50%',
           background: 'var(--accent-dim)',
-          border: '1.5px solid var(--accent)',
+          border: '1.5px solid var(--accent-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 16, fontWeight: 700, color: 'var(--accent)',
           cursor: 'pointer', flexShrink: 0,
         }}>
-          {name.charAt(0).toUpperCase()}
+          {user.name.charAt(0).toUpperCase()}
         </button>
       </div>
 
-      {/* [B] HERO WORKOUT CARD */}
-      <div className="anim-fade-up stagger-1" style={{ margin: '0 20px 24px' }}>
+      {/* [B] Hero card */}
+      <div className="si" style={{ marginBottom: 20, animationDelay: '0.05s' }}>
         {todaySession ? (
           <div style={{
-            background: 'linear-gradient(135deg, #0e1f18 0%, #0a0f0a 100%)',
-            border: '1px solid rgba(50,213,131,0.25)',
-            borderRadius: 22, padding: '20px',
-            position: 'relative', overflow: 'hidden',
+            background: 'linear-gradient(135deg, #0e1f18 0%, var(--bg) 100%)',
+            border: '1px solid rgba(62,207,142,0.2)',
+            borderRadius: 'var(--r)', padding: 20, position: 'relative', overflow: 'hidden',
           }}>
-            <div style={{ position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%', background: 'rgba(50,213,131,0.06)', pointerEvents: 'none' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+            <div style={{ position: 'absolute', top: -30, left: -30, width: 160, height: 160, borderRadius: '50%', background: 'var(--green-dim)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, position: 'relative' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>Sesión completada hoy</span>
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 16 }}>{todaySession.name}</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 16, position: 'relative' }}>{todaySession.name}</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, position: 'relative' }}>
               {[
-                { label: 'VOLUMEN', value: formatVolumeExact(todaySession.totalVolume), unit: 'kg' },
-                { label: 'SERIES', value: todaySession.exercises?.reduce((t,e)=>t+e.sets.filter(s=>s.completed).length,0) },
-                { label: 'DURACIÓN', value: `${Math.floor((todaySession.duration||0)/60)}`, unit: 'min' },
-              ].map(({ label, value, unit }) => (
-                <div key={label}>
-                  <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                    {value}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text3)', marginLeft: 2 }}>{unit}</span>
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text2)', marginTop: 2 }}>{label}</div>
+                { l: 'VOLUMEN', v: `${formatKg(todaySession.totalVolume)} kg` },
+                { l: 'SERIES', v: todaySession.exercises?.reduce((t,e)=>t+e.sets.filter(s=>s.completed).length,0) },
+                { l: 'DURACIÓN', v: `${Math.floor((todaySession.duration||0)/60)}min` },
+              ].map(({ l, v }) => (
+                <div key={l}>
+                  <p style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{v}</p>
+                  <p style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)', marginTop: 3 }}>{l}</p>
                 </div>
               ))}
             </div>
           </div>
-        ) : todayRecommendation ? (
+        ) : todayRec ? (
           <div style={{
-            background: 'linear-gradient(135deg, #1A1535 0%, #0F0F1E 100%)',
-            border: '1px solid rgba(124,111,247,0.2)',
-            borderRadius: 22, padding: '20px',
-            position: 'relative', overflow: 'hidden',
-            minHeight: 160,
+            background: getMuscleGradient(primaryMuscle),
+            border: `1px solid ${mv.color}28`,
+            borderRadius: 'var(--r)', padding: 20,
+            position: 'relative', overflow: 'hidden', minHeight: 168,
           }}>
-            {/* Radial glow */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(ellipse at 20% 50%, rgba(124,111,247,0.2) 0%, transparent 60%)', pointerEvents: 'none' }} />
-            {/* Muscle pills */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 12, position: 'relative' }}>
-              {(todayRecommendation.day?.muscles || []).slice(0, 3).map(m => <MusclePill key={m} muscle={m} />)}
+            <div style={{ position: 'absolute', top: -20, left: -20, width: 160, height: 160, borderRadius: '50%', background: mv.dim, filter: 'blur(40px)', pointerEvents: 'none' }} />
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10, position: 'relative', flexWrap: 'wrap' }}>
+              {(todayRec.day?.muscles || []).slice(0, 3).map(m => <MusclePill key={m} muscle={m} />)}
             </div>
-            {/* Title */}
-            <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 6, position: 'relative' }}>
-              {todayRecommendation.day?.name}
+            <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 5, position: 'relative' }}>
+              {todayRec.day?.name}
             </h2>
             <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 20, position: 'relative' }}>
-              {todayRecommendation.template?.exercises?.length || 0} ejercicios · ~60 min
+              {todayRec.template?.exercises?.length || 0} ejercicios · ~60 min
             </p>
-            {/* CTA */}
             <button
-              className="pressable btn-shimmer"
-              onClick={() => onStartWorkout(todayRecommendation.template?.id, program?.id, todayRecommendation.day?.name)}
+              className="pressable shimmer"
+              onClick={() => onStartWorkout(todayRec.template?.id, program?.id, todayRec.day?.name)}
               style={{
                 width: '100%', height: 48,
-                background: 'var(--accent)',
-                border: 'none', borderRadius: 12,
+                background: 'var(--accent)', border: 'none', borderRadius: 12,
                 color: 'white', fontSize: 15, fontWeight: 700, letterSpacing: '0.02em',
                 cursor: 'pointer', position: 'relative', zIndex: 1,
                 boxShadow: '0 4px 20px var(--accent-glow)',
@@ -184,55 +179,38 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
             </button>
           </div>
         ) : (
-          <div style={{
-            background: 'linear-gradient(135deg, #1A1535 0%, #0F0F1E 100%)',
-            border: '1px solid rgba(124,111,247,0.15)',
-            borderRadius: 22, padding: '32px 20px',
-            textAlign: 'center',
-          }}>
-            <RestDaySVG />
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginTop: 16, marginBottom: 8 }}>Día de descanso</h3>
-            <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>{getRandomRestQuote().quote}</p>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '28px 20px', textAlign: 'center' }}>
+            <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>El descanso también es entrenamiento.</p>
+            <p style={{ fontSize: 13, color: 'var(--text2)' }}>Activa un programa en la pestaña Programas</p>
           </div>
         )}
       </div>
 
-      {/* [C] STATS ROW */}
-      <div className="anim-fade-up stagger-2" style={{ padding: '0 20px', marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-          {[
-            { label: 'KG SEMANA', value: Math.round(thisWeekVolume / 1000 * 10) / 10, unit: 'k', accent: 'var(--accent)' },
-            { label: 'SESIONES', value: sessionCount, unit: '', accent: 'var(--green)' },
-            { label: 'RACHA', value: streak.current, unit: ' días', accent: 'var(--amber)' },
-          ].map(({ label, value, unit, accent }, i) => (
-            <div key={label} style={{
-              background: 'var(--surface2)',
-              borderRadius: 16,
-              padding: '14px 12px',
-              position: 'relative',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                position: 'absolute', left: 0, top: 0, bottom: 0,
-                width: 3, borderRadius: '0 2px 2px 0',
-                background: accent,
-              }} />
-              <div style={{ paddingLeft: 4 }}>
-                <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  <AnimatedNumber value={typeof value === 'number' ? value : 0} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text3)', marginLeft: 2 }}>{unit}</span>
-                </div>
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text2)', marginTop: 6 }}>{label}</div>
-              </div>
+      {/* [C] Stats row */}
+      <div className="si" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 24, animationDelay: '0.10s' }}>
+        {[
+          { l: 'KG SEMANA', v: `${volCountUp / 10}k`, sparkData: last7Vol, accent: 'var(--accent)' },
+          { l: 'SESIONES', v: sessCountUp, sparkData: null, accent: 'var(--green)' },
+          { l: 'RACHA', v: `${streakCountUp}d`, sparkData: null, accent: 'var(--amber)' },
+        ].map(({ l, v, sparkData, accent }, i) => (
+          <div key={l} style={{
+            background: 'var(--surface2)', borderRadius: 'var(--r-sm)', padding: '14px 12px',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, borderRadius: '0 2px 2px 0', background: accent }} />
+            <div style={{ paddingLeft: 6 }}>
+              <p style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{v}</p>
+              <p style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text2)', marginTop: 5, marginBottom: sparkData ? 4 : 0 }}>{l}</p>
+              {sparkData && <Sparkline data={sparkData} color={accent} />}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
-      {/* [D] WEEK STRIP */}
-      <div className="anim-fade-up stagger-3" style={{ padding: '0 20px', marginBottom: 24 }}>
-        <div className="section-header">
-          <span className="section-label">Esta semana</span>
+      {/* [D] Week strip */}
+      <div className="si" style={{ marginBottom: 24, animationDelay: '0.15s' }}>
+        <div className="section-hd">
+          <span className="t-label">Esta semana</span>
           {volumeChange !== null && (
             <span style={{ fontSize: 12, fontWeight: 600, color: volumeChange >= 0 ? 'var(--green)' : 'var(--red)', fontVariantNumeric: 'tabular-nums' }}>
               {volumeChange >= 0 ? '↑' : '↓'} {Math.abs(volumeChange)}%
@@ -244,51 +222,68 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
             const isToday = isSameDayAs(day, new Date())
             const trained = sessions.some(s => isSameDayAs(s.date, day))
             return (
-              <div
-                key={i}
-                className={isToday ? 'today-ring' : ''}
-                style={{
-                  flex: 1, height: 52, borderRadius: 12,
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 6,
-                  background: trained ? 'var(--green-dim)' : isToday ? 'var(--accent-dim)' : 'var(--surface)',
-                  border: trained ? '1px solid rgba(50,213,131,0.3)'
-                       : isToday ? '1px solid rgba(124,111,247,0.4)'
-                       : '1px solid var(--border)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
+              <div key={i} style={{
+                flex: 1, height: 52, borderRadius: 12,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 5,
+                background: trained ? 'var(--green-dim)' : isToday ? 'var(--accent-dim)' : 'var(--surface)',
+                border: `1px solid ${trained ? 'rgba(62,207,142,0.25)' : isToday ? 'var(--accent-border)' : 'var(--border)'}`,
+                animation: isToday ? 'ringPulse 2.5s ease-out infinite' : 'none',
+              }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: trained ? 'var(--green)' : isToday ? 'var(--accent)' : 'var(--text3)' }}>
                   {getDayLabel(day)}
                 </span>
                 {trained && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />}
-                {isToday && !trained && <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', opacity: 0.8 }} />}
+                {isToday && !trained && <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', opacity: 0.7 }} />}
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* [E] RECENT SESSIONS */}
+      {/* [E] Recent sessions */}
       {recentSessions.length > 0 && (
-        <div className="anim-fade-up stagger-4" style={{ padding: '0 20px' }}>
-          <div className="section-header">
-            <span className="section-label">Últimas sesiones</span>
-            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>Ver todo</span>
+        <div className="si" style={{ animationDelay: '0.20s' }}>
+          <div className="section-hd">
+            <span className="t-label">Últimas sesiones</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {recentSessions.map((session, i) => {
               const primary = session.muscles?.[0]
+              const mv2 = getMuscleVars(primary)
+              const prev = sessions[i + 1]
+              const delta = prev ? session.totalVolume - prev.totalVolume : null
               return (
-                <div key={session.id} className="pressable card-sm" style={{ padding: '14px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <MuscleSquare muscle={primary} />
+                <div key={session.id} className="pressable" style={{
+                  background: 'var(--surface)',
+                  borderLeft: `3px solid ${mv2.color}`,
+                  border: `1px solid var(--border)`,
+                  borderLeftWidth: 3,
+                  borderLeftColor: mv2.color,
+                  borderRadius: 'var(--r-sm)',
+                  padding: '13px 13px',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: mv2.dim, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: mv2.color }}>
+                      {(MUSCLE_NAMES[primary] || 'X')[0].toUpperCase()}
+                    </span>
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.name}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text2)' }}>{formatDate(session.date)} · {Math.floor((session.duration || 0) / 60)}min</p>
+                    <p style={{ fontSize: 12, color: 'var(--text2)' }}>{relativeDate(session.date)} · {Math.floor((session.duration || 0) / 60)}min</p>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <p style={{ fontSize: 17, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: 'var(--text)' }}>{formatVolumeExact(session.totalVolume)}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text3)' }}>kg</p>
+                    <p style={{ fontSize: 17, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: 'var(--text)' }}>{formatKg(session.totalVolume)}</p>
+                    {delta !== null && (
+                      <p style={{ fontSize: 11, fontWeight: 600, color: delta >= 0 ? 'var(--green)' : 'var(--red)', fontVariantNumeric: 'tabular-nums' }}>
+                        {delta >= 0 ? '+' : ''}{formatKg(Math.abs(delta))} kg
+                      </p>
+                    )}
                   </div>
                 </div>
               )
@@ -297,17 +292,5 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
         </div>
       )}
     </div>
-  )
-}
-
-function RestDaySVG() {
-  return (
-    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto', display: 'block' }}>
-      <circle cx="40" cy="40" r="30" stroke="var(--text3)" strokeWidth="1.5"/>
-      <circle cx="40" cy="40" r="20" stroke="var(--text3)" strokeWidth="1.5"/>
-      <circle cx="40" cy="40" r="10" stroke="var(--text3)" strokeWidth="1.5"/>
-      <circle cx="40" cy="40" r="3" fill="var(--text3)"/>
-      <line x1="20" y1="20" x2="60" y2="60" stroke="var(--text3)" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
   )
 }

@@ -4,7 +4,6 @@ import useStore from '../store/index.js'
 export function useWorkoutTimer() {
   const activeWorkout = useStore(s => s.activeWorkout)
   const [elapsed, setElapsed] = useState(0)
-
   useEffect(() => {
     if (!activeWorkout) { setElapsed(0); return }
     const update = () => {
@@ -12,51 +11,43 @@ export function useWorkoutTimer() {
       setElapsed(diff)
     }
     update()
-    const interval = setInterval(update, 1000)
-    return () => clearInterval(interval)
-  }, [activeWorkout])
-
+    const id = setInterval(update, 1000)
+    return () => clearInterval(id)
+  }, [activeWorkout?.startTime])
   return elapsed
 }
 
-export function useRestTimer(defaultSeconds) {
+export function useRestTimer(defaultSeconds = 90) {
   const [active, setActive] = useState(false)
   const [remaining, setRemaining] = useState(defaultSeconds)
   const [total, setTotal] = useState(defaultSeconds)
-  const intervalRef = useRef(null)
+  const ref = useRef(null)
+
+  const stop = () => { setActive(false); clearInterval(ref.current) }
 
   const start = (seconds) => {
     const t = seconds ?? defaultSeconds
+    clearInterval(ref.current)
     setTotal(t)
     setRemaining(t)
     setActive(true)
   }
 
-  const stop = () => {
-    setActive(false)
-    clearInterval(intervalRef.current)
-  }
-
-  const reset = () => {
-    stop()
-    setRemaining(total)
-  }
-
   useEffect(() => {
     if (!active) return
-    intervalRef.current = setInterval(() => {
+    ref.current = setInterval(() => {
       setRemaining(r => {
         if (r <= 1) {
-          clearInterval(intervalRef.current)
+          clearInterval(ref.current)
           setActive(false)
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+          try { navigator.vibrate([200,100,200]) } catch {}
           return 0
         }
         return r - 1
       })
     }, 1000)
-    return () => clearInterval(intervalRef.current)
+    return () => clearInterval(ref.current)
   }, [active])
 
-  return { active, remaining, total, start, stop, reset }
+  return { active, remaining, total, start, stop }
 }

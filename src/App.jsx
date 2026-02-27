@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
 import { WorkoutTab } from './components/tabs/WorkoutTab.jsx'
@@ -10,17 +10,24 @@ import { ToastContainer } from './components/ui/Toast.jsx'
 import useStore from './store/index.js'
 import './App.css'
 
-const TABS = ['today', 'history', 'workout', 'progress', 'programs']
-const DURATION = 280
+const TABS = ['today','history','workout','progress','programs']
+const TAB_GLOWS = {
+  today:    'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(94,106,210,0.10) 0%, transparent 70%)',
+  workout:  'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(94,106,210,0.14) 0%, transparent 70%)',
+  history:  'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(94,106,210,0.08) 0%, transparent 70%)',
+  progress: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(62,207,142,0.08) 0%, transparent 70%)',
+  programs: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245,166,35,0.06) 0%, transparent 70%)',
+}
+const DUR = 260
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('today')
   const [prevTab, setPrevTab] = useState(null)
   const [direction, setDirection] = useState(1)
-  const [animating, setAnimating] = useState(false)
+  const [transitioning, setTransitioning] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [splash, setSplash] = useState(true)
-  const contentRef = useRef(null)
+  const [offline, setOffline] = useState(!navigator.onLine)
 
   const user = useStore(s => s.user)
   const updateUser = useStore(s => s.updateUser)
@@ -32,15 +39,22 @@ export default function App() {
     return () => clearTimeout(t)
   }, [])
 
+  useEffect(() => {
+    const on = () => setOffline(false)
+    const off = () => setOffline(true)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
+
   const handleTabChange = (tab) => {
-    if (tab === activeTab || animating) return
-    const ci = TABS.indexOf(activeTab)
-    const ni = TABS.indexOf(tab)
+    if (tab === activeTab || transitioning) return
+    const ci = TABS.indexOf(activeTab), ni = TABS.indexOf(tab)
     setDirection(ni > ci ? 1 : -1)
     setPrevTab(activeTab)
     setActiveTab(tab)
-    setAnimating(true)
-    setTimeout(() => setAnimating(false), DURATION)
+    setTransitioning(true)
+    setTimeout(() => setTransitioning(false), DUR)
   }
 
   const handleStartWorkout = (templateId, programId, name) => {
@@ -48,141 +62,83 @@ export default function App() {
     handleTabChange('workout')
   }
 
-  if (splash) {
-    return (
-      <div style={{
-        position: 'fixed', inset: 0,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        background: 'var(--bg)',
-        animation: 'fadeIn 0.4s ease',
-      }}>
-        <div style={{
-          width: 80, height: 80, borderRadius: 22,
-          background: 'linear-gradient(145deg, #7C6FF7, #5048CC)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 0 48px rgba(124,111,247,0.5)',
-          marginBottom: 20,
-          animation: 'scaleIn 0.5s cubic-bezier(0.32,0.72,0,1)',
-        }}>
-          <span style={{ fontSize: 30, fontWeight: 900, color: 'white', letterSpacing: '-0.04em' }}>LV</span>
-        </div>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em', marginBottom: 6 }}>LiftVault</h1>
-        <p style={{ fontSize: 13, color: 'var(--text3)' }}>Track the weight. Own the progress.</p>
-      </div>
-    )
-  }
-
-  const tabStyle = (tab) => {
+  const getTabStyle = (tab) => {
     const isActive = tab === activeTab
-    const isExiting = tab === prevTab && animating
-    let transform = 'translateX(0)'
-    let opacity = 1
-    if (isExiting) {
-      transform = `translateX(${direction > 0 ? '-40px' : '40px'})`
-      opacity = 0
-    } else if (isActive && animating) {
-      // entering — we use CSS animation
-    }
+    const isExiting = tab === prevTab && transitioning
+    if (!isActive && !isExiting) return { display: 'none' }
     return {
       position: 'absolute', inset: 0,
-      display: isActive || isExiting ? 'block' : 'none',
-      transform, opacity,
-      transition: `transform ${DURATION}ms cubic-bezier(0.32,0.72,0,1), opacity ${DURATION}ms ease`,
       overflowY: isActive ? 'auto' : 'hidden',
       overflowX: 'hidden',
-      animation: isActive && animating
-        ? `${direction > 0 ? 'slideInFromRight' : 'slideInFromLeft'} ${DURATION}ms cubic-bezier(0.32,0.72,0,1) both`
-        : 'none',
+      animation: isActive && transitioning
+        ? `${direction > 0 ? 'tabEnterRight' : 'tabEnterLeft'} ${DUR}ms cubic-bezier(0.32,0.72,0,1) both`
+        : isExiting
+          ? `${direction > 0 ? 'tabExitRight' : 'tabExitLeft'} ${DUR}ms cubic-bezier(0.32,0.72,0,1) both`
+          : 'none',
     }
   }
 
+  if (splash) return (
+    <div style={{ position:'fixed',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'var(--bg)',animation:'fadeIn 0.4s ease' }}>
+      <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:20,animation:'scaleIn 0.5s cubic-bezier(0.32,0.72,0,1)' }}>
+        <div style={{ width:80,height:80,borderRadius:22,background:'linear-gradient(145deg,var(--accent),#4857c4)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 48px var(--accent-glow)' }}>
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="18" r="14" stroke="white" strokeWidth="1.5"/>
+            <line x1="18" y1="10" x2="18" y2="26" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="18" x2="26" y2="18" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="18" cy="18" r="3" stroke="white" strokeWidth="1.5"/>
+          </svg>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <p style={{ fontSize:26,color:'var(--text)',letterSpacing:'-0.03em',lineHeight:1 }}>
+            <span style={{ fontWeight:500,color:'var(--text2)' }}>Lift</span><span style={{ fontWeight:800 }}>Vault</span>
+          </p>
+          <p style={{ fontSize:13,color:'var(--text3)',marginTop:6 }}>Track the weight. Own the progress.</p>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      height: '100dvh', overflow: 'hidden',
-      background: 'var(--bg)',
-      paddingTop: 'env(safe-area-inset-top, 0px)',
-    }}>
-      <style>{`
-        @keyframes slideInFromRight {
-          from { opacity: 0; transform: translateX(40px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes slideInFromLeft {
-          from { opacity: 0; transform: translateX(-40px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
+    <div style={{ display:'flex',flexDirection:'column',height:'100dvh',overflow:'hidden',background:'var(--bg)',paddingTop:'env(safe-area-inset-top,0px)' }}>
+      {/* Background glow */}
+      <div className="bg-glow" style={{ background: TAB_GLOWS[activeTab] }} />
+
+      {/* Offline bar */}
+      {offline && <div className="offline-bar">SIN CONEXIÓN</div>}
 
       <ToastContainer />
 
-      {/* Main content area */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <div style={tabStyle('today')}>
-          <TodayTab onStartWorkout={handleStartWorkout} onOpenProfile={() => { setEditName(user.name); setProfileOpen(true) }} />
-        </div>
-        <div style={tabStyle('workout')}>
-          <WorkoutTab />
-        </div>
-        <div style={tabStyle('history')}>
-          <HistoryTab />
-        </div>
-        <div style={tabStyle('progress')}>
-          <ProgressTab />
-        </div>
-        <div style={tabStyle('programs')}>
-          <ProgramsTab />
-        </div>
+      {/* Tab content */}
+      <div style={{ flex:1,position:'relative',overflow:'hidden',paddingBottom:'var(--nav-h)' }}>
+        <div style={getTabStyle('today')}><TodayTab onStartWorkout={handleStartWorkout} onOpenProfile={()=>{setEditName(user.name);setProfileOpen(true)}}/></div>
+        <div style={getTabStyle('workout')}><WorkoutTab /></div>
+        <div style={getTabStyle('history')}><HistoryTab /></div>
+        <div style={getTabStyle('progress')}><ProgressTab /></div>
+        <div style={getTabStyle('programs')}><ProgramsTab /></div>
       </div>
 
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* Profile sheet */}
-      <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="Mi perfil">
-        <div style={{ padding: '20px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
-            <div style={{
-              width: 80, height: 80, borderRadius: 24,
-              background: 'linear-gradient(145deg, #7C6FF7, #5048CC)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 30px rgba(124,111,247,0.3)',
-              fontSize: 32, fontWeight: 800, color: 'white',
-            }}>
+      <Sheet open={profileOpen} onClose={()=>setProfileOpen(false)} title="Mi perfil">
+        <div style={{ padding:'20px',display:'flex',flexDirection:'column',gap:20 }}>
+          <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:12,padding:'16px 0' }}>
+            <div style={{ width:80,height:80,borderRadius:24,background:'linear-gradient(145deg,var(--accent),#4857c4)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 30px var(--accent-glow)',fontSize:32,fontWeight:800,color:'white' }}>
               {user.name.charAt(0).toUpperCase()}
             </div>
-            <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{user.name}</p>
-            <p style={{ fontSize: 12, color: 'var(--text3)' }}>
-              LiftVault · Desde {new Date(user.startDate).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-            </p>
+            <p style={{ fontSize:18,fontWeight:700,color:'var(--text)',letterSpacing:'-0.02em' }}>{user.name}</p>
+            <p style={{ fontSize:12,color:'var(--text3)' }}>Desde {new Date(user.startDate).toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</p>
           </div>
-
           <div>
-            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text2)', marginBottom: 8 }}>Nombre</p>
-            <input
-              type="text"
-              value={editName}
-              onChange={e => setEditName(e.target.value)}
-              placeholder="Tu nombre"
-              className="input-base"
-            />
+            <p className="t-label" style={{ marginBottom:8 }}>Nombre</p>
+            <input type="text" value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Tu nombre" className="input"/>
           </div>
-
-          <button
-            onClick={() => { updateUser({ name: editName.trim() || user.name }); setProfileOpen(false) }}
-            className="pressable btn-shimmer"
-            style={{
-              width: '100%', height: 52, borderRadius: 14,
-              background: 'var(--accent)', border: 'none',
-              color: 'white', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-            }}
-          >
+          <button onClick={()=>{updateUser({name:editName.trim()||user.name});setProfileOpen(false)}} className="pressable shimmer" style={{ width:'100%',height:52,borderRadius:14,background:'var(--accent)',border:'none',color:'white',fontSize:16,fontWeight:700,cursor:'pointer' }}>
             Guardar
           </button>
-
-          <p style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', lineHeight: 1.6 }}>
-            Todos los datos se guardan localmente en tu dispositivo.<br />
-            LiftVault no requiere cuenta ni conexión a internet.
+          <p style={{ fontSize:12,color:'var(--text3)',textAlign:'center',lineHeight:1.6 }}>
+            Datos guardados localmente · Sin cuenta · Sin conexión
           </p>
         </div>
       </Sheet>
