@@ -88,26 +88,30 @@ const useStore = create(
           }))
         }
 
+        const ts = Date.now()
+        localStorage.setItem('graw_workout_start_ts', String(ts))
         set({
           activeWorkout: {
             id: uid(),
             templateId: templateId || null,
             programId: programId || null,
             name: name || 'Entrenamiento',
-            startTime: new Date().toISOString(),
+            startTime: new Date(ts).toISOString(),
             exercises,
           }
         })
       },
 
       startEmptyWorkout: () => {
+        const ts = Date.now()
+        localStorage.setItem('graw_workout_start_ts', String(ts))
         set({
           activeWorkout: {
             id: uid(),
             templateId: null,
             programId: null,
             name: 'Entrenamiento libre',
-            startTime: new Date().toISOString(),
+            startTime: new Date(ts).toISOString(),
             exercises: [],
           }
         })

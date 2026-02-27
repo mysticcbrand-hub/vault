@@ -306,7 +306,7 @@ export default function App() {
         </div>
 
         {/* Tab content */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', paddingBottom: 'var(--nav-h)' }}>
+        <div style={{ flex: 1, position: 'relative', paddingBottom: 'var(--nav-h)' }}>
           <div style={getTabStyle('today')}>
             <TodayTab onStartWorkout={handleStartWorkout} onOpenProfile={() => { setEditName(user?.name || ''); setProfileOpen(true) }} />
           </div>
