@@ -58,6 +58,8 @@
 }
 
 html, body {
+  background-color: #0C0A09;
+  color: #F5EFE6;
   background: var(--bg);
   color: var(--text);
   overscroll-behavior: none;
@@ -76,7 +78,13 @@ body::after {
     radial-gradient(ellipse 100% 60% at 50% 100%, rgba(0,0,0,0.4) 0%, transparent 70%);
 }
 
-#root { min-height: 100dvh; background: var(--bg); }
+#root {
+  min-height: 100dvh;
+  background: #0C0A09;
+  color: #F5EFE6;
+  background: var(--bg);
+  color: var(--text);
+}
 
 input, textarea { -webkit-user-select: text; user-select: text; }
 

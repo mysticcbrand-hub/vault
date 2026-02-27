@@ -8,15 +8,16 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'LiftVault',
-        short_name: 'LiftVault',
-        description: 'Track the weight. Own the progress.',
+        name: 'GRAW',
+        short_name: 'GRAW',
+        description: 'Entrena. Progresa. Domina.',
         theme_color: '#0C0A09',
         background_color: '#0C0A09',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
         icons: [
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]

@@ -7,32 +7,35 @@ import App from './App.jsx'
 // Runs once on first launch after rebrand. Backward compat: reads old keys,
 // writes to new keys, then removes old ones.
 function migrateStorage() {
-  const migrated = localStorage.getItem('graw_migrated_v1')
-  if (migrated) return
+  try {
+    const migrated = localStorage.getItem('graw_migrated_v1')
+    if (migrated) return
 
-  const keyMap = {
-    'lv_user':      'graw_user',
-    'lv_templates': 'graw_templates',
-    'lv_programs':  'graw_programs',
-    'lv_sessions':  'graw_sessions',
-    'lv_prs':       'graw_prs',
-    'lv_metrics':   'graw_metrics',
-    'lv_settings':  'graw_settings',
-  }
-
-  Object.entries(keyMap).forEach(([oldKey, newKey]) => {
-    const val = localStorage.getItem(oldKey)
-    if (val && !localStorage.getItem(newKey)) {
-      localStorage.setItem(newKey, val)
+    const keyMap = {
+      'lv_user':      'graw_user',
+      'lv_templates': 'graw_templates',
+      'lv_programs':  'graw_programs',
+      'lv_sessions':  'graw_sessions',
+      'lv_prs':       'graw_prs',
+      'lv_metrics':   'graw_metrics',
+      'lv_settings':  'graw_settings',
     }
-    // Keep old keys readable for now, remove after confirmed migration
-    localStorage.removeItem(oldKey)
-  })
 
-  // Clean any old seed/debug flags
-  ;['lv_v2_clean', 'liftvault_store', 'vault_store'].forEach(k => localStorage.removeItem(k))
+    Object.entries(keyMap).forEach(([oldKey, newKey]) => {
+      const val = localStorage.getItem(oldKey)
+      if (val && !localStorage.getItem(newKey)) {
+        localStorage.setItem(newKey, val)
+      }
+      localStorage.removeItem(oldKey)
+    })
 
-  localStorage.setItem('graw_migrated_v1', 'true')
+    // Clean any old seed/debug flags
+    ;['lv_v2_clean', 'liftvault_store', 'vault_store'].forEach(k => localStorage.removeItem(k))
+
+    localStorage.setItem('graw_migrated_v1', 'true')
+  } catch (e) {
+    // localStorage unavailable (private mode) — fail silently
+  }
 }
 
 migrateStorage()
@@ -42,7 +45,7 @@ try {
   const raw = localStorage.getItem('graw_store')
   if (raw) JSON.parse(raw)
 } catch (e) {
-  localStorage.removeItem('graw_store')
+  try { localStorage.removeItem('graw_store') } catch (e2) {}
 }
 
 createRoot(document.getElementById('root')).render(
