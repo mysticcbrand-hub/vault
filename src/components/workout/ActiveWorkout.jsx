@@ -1,4 +1,4 @@
-import { useState, memo } from 'react'
+import { useState, memo, useEffect } from 'react'
 import { ChevronLeft, Plus } from 'lucide-react'
 import { ExerciseCard } from './ExerciseCard.jsx'
 import { RestTimerPill } from './RestTimer.jsx'
@@ -29,8 +29,22 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const [editingName, setEditingName] = useState(false)
   const [restingExerciseId, setRestingExerciseId] = useState(null)
 
-  const { elapsed, start: _startTimer } = useWorkoutTimer()
+  const { elapsed, start: startTimer, stop: stopTimer } = useWorkoutTimer()
   const restTimer = useRestTimer()
+
+  // Start the Web Worker timer when workout mounts.
+  // useWorkoutTimer recovers from localStorage if already running (page refresh).
+  useEffect(() => {
+    if (!activeWorkout) return
+    // If no saved timestamp exists, write it now and start fresh
+    const saved = localStorage.getItem('graw_workout_start_ts')
+    if (!saved) {
+      const ts = new Date(activeWorkout.startTime).getTime()
+      localStorage.setItem('graw_workout_start_ts', String(ts))
+      startTimer(ts)
+    }
+    // If saved exists, useWorkoutTimer already started itself in its own useEffect
+  }, [activeWorkout?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!activeWorkout) return null
 
