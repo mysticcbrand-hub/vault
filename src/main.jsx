@@ -2,6 +2,15 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { registerSW } from 'virtual:pwa-register'
+
+// Force SW update to avoid stale cached UI
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    updateSW(true)
+  }
+})
 
 // One-time data reset — run once, then set a flag
 if (!localStorage.getItem('lv_v2_clean')) {
