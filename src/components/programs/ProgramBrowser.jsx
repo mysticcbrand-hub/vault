@@ -236,8 +236,8 @@ export function ProgramBrowser({ open, onClose, onProgramActivated }) {
       {/* Sheet */}
       <div style={{
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 81,
-        height: '92dvh', display: 'flex', flexDirection: 'column',
-        background: 'rgba(16,13,9,0.88)',
+        height: '94dvh', display: 'flex', flexDirection: 'column',
+        background: 'rgba(16,13,9,0.94)',
         backdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
         WebkitBackdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
         borderRadius: '32px 32px 0 0',
@@ -256,53 +256,53 @@ export function ProgramBrowser({ open, onClose, onProgramActivated }) {
         </div>
 
         {/* Filters */}
-        <div style={{ flexShrink: 0, overflowX: 'auto', padding: '0 20px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {/* Goal filter */}
-          <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ flexShrink: 0, padding: '0 20px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Goal filter — horizontal scroll */}
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
             {FILTER_PILLS_GOAL.map(g => (
               <button key={String(g)} onClick={() => setFilterGoal(g)} className="pressable" style={{
-                padding: '6px 12px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
+                padding: '7px 14px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap', flexShrink: 0,
                 background: filterGoal === g ? 'var(--accent-dim)' : 'var(--surface2)',
                 border: `1px solid ${filterGoal === g ? 'var(--accent-border)' : 'var(--border)'}`,
                 color: filterGoal === g ? 'var(--accent)' : 'var(--text2)',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
               }}>
                 {g ? GOAL_LABELS[g] : 'Todos'}
               </button>
             ))}
           </div>
           {/* Level + Days filters */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
             {FILTER_PILLS_LEVEL.map(l => (
               <button key={String(l)} onClick={() => setFilterLevel(l)} className="pressable" style={{
-                padding: '5px 10px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
-                background: filterLevel === l ? 'var(--surface3)' : 'var(--surface2)',
-                border: `1px solid ${filterLevel === l ? 'var(--border2)' : 'var(--border)'}`,
-                color: filterLevel === l ? 'var(--text)' : 'var(--text3)',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                padding: '6px 11px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap', flexShrink: 0,
+                background: filterLevel === l ? 'var(--accent-dim)' : 'var(--surface2)',
+                border: `1px solid ${filterLevel === l ? 'var(--accent-border)' : 'var(--border)'}`,
+                color: filterLevel === l ? 'var(--accent)' : 'var(--text2)',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}>
-                {l ? LEVEL_LABELS[l] : 'Cualquier nivel'}
+                {l ? LEVEL_LABELS[l] : 'Todos los niveles'}
               </button>
             ))}
             {FILTER_PILLS_DAYS.map(d => (
               <button key={String(d)} onClick={() => setFilterDays(d)} className="pressable" style={{
-                padding: '5px 10px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
+                padding: '6px 11px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap', flexShrink: 0,
                 background: filterDays === d ? 'var(--surface3)' : 'var(--surface2)',
                 border: `1px solid ${filterDays === d ? 'var(--border2)' : 'var(--border)'}`,
                 color: filterDays === d ? 'var(--text)' : 'var(--text3)',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}>
-                {d ? `${d} días` : 'Todos los días'}
+                {d ? `${d} días` : 'Todos'}
               </button>
             ))}
           </div>
         </div>
 
         {/* Divider */}
-        <div style={{ height: 1, background: 'var(--border)', flexShrink: 0, marginBottom: 4 }} />
+        <div style={{ height: 1, background: 'rgba(255,235,200,0.07)', flexShrink: 0 }} />
 
-        {/* Program list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Program list — scrollable */}
+        <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', padding: '12px 20px', paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.length === 0 ? (
             <div style={{ padding: '48px 0', textAlign: 'center' }}>
               <p style={{ fontSize: 14, color: 'var(--text3)' }}>Sin programas para estos filtros.</p>

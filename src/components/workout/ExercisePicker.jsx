@@ -54,81 +54,86 @@ function CustomExerciseCreator({ open, onClose, onCreated }) {
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.5)' }} />
       <div style={{
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 91,
+        maxHeight: '88dvh',
+        display: 'flex', flexDirection: 'column',
         background: 'rgba(16,13,9,0.92)',
         backdropFilter: 'blur(56px) saturate(220%)',
         WebkitBackdropFilter: 'blur(56px) saturate(220%)',
         borderRadius: '32px 32px 0 0',
         boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
-        padding: '20px 20px',
-        paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         animation: 'sheetIn 0.3s cubic-bezier(0.32,0.72,0,1)',
       }}>
-        <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 16px' }} />
-        <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 16, letterSpacing: '-0.02em' }}>Crear ejercicio</p>
+        {/* Handle */}
+        <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '12px auto 0', flexShrink: 0 }} />
 
-        {/* Name */}
-        <div style={{ marginBottom: 12 }}>
-          <p className="t-label" style={{ marginBottom: 6 }}>Nombre</p>
-          <input
-            type="text"
-            value={name}
-            onChange={e => { setName(e.target.value); setError('') }}
-            placeholder="Ej: Curl con Cuerda"
-            className="input"
-            style={{ fontSize: 16 }}
-            autoFocus
-          />
-        </div>
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
+          <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 16, letterSpacing: '-0.02em' }}>Crear ejercicio</p>
 
-        {/* Muscle */}
-        <div style={{ marginBottom: 12 }}>
-          <p className="t-label" style={{ marginBottom: 6 }}>Grupo muscular</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {ALL_MUSCLES.map(m => {
-              const mv = getMuscleVars(m)
-              const selected = muscle === m
-              return (
-                <button key={m} onClick={() => { setMuscle(m); setError('') }} className="pressable" style={{
-                  padding: '6px 12px', borderRadius: 'var(--r-pill)',
-                  background: selected ? mv.dim : 'var(--surface2)',
-                  border: `1px solid ${selected ? mv.color + '55' : 'var(--border)'}`,
-                  color: selected ? mv.color : 'var(--text2)',
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          {/* Name */}
+          <div style={{ marginBottom: 16 }}>
+            <p className="t-label" style={{ marginBottom: 8 }}>Nombre</p>
+            <input
+              type="text"
+              value={name}
+              onChange={e => { setName(e.target.value); setError('') }}
+              placeholder="Ej: Curl con Cuerda"
+              className="input"
+              style={{ fontSize: 16 }}
+              autoFocus
+            />
+          </div>
+
+          {/* Muscle */}
+          <div style={{ marginBottom: 16 }}>
+            <p className="t-label" style={{ marginBottom: 8 }}>Grupo muscular</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {ALL_MUSCLES.map(m => {
+                const mv = getMuscleVars(m)
+                const selected = muscle === m
+                return (
+                  <button key={m} onClick={() => { setMuscle(m); setError('') }} className="pressable" style={{
+                    padding: '7px 13px', borderRadius: 'var(--r-pill)',
+                    background: selected ? mv.dim : 'var(--surface2)',
+                    border: `1px solid ${selected ? mv.color + '55' : 'var(--border)'}`,
+                    color: selected ? mv.color : 'var(--text2)',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  }}>
+                    {MUSCLE_NAMES[m]}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Equipment */}
+          <div style={{ marginBottom: 16 }}>
+            <p className="t-label" style={{ marginBottom: 8 }}>Equipamiento</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {EQUIPMENT_OPTIONS.map(eq => (
+                <button key={eq.id} onClick={() => setEquipment(eq.id)} className="pressable" style={{
+                  padding: '7px 13px', borderRadius: 'var(--r-pill)',
+                  background: equipment === eq.id ? 'var(--accent-dim)' : 'var(--surface2)',
+                  border: `1px solid ${equipment === eq.id ? 'var(--accent-border)' : 'var(--border)'}`,
+                  color: equipment === eq.id ? 'var(--accent)' : 'var(--text2)',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
                 }}>
-                  {MUSCLE_NAMES[m]}
+                  {eq.label}
                 </button>
-              )
-            })}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Equipment */}
-        <div style={{ marginBottom: 12 }}>
-          <p className="t-label" style={{ marginBottom: 6 }}>Equipamiento</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {EQUIPMENT_OPTIONS.map(eq => (
-              <button key={eq.id} onClick={() => setEquipment(eq.id)} className="pressable" style={{
-                padding: '6px 12px', borderRadius: 'var(--r-pill)',
-                background: equipment === eq.id ? 'var(--accent-dim)' : 'var(--surface2)',
-                border: `1px solid ${equipment === eq.id ? 'var(--accent-border)' : 'var(--border)'}`,
-                color: equipment === eq.id ? 'var(--accent)' : 'var(--text2)',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              }}>
-                {eq.label}
-              </button>
-            ))}
+          {error && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 12 }}>{error}</p>}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} className="pressable" style={{ flex: 1, height: 52, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+              Cancelar
+            </button>
+            <button onClick={handleCreate} className="pressable" style={{ flex: 2, height: 52, borderRadius: 14, background: 'var(--accent)', border: 'none', color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+              Crear ejercicio
+            </button>
           </div>
-        </div>
-
-        {error && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 10 }}>{error}</p>}
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose} className="pressable" style={{ flex: 1, height: 48, borderRadius: 12, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-            Cancelar
-          </button>
-          <button onClick={handleCreate} className="pressable" style={{ flex: 2, height: 48, borderRadius: 12, background: 'var(--accent)', border: 'none', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-            Crear ejercicio
-          </button>
         </div>
       </div>
     </>
