@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import Onboarding from './components/Onboarding.jsx'
-import { personalizeFromOnboarding } from './data/presetPrograms.js'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
 import { WorkoutTab } from './components/tabs/WorkoutTab.jsx'
@@ -169,81 +167,8 @@ export default function App() {
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
 
-  const [isOnboarded, setIsOnboarded] = useState(() => {
-    try {
-      const raw = localStorage.getItem('liftvault-storage')
-      if (!raw) return false
-      const parsed = JSON.parse(raw)
-      const u = parsed?.state?.user
-      return !!(u?.name && u?.level && u?.goal && u?.currentWeight !== null && u?.currentWeight !== undefined)
-    } catch {
-      return false
-    }
-  })
-
-  // Only run badge detection after onboarding is complete
-  useBadgeDetection(isOnboarded)
-
-  useEffect(() => {
-    if (isOnboarded) {
-      document.body.classList.remove('onboarding-active')
-      document.body.style.overflow = 'auto'
-      document.documentElement.style.overflow = 'auto'
-      document.body.style.backgroundColor = '#0C0A09'
-      document.documentElement.style.backgroundColor = '#0C0A09'
-    }
-  }, [isOnboarded])
-
-  const handleOnboardingComplete = (data) => {
-    updateUser({
-      name: data.name,
-      level: data.level,
-      goal: data.goal,
-      unit: data.unit || 'kg',
-      currentWeight: parseFloat(data.currentWeight) || null,
-      goalWeight: parseFloat(data.goalWeight) || null,
-      goalTimeframe: data.goalTimeframe ?? null,
-      weeklyTarget: data.weeklyTarget ?? null,
-      onboardingDate: data.onboardingDate || new Date().toISOString(),
-      startDate: new Date().toISOString(),
-    })
-
-    // Force localStorage write immediately to avoid hydration lag
-    try {
-      const current = JSON.parse(localStorage.getItem('liftvault-storage') || '{}')
-      if (!current.state) current.state = {}
-      current.state.user = {
-        name: data.name,
-        level: data.level,
-        goal: data.goal,
-        unit: data.unit || 'kg',
-        currentWeight: parseFloat(data.currentWeight) || null,
-        goalWeight: parseFloat(data.goalWeight) || null,
-        goalTimeframe: data.goalTimeframe ?? null,
-        weeklyTarget: data.weeklyTarget ?? null,
-        onboardingDate: data.onboardingDate || new Date().toISOString(),
-        startDate: new Date().toISOString(),
-      }
-      localStorage.setItem('liftvault-storage', JSON.stringify(current))
-    } catch {}
-
-    if (data.currentWeight) {
-      useStore.getState().addBodyMetric({ weight: parseFloat(data.currentWeight) })
-    }
-
-    try {
-      personalizeFromOnboarding(data.level, data.goal, useStore.getState())
-    } catch {}
-
-    document.body.classList.remove('onboarding-active')
-    document.body.style.overflow = 'auto'
-    document.documentElement.style.overflow = 'auto'
-    document.body.style.backgroundColor = '#0C0A09'
-    document.documentElement.style.backgroundColor = '#0C0A09'
-    setSplash(false)
-    setSplashFading(false)
-    setIsOnboarded(true)
-  }
+  // Badge detection always enabled now that onboarding is removed
+  useBadgeDetection(true)
 
   // Keyboard detection — hide bottom nav
   useEffect(() => {
@@ -306,14 +231,6 @@ export default function App() {
           ? `${direction > 0 ? 'tabExitRight' : 'tabExitLeft'} ${DUR}ms cubic-bezier(0.32,0.72,0,1) both`
           : 'none',
     }
-  }
-
-  if (!isOnboarded) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#0C0A09', color: '#F5EFE6', zIndex: 9999 }}>
-        <Onboarding onComplete={handleOnboardingComplete} />
-      </div>
-    )
   }
 
   return (
