@@ -156,8 +156,9 @@ export default function App() {
   const [prevTab, setPrevTab] = useState(null)
   const [isOnboarded, setIsOnboarded] = useState(() => {
     try {
-      const s = JSON.parse(localStorage.getItem('graw_store') ?? '{}')
-      return !!(s?.state?.user?.onboardingComplete)
+      const graw = JSON.parse(localStorage.getItem('graw_store') ?? '{}')
+      const lift = JSON.parse(localStorage.getItem('liftvault-storage') ?? '{}')
+      return !!(graw?.state?.user?.onboardingComplete || lift?.state?.user?.onboardingComplete)
     } catch {
       return false
     }
@@ -172,6 +173,13 @@ export default function App() {
 
   const user = useStore(s => s.user)
   const updateUser = useStore(s => s.updateUser)
+
+  useEffect(() => {
+    if (user?.onboardingComplete) {
+      setIsOnboarded(true)
+    }
+  }, [user])
+
   const activeWorkout = useStore(s => s.activeWorkout)
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
