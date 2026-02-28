@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
 import Onboarding from './components/Onboarding.jsx'
 import { personalizeFromOnboarding } from './data/presetPrograms.js'
 import { BottomNav } from './components/layout/BottomNav.jsx'
@@ -109,9 +108,10 @@ function RecoverySheet({ elapsed, onContinue, onDiscard }) {
 
   return createPortal(
     <>
-      <motion.div key="rec-bd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500 }} />
-      <motion.div key="rec-sh" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+      <div
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500 }}
+      />
+      <div
         style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 501,
           background: 'rgba(16,13,9,0.88)',
@@ -146,7 +146,7 @@ function RecoverySheet({ elapsed, onContinue, onDiscard }) {
             Continuar sesión
           </button>
         </div>
-      </motion.div>
+      </div>
     </>,
     document.body
   )
@@ -158,7 +158,7 @@ export default function App() {
   const [direction, setDirection] = useState(1)
   const [transitioning, setTransitioning] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [splash, setSplash] = useState(true)
+  const [splash, setSplash] = useState(false)
   const [splashFading, setSplashFading] = useState(false)
   const [offline, setOffline] = useState(!navigator.onLine)
   const [recoveryElapsed, setRecoveryElapsed] = useState(null)
@@ -187,6 +187,10 @@ export default function App() {
   useEffect(() => {
     if (isOnboarded) {
       document.body.classList.remove('onboarding-active')
+      document.body.style.overflow = 'auto'
+      document.documentElement.style.overflow = 'auto'
+      document.body.style.backgroundColor = '#0C0A09'
+      document.documentElement.style.backgroundColor = '#0C0A09'
     }
   }, [isOnboarded])
 
@@ -231,15 +235,15 @@ export default function App() {
       personalizeFromOnboarding(data.level, data.goal, useStore.getState())
     } catch {}
 
+    document.body.classList.remove('onboarding-active')
+    document.body.style.overflow = 'auto'
+    document.documentElement.style.overflow = 'auto'
+    document.body.style.backgroundColor = '#0C0A09'
+    document.documentElement.style.backgroundColor = '#0C0A09'
+    setSplash(false)
+    setSplashFading(false)
     setIsOnboarded(true)
   }
-
-  // Splash: 800ms show → 300ms fade
-  useEffect(() => {
-    const show = setTimeout(() => setSplashFading(true), 800)
-    const hide = setTimeout(() => setSplash(false), 1100)
-    return () => { clearTimeout(show); clearTimeout(hide) }
-  }, [])
 
   // Keyboard detection — hide bottom nav
   useEffect(() => {
@@ -466,21 +470,19 @@ export default function App() {
         </Sheet>
 
         {/* Session recovery sheet */}
-        <AnimatePresence>
-          {recoveryElapsed !== null && (
-            <RecoverySheet
-              elapsed={recoveryElapsed}
-              onContinue={() => {
-                setRecoveryElapsed(null)
-                handleTabChange('workout')
-              }}
-              onDiscard={() => {
-                cancelWorkout()
-                setRecoveryElapsed(null)
-              }}
-            />
-          )}
-        </AnimatePresence>
+        {recoveryElapsed !== null && (
+          <RecoverySheet
+            elapsed={recoveryElapsed}
+            onContinue={() => {
+              setRecoveryElapsed(null)
+              handleTabChange('workout')
+            }}
+            onDiscard={() => {
+              cancelWorkout()
+              setRecoveryElapsed(null)
+            }}
+          />
+        )}
       </div>
     </div>
   )

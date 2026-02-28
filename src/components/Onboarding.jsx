@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Sprout, Flame, Zap, Dumbbell, TrendingUp, Shield } from 'lucide-react'
 
 // ── STEP 1 — Name ─────────────────────────────────────────────
@@ -322,27 +321,19 @@ export default function Onboarding({ onComplete }) {
           ))}
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            {step === 1 && <NameContent name={name} setName={setName} />}
-            {step === 2 && <LevelContent level={level} onSelect={v => handleCardSelect(setLevel, v)} />}
-            {step === 3 && <GoalContent goal={goal} onSelect={v => handleCardSelect(setGoal, v)} />}
-            {step === 4 && (
-              <BodyContent
-                currentWeight={currentWeight} setCurrentWeight={setCurrentWeight}
-                goalWeight={goalWeight} setGoalWeight={setGoalWeight}
-                unit={unit} setUnit={setUnit}
-                goal={goal} name={name}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <div>
+          {step === 1 && <NameContent name={name} setName={setName} />}
+          {step === 2 && <LevelContent level={level} onSelect={v => handleCardSelect(setLevel, v)} />}
+          {step === 3 && <GoalContent goal={goal} onSelect={v => handleCardSelect(setGoal, v)} />}
+          {step === 4 && (
+            <BodyContent
+              currentWeight={currentWeight} setCurrentWeight={setCurrentWeight}
+              goalWeight={goalWeight} setGoalWeight={setGoalWeight}
+              unit={unit} setUnit={setUnit}
+              goal={goal} name={name}
+            />
+          )}
+        </div>
 
         <div style={{ height: 24 }} />
       </div>
