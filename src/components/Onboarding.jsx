@@ -356,8 +356,7 @@ export function Onboarding({ onComplete }) {
     }}>
       {/* Inner wrapper — min-height forces full screen, can grow taller to enable scroll */}
       <div style={{
-        minHeight: '100dvh',
-        minHeight: '100vh',
+        minHeight: 'max(100dvh, 100vh)',
         display: 'flex',
         flexDirection: 'column',
         padding: '0 24px 60px',
