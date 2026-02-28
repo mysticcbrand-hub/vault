@@ -361,6 +361,13 @@ textarea.input { resize: none; }
 /* ─── KEYBOARD STATE ─────────────────────────────────────────────────────── */
 .keyboard-open .bottom-nav { display: none !important; }
 
+input[type="number"]::placeholder,
+input[type="text"]::placeholder,
+input::placeholder {
+  color: rgba(245,239,230,0.25) !important;
+  font-family: 'DM Mono', monospace;
+}
+
 /* ─── ONBOARDING: HIDE NAV (NUCLEAR) ────────────────────────── */
 /* ─── BADGE ANIMATIONS ───────────────────────────────────────────────────── */
 

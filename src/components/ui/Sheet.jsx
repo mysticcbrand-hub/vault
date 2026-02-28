@@ -15,8 +15,10 @@ const HEIGHTS = {
  */
 export function Sheet({ isOpen, onClose, size = 'medium', title, children, dismissable = true }) {
   const sheetRef = useRef(null)
-  const startY = useRef(null)
-  const currentY = useRef(0)
+  const backdropRef = useRef(null)
+  const dragStartY = useRef(null)
+  const isDragging = useRef(false)
+  const DISMISS_THRESHOLD = 80
 
   useEffect(() => {
     if (isOpen) {
@@ -28,26 +30,36 @@ export function Sheet({ isOpen, onClose, size = 'medium', title, children, dismi
   }, [isOpen])
 
   const handleTouchStart = (e) => {
-    startY.current = e.touches[0].clientY
+    dragStartY.current = e.touches[0].clientY
+    isDragging.current = true
   }
   const handleTouchMove = (e) => {
-    if (startY.current == null) return
-    const delta = e.touches[0].clientY - startY.current
-    if (delta > 0 && sheetRef.current) {
-      currentY.current = delta
-      sheetRef.current.style.transform = `translateY(${delta}px)`
-      sheetRef.current.style.transition = 'none'
+    if (!isDragging.current || !sheetRef.current) return
+    const delta = e.touches[0].clientY - dragStartY.current
+    if (delta < 0) return
+    sheetRef.current.style.transform = `translateY(${delta}px)`
+    sheetRef.current.style.transition = 'none'
+    if (backdropRef.current) {
+      backdropRef.current.style.opacity = String(1 - Math.min(delta / 200, 1) * 0.6)
     }
   }
-  const handleTouchEnd = () => {
-    if (currentY.current > 80) {
-      onClose?.()
-    } else if (sheetRef.current) {
-      sheetRef.current.style.transform = ''
-      sheetRef.current.style.transition = ''
+  const handleTouchEnd = (e) => {
+    if (!isDragging.current || !sheetRef.current) return
+    isDragging.current = false
+    const delta = e.changedTouches[0].clientY - dragStartY.current
+    if (delta > DISMISS_THRESHOLD) {
+      sheetRef.current.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)'
+      sheetRef.current.style.transform = 'translateY(100%)'
+      setTimeout(() => onClose?.(), 280)
+    } else {
+      sheetRef.current.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)'
+      sheetRef.current.style.transform = 'translateY(0)'
+      if (backdropRef.current) {
+        backdropRef.current.style.transition = 'opacity 0.3s ease'
+        backdropRef.current.style.opacity = '1'
+      }
     }
-    currentY.current = 0
-    startY.current = null
+    dragStartY.current = null
   }
 
   return createPortal(
@@ -56,6 +68,7 @@ export function Sheet({ isOpen, onClose, size = 'medium', title, children, dismi
         <>
           <motion.div
             key="sheet-backdrop"
+            ref={backdropRef}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -98,13 +111,19 @@ export function Sheet({ isOpen, onClose, size = 'medium', title, children, dismi
               overflow: 'hidden',
             }}
           >
-            {/* Drag handle */}
-            <div style={{
-              width: 36, height: 5, borderRadius: 100,
-              background: 'rgba(245,239,230,0.18)',
-              margin: '12px auto 0',
-              flexShrink: 0,
-            }} />
+            {/* Drag handle — touch target for swipe-to-dismiss */}
+            <div
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              style={{ padding: '0 0 8px', cursor: 'grab', flexShrink: 0 }}
+            >
+              <div style={{
+                width: 36, height: 5, borderRadius: 100,
+                background: 'rgba(245,239,230,0.18)',
+                margin: '12px auto 0',
+              }} />
+            </div>
 
             {/* Header */}
             {title && (

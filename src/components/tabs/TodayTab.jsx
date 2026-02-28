@@ -412,39 +412,18 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
         animate="visible"
         style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
       >
-        {/* Greeting + avatar */}
+        {/* Greeting */}
         <motion.div variants={itemVariants}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 4 }}>
-                {greeting},
-              </p>
-              <p style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1.1, marginBottom: 2 }}>
-                {user?.name || 'Atleta'} 👋
-              </p>
-              <p style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 500 }}>{dateStr}</p>
-              {todayHint && (
-                <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontStyle: 'italic' }}>{todayHint}</p>
-              )}
-            </div>
-            {/* Avatar → Profile tab */}
-            <button
-              onClick={() => onNavigate?.('profile')}
-              style={{
-                width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-                background: 'rgba(232,146,74,0.12)',
-                border: '1.5px solid rgba(232,146,74,0.28)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#E8924A',
-                transition: 'transform 0.15s ease',
-                marginTop: 2,
-              }}
-              onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.92)' }}
-              onTouchEnd={e => { e.currentTarget.style.transform = '' }}
-            >
-              {user?.avatarEmoji || user?.name?.[0]?.toUpperCase() || '?'}
-            </button>
-          </div>
+          <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 4 }}>
+            {greeting},
+          </p>
+          <p style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1.1, marginBottom: 2 }}>
+            {user?.name || 'Atleta'} 👋
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 500 }}>{dateStr}</p>
+          {todayHint && (
+            <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontStyle: 'italic' }}>{todayHint}</p>
+          )}
         </motion.div>
 
         {/* Hero workout card */}

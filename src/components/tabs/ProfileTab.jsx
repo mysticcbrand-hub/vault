@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { ChevronRight, Edit3, Download, Upload, Trash2, Medal } from 'lucide-react'
 import useStore from '../../store/index.js'
 import { ALL_BADGES } from '../../data/badges.js'
@@ -9,14 +10,48 @@ import { Sheet, OptionPicker, ConfirmDialog } from '../ui/Sheet.jsx'
 const EMOJI_OPTIONS = ['💪','🔥','⚡','🏋️','🎯','🦁','🐺','🦅','⚔️','🛡️','🌊','🏔️','🌙','☄️','🧬','💎','🔱','⚙️','🎖️','🏆']
 const REST_PRESETS = [45, 60, 90, 120, 180, 300]
 
-function StatCell({ label, value, animate }) {
+function StatCard({ label, value, accent, index }) {
   return (
-    <div className="stat-cell" style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 82 }}>
-      <div className={animate ? 'stat-count-up' : ''} style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', fontFamily: 'DM Mono, monospace', letterSpacing: '-0.02em' }}>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.055, duration: 0.28 }}
+      style={{
+        borderRadius: 16,
+        background: 'rgba(32,26,16,0.75)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '0.5px solid rgba(255,235,200,0.07)',
+        boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.06)',
+        padding: '14px 14px 12px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 14, right: 14,
+        height: 2,
+        borderRadius: '0 0 3px 3px',
+        background: accent,
+        opacity: 0.75,
+        boxShadow: `0 0 8px ${accent}`,
+      }} />
+      <div style={{
+        fontSize: 24, fontWeight: 800, letterSpacing: '-0.035em',
+        color: '#F5EFE6', fontFamily: 'DM Mono, monospace',
+        lineHeight: 1, marginTop: 6, marginBottom: 5,
+      }}>
         {value}
       </div>
-      <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</div>
-    </div>
+      <div style={{
+        fontSize: 10.5, fontWeight: 600,
+        letterSpacing: '0.055em', textTransform: 'uppercase',
+        color: 'rgba(245,239,230,0.38)', lineHeight: 1.3,
+      }}>
+        {label}
+      </div>
+    </motion.div>
   )
 }
 
@@ -171,7 +206,7 @@ export function ProfileTab() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 28, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.02em', flexShrink: 0,
             }}>
-              {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}
+              {user?.avatarEmoji || user?.name?.[0]?.toUpperCase() || '?'}
             </button>
 
             <div style={{ flex: 1 }}>
@@ -225,14 +260,31 @@ export function ProfileTab() {
 
       {/* Section 2 — Lifetime stats */}
       <div ref={statsRef} style={{ padding: '24px 20px 0' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 10 }}>Lifetime stats</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--border)' }}>
-          <div style={{ borderRadius: 'var(--r-sm) 0 0 0' }}><StatCell label="Total sesiones" value={stats.totalSessions} animate={statsVisible} /></div>
-          <div style={{ borderRadius: '0 var(--r-sm) 0 0' }}><StatCell label="Total volumen" value={formatVolumeShort(stats.totalVolume)} animate={statsVisible} /></div>
-          <div><StatCell label="Tiempo total" value={formatMinutes(sessions.reduce((t, s) => t + (s.duration || 0), 0))} animate={statsVisible} /></div>
-          <div><StatCell label="Mejor racha" value={`${stats.maxStreak} días`} animate={statsVisible} /></div>
-          <div style={{ borderRadius: '0 0 0 var(--r-sm)' }}><StatCell label="Ejercicios únicos" value={stats.uniqueExercisesCount} animate={statsVisible} /></div>
-          <div style={{ borderRadius: '0 0 var(--r-sm) 0' }}><StatCell label="Semanas activas" value={stats.activeWeeks} animate={statsVisible} /></div>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 12 }}>Lifetime stats</p>
+        <div style={{
+          borderRadius: 24,
+          background: 'rgba(24,19,12,0.60)',
+          backdropFilter: 'blur(32px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+          border: '0.5px solid rgba(255,235,200,0.09)',
+          boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.08), inset 0 -1px 0 rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.35)',
+          padding: 16,
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: -40, left: -20, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(232,146,74,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, position: 'relative' }}>
+            {[
+              { label: 'Sesiones',          value: stats.totalSessions,                                              accent: '#E8924A' },
+              { label: 'Volumen total',      value: formatVolumeShort(stats.totalVolume),                            accent: '#34C77B' },
+              { label: 'Tiempo total',       value: formatMinutes(sessions.reduce((t, s) => t + (s.duration || 0), 0)), accent: '#E8924A' },
+              { label: 'Mejor racha',        value: `${stats.maxStreak}d`,                                           accent: '#D4A843' },
+              { label: 'Ejercicios únicos',  value: stats.uniqueExercisesCount ?? stats.uniqueExercises ?? 0,        accent: '#A37FD4' },
+              { label: 'Semanas activas',    value: stats.activeWeeks ?? 0,                                          accent: '#34C77B' },
+            ].map((item, i) => (
+              <StatCard key={item.label} {...item} index={i} />
+            ))}
+          </div>
         </div>
       </div>
 
