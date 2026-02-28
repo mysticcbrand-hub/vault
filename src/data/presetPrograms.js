@@ -449,12 +449,106 @@ export const PRESET_PROGRAMS = [
   },
 ]
 
+// ─── Goal / level consequence maps ────────────────────────────────────────────
+
+export const GOAL_CONFIG = {
+  fuerza: {
+    restTimer:       180,
+    repRange:        { label: 'Fuerza', range: '3–6', color: 'var(--red)' },
+    statPriority:    ['1rm', 'volume', 'sessions'],
+    progressDefault: '1rm',
+    programFilter:   'fuerza',
+    todayHint:       'Calienta bien. Pesos pesados hoy.',
+    restMessage:     'Los descansos largos son parte del entrenamiento de fuerza.',
+    bodyGoal:        false,
+  },
+  volumen: {
+    restTimer:       120,
+    repRange:        { label: 'Hipertrofia', range: '8–12', color: 'var(--accent)' },
+    statPriority:    ['volume', 'sessions', '1rm'],
+    progressDefault: 'volume',
+    programFilter:   'volumen',
+    todayHint:       'Lleva cada serie cerca del fallo.',
+    restMessage:     '2 minutos. Suficiente para recuperarte, no tanto para enfriarte.',
+    bodyGoal:        true,
+  },
+  bajar_grasa: {
+    restTimer:       75,
+    repRange:        { label: 'Resistencia metabólica', range: '12–20', color: 'var(--green)' },
+    statPriority:    ['sessions', 'volume', 'bodyweight'],
+    progressDefault: 'bodyweight',
+    programFilter:   'definicion',
+    todayHint:       'Consistencia > intensidad. Aparece cada día.',
+    restMessage:     'Descansos cortos = más calorías quemadas.',
+    bodyGoal:        true,
+  },
+  mantenimiento: {
+    restTimer:       90,
+    repRange:        { label: 'Mantenimiento', range: '10–15', color: 'var(--text2)' },
+    statPriority:    ['sessions', 'volume', '1rm'],
+    progressDefault: 'volume',
+    programFilter:   'definicion',
+    todayHint:       'Mantener es también progresar.',
+    restMessage:     '90 segundos. Equilibrio entre fuerza y resistencia.',
+    bodyGoal:        true,
+  },
+  // Legacy support
+  definicion: {
+    restTimer:       75,
+    repRange:        { label: 'Resistencia', range: '12–20', color: 'var(--green)' },
+    statPriority:    ['sessions', 'volume', 'bodyweight'],
+    progressDefault: 'bodyweight',
+    programFilter:   'definicion',
+    todayHint:       'Consistencia > intensidad. Aparece cada día.',
+    restMessage:     'Descansos cortos = más calorías quemadas.',
+    bodyGoal:        true,
+  },
+}
+
+export const LEVEL_CONFIG = {
+  principiante: {
+    defaultSets:       3,
+    defaultReps:       10,
+    showFormTips:      true,
+    exerciseFilter:    'principiante',
+    programComplexity: 'simple',
+    freqHint:          '3 días/semana recomendados',
+  },
+  intermedio: {
+    defaultSets:       4,
+    defaultReps:       8,
+    showFormTips:      false,
+    exerciseFilter:    'principiante|intermedio',
+    programComplexity: 'moderate',
+    freqHint:          '4 días/semana recomendados',
+  },
+  avanzado: {
+    defaultSets:       4,
+    defaultReps:       6,
+    showFormTips:      false,
+    exerciseFilter:    'all',
+    programComplexity: 'advanced',
+    freqHint:          '5–6 días/semana recomendados',
+  },
+}
+
 // Personalization — run once after onboarding completes
 export function personalizeFromOnboarding(level, goal, store) {
+  // Map new goal ids to program filter tags
+  const goalToProgram = {
+    fuerza:        'fuerza',
+    volumen:       'volumen',
+    bajar_grasa:   'definicion',
+    mantenimiento: 'definicion',
+    definicion:    'definicion',
+  }
+  const programGoal = goalToProgram[goal] || goal
+
   // 1. Find the best matching preset
   const match =
-    PRESET_PROGRAMS.find(p => p.level === level && p.goal === goal) ||
-    PRESET_PROGRAMS.find(p => p.goal === goal)
+    PRESET_PROGRAMS.find(p => p.level === level && p.goal === programGoal) ||
+    PRESET_PROGRAMS.find(p => p.goal === programGoal) ||
+    PRESET_PROGRAMS.find(p => p.id === 'preset-ppl-volume')
 
   if (match) {
     const userCopy = {
@@ -468,25 +562,25 @@ export function personalizeFromOnboarding(level, goal, store) {
     store.setActiveProgram(userCopy.id)
   }
 
-  // 2. Rest timer by goal
-  const restByGoal = { fuerza: 180, volumen: 120, definicion: 75 }
-  const repRanges = {
-    fuerza:     { label: 'Fuerza',      range: '1–5 reps',   color: 'var(--red)'    },
-    volumen:    { label: 'Hipertrofia', range: '6–12 reps',  color: 'var(--accent)' },
-    definicion: { label: 'Resistencia', range: '12–20 reps', color: 'var(--green)'  },
-  }
-
+  // 2. Rest timer + rep range by goal
+  const cfg = GOAL_CONFIG[goal] || GOAL_CONFIG['volumen']
   store.updateSettings({
-    restTimerDefault: restByGoal[goal] ?? 120,
-    repRangeGuidance: repRanges[goal] ?? null,
+    restTimerDefault:    cfg.restTimer,
+    repRangeGuidance:    cfg.repRange,
+    progressDefaultChart: cfg.progressDefault,
   })
 }
 
 // Returns the preset that best matches user's level + goal (for "Para ti" badge)
 export function getRecommendedPreset(level, goal) {
+  const goalToProgram = {
+    fuerza: 'fuerza', volumen: 'volumen',
+    bajar_grasa: 'definicion', mantenimiento: 'definicion', definicion: 'definicion',
+  }
+  const programGoal = goalToProgram[goal] || goal
   return (
-    PRESET_PROGRAMS.find(p => p.level === level && p.goal === goal) ||
-    PRESET_PROGRAMS.find(p => p.goal === goal) ||
+    PRESET_PROGRAMS.find(p => p.level === level && p.goal === programGoal) ||
+    PRESET_PROGRAMS.find(p => p.goal === programGoal) ||
     null
   )
 }

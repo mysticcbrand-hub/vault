@@ -1,8 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Plus, X, Check } from 'lucide-react'
 import { EXERCISES, MUSCLE_NAMES, ALL_MUSCLES, getAllExercises, getExerciseById } from '../../data/exercises.js'
 import { getMuscleVars } from '../../utils/format.js'
 import { Sheet } from '../layout/Sheet.jsx'
+import useStore from '../../store/index.js'
 
 // ─── Custom exercise creator ──────────────────────────────────────────────────
 
@@ -47,12 +50,12 @@ function CustomExerciseCreator({ open, onClose, onCreated }) {
     onClose()
   }
 
-  if (!open) return null
-
-  return (
+  return createPortal(
+    <AnimatePresence>
+      {open && (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.5)' }} />
-      <div style={{
+      <motion.div key="cc-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.5)' }} />
+      <motion.div key="cc-sheet" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 400, damping: 40 }} style={{
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 91,
         maxHeight: '88dvh',
         display: 'flex', flexDirection: 'column',
@@ -61,7 +64,6 @@ function CustomExerciseCreator({ open, onClose, onCreated }) {
         WebkitBackdropFilter: 'blur(56px) saturate(220%)',
         borderRadius: '32px 32px 0 0',
         boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
-        animation: 'sheetIn 0.3s cubic-bezier(0.32,0.72,0,1)',
       }}>
         {/* Handle */}
         <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '12px auto 0', flexShrink: 0 }} />
@@ -135,8 +137,11 @@ function CustomExerciseCreator({ open, onClose, onCreated }) {
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </>
+      )}
+    </AnimatePresence>,
+    document.body
   )
 }
 
@@ -146,10 +151,13 @@ export function ExercisePicker({ open, onClose, onSelect }) {
   const [search, setSearch] = useState('')
   const [filterMuscle, setFilterMuscle] = useState(null)
   const [showCreator, setShowCreator] = useState(false)
+  const [showAllDifficulty, setShowAllDifficulty] = useState(false)
   const [customExercises, setCustomExercises] = useState(() => {
     try { return JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]') } catch { return [] }
   })
   const searchRef = useRef(null)
+  const user = useStore(s => s.user)
+  const userLevel = user?.level || 'avanzado'
 
   // Reset on open
   useEffect(() => {
@@ -168,9 +176,14 @@ export function ExercisePicker({ open, onClose, onSelect }) {
     return allExercises.filter(ex => {
       const matchMuscle = !filterMuscle || ex.muscle === filterMuscle
       const matchSearch = !search.trim() || ex.name.toLowerCase().includes(search.toLowerCase())
-      return matchMuscle && matchSearch
+      const matchDifficulty = showAllDifficulty || search.trim() || (() => {
+        if (userLevel === 'avanzado') return true
+        if (userLevel === 'intermedio') return ex.difficulty !== 'avanzado'
+        return ex.difficulty === 'principiante'
+      })()
+      return matchMuscle && matchSearch && matchDifficulty
     })
-  }, [allExercises, filterMuscle, search])
+  }, [allExercises, filterMuscle, search, showAllDifficulty, userLevel])
 
   // Group by muscle
   const grouped = useMemo(() => {
@@ -190,15 +203,14 @@ export function ExercisePicker({ open, onClose, onSelect }) {
     } catch {}
   }
 
-  if (!open) return null
-
-  return (
+  return createPortal(
+    <AnimatePresence>
+      {open && (
     <>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', animation: 'fadeIn 0.22s ease' }} />
+      <motion.div key="ep-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }} />
 
-      {/* Sheet */}
-      <div style={{
+      {/* Sheet — left/right/bottom, NO centering transform */}
+      <motion.div key="ep-sheet" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 400, damping: 40, mass: 1 }} style={{
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 81,
         height: '92dvh', display: 'flex', flexDirection: 'column',
         background: 'rgba(16,13,9,0.88)',
@@ -206,7 +218,6 @@ export function ExercisePicker({ open, onClose, onSelect }) {
         WebkitBackdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
         borderRadius: '32px 32px 0 0',
         boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
-        animation: 'sheetIn 0.36s cubic-bezier(0.32,0.72,0,1)',
       }}>
         {/* Handle */}
         <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '12px auto 0', flexShrink: 0 }} />
@@ -239,6 +250,14 @@ export function ExercisePicker({ open, onClose, onSelect }) {
             />
           </div>
 
+          {/* Difficulty filter toggle — only for principiante/intermedio */}
+          {userLevel !== 'avanzado' && (
+            <div style={{ marginBottom: 8 }}>
+              <button onClick={() => setShowAllDifficulty(v => !v)} style={{ padding: '4px 12px', borderRadius: 'var(--r-pill)', background: showAllDifficulty ? 'var(--surface3)' : 'var(--accent-dim)', border: `1px solid ${showAllDifficulty ? 'var(--border)' : 'var(--accent-border)'}`, color: showAllDifficulty ? 'var(--text2)' : 'var(--accent)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                {showAllDifficulty ? 'Filtro de nivel activo: No' : `Mostrando ejercicios para ${userLevel}`} {showAllDifficulty ? '— Ver todos' : '— Mostrar todos'}
+              </button>
+            </div>
+          )}
           {/* Muscle filter */}
           <div style={{ overflowX: 'auto', display: 'flex', gap: 6, paddingBottom: 8 }}>
             <button onClick={() => setFilterMuscle(null)} className="pressable" style={{
@@ -346,7 +365,7 @@ export function ExercisePicker({ open, onClose, onSelect }) {
 
           <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
-      </div>
+      </motion.div>
 
       {/* Custom exercise creator */}
       <CustomExerciseCreator
@@ -360,5 +379,8 @@ export function ExercisePicker({ open, onClose, onSelect }) {
         }}
       />
     </>
+      )}
+    </AnimatePresence>,
+    document.body
   )
 }

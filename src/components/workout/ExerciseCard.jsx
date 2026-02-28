@@ -1,23 +1,60 @@
 import { memo, useState, useCallback } from 'react'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { MoreHorizontal, Plus, Info, X } from 'lucide-react'
 import { SetRow } from './SetRow.jsx'
 import { getExerciseById, MUSCLE_NAMES } from '../../data/exercises.js'
 import { getMuscleVars, relativeDate } from '../../utils/format.js'
 import useStore from '../../store/index.js'
+
+const FORM_TIPS = {
+  'squat':       ['Rodillas en línea con los pies', 'Pecho arriba, mirada al frente', 'Desciende hasta paralelo o más'],
+  'deadlift':    ['Barra sobre el mediopié', 'Espalda recta, cadera atrás', 'Empuja el suelo, no tires de la barra'],
+  'bench':       ['Retracción escapular', 'Muñecas neutras, codos a 75°', 'Barra a la línea del pectoral bajo'],
+  'ohp':         ['Core activado, glúteos apretados', 'Barra sobre los trapecios', 'Cabeza atrás al subir'],
+  'barbell-row': ['Torso a 45°', 'Codos al cuerpo, no hacia afuera', 'Omóplatos juntos en la contracción'],
+}
+
+function FormTipSheet({ exerciseName, tips, onClose }) {
+  return createPortal(
+    <>
+      <motion.div key="ftb" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.55)' }} />
+      <motion.div key="fts" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 400, damping: 40 }} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 101, background: 'rgba(16,13,9,0.92)', backdropFilter: 'blur(48px) saturate(220%)', WebkitBackdropFilter: 'blur(48px) saturate(220%)', borderRadius: '28px 28px 0 0', boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1)', padding: '20px 20px', paddingBottom: 'calc(20px + env(safe-area-inset-bottom,0px))' }}>
+        <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 16px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Tips: {exerciseName}</p>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,235,200,0.07)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} color="var(--text2)" /></button>
+        </div>
+        {tips.map((tip, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: i < tips.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>{i + 1}</span>
+            </div>
+            <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.5 }}>{tip}</p>
+          </div>
+        ))}
+      </motion.div>
+    </>,
+    document.body
+  )
+}
 
 export const ExerciseCard = memo(function ExerciseCard({
   exercise, onAddSet, onRemoveExercise, onCompleteSet, onUpdateSet, onRemoveSet, restTimer, isResting
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [restOverrideOpen, setRestOverrideOpen] = useState(false)
+  const [formTipOpen, setFormTipOpen] = useState(false)
   const sessions = useStore(s => s.sessions)
   const prs = useStore(s => s.prs)
 
   const settings = useStore(s => s.settings)
+  const user = useStore(s => s.user)
   const exData = getExerciseById(exercise.exerciseId)
   const mv = getMuscleVars(exData?.muscle)
   const currentPR = prs[exercise.exerciseId]
   const repRange = settings?.repRangeGuidance || null
+  const showFormTip = user?.level === 'principiante' && !!FORM_TIPS[exercise.exerciseId]
 
   // Last session data for this exercise — "Última vez" reference
   const lastSession = (() => {
@@ -75,9 +112,16 @@ export const ExerciseCard = memo(function ExerciseCard({
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: mv.color, flexShrink: 0, marginTop: 5 }} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {exData?.name || exercise.exerciseId}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {exData?.name || exercise.exerciseId}
+            </p>
+            {showFormTip && (
+              <button onClick={() => setFormTipOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                <Info size={13} color="var(--text3)" />
+              </button>
+            )}
+          </div>
           {/* Última vez — non-optional progressive overload reference */}
           {lastSession ? (
             <p style={{
@@ -210,11 +254,25 @@ export const ExerciseCard = memo(function ExerciseCard({
         Añadir serie
       </button>
 
-      {/* Rest duration override sheet */}
-      {restOverrideOpen && (
+      {/* Form tip sheet — principiante only */}
+      <AnimatePresence>
+        {formTipOpen && showFormTip && (
+          <FormTipSheet
+            exerciseName={exData?.name || exercise.exerciseId}
+            tips={FORM_TIPS[exercise.exerciseId]}
+            onClose={() => setFormTipOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Rest duration override sheet — portal, no CSS animation conflict */}
+      <AnimatePresence>
+        {restOverrideOpen && createPortal(
         <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.5)' }} onClick={() => setRestOverrideOpen(false)} />
-          <div style={{
+          <motion.div key="ro-bd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.5)' }} onClick={() => setRestOverrideOpen(false)} />
+          <motion.div key="ro-sh" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+            style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 51,
             background: 'rgba(16,13,9,0.88)',
             backdropFilter: 'blur(56px) saturate(220%)',
@@ -223,7 +281,6 @@ export const ExerciseCard = memo(function ExerciseCard({
             boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
             padding: '20px 20px',
             paddingBottom: 'calc(20px + env(safe-area-inset-bottom,0px))',
-            animation: 'sheetIn 0.3s cubic-bezier(0.32,0.72,0,1)',
           }}>
             <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 16px' }} />
             <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 16, textAlign: 'center' }}>
@@ -254,9 +311,11 @@ export const ExerciseCard = memo(function ExerciseCard({
                 )
               })}
             </div>
-          </div>
-        </>
-      )}
+          </motion.div>
+        </>,
+        document.body
+        )}
+      </AnimatePresence>
     </div>
   )
 })

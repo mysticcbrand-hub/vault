@@ -6,6 +6,7 @@ import { MUSCLE_NAMES, getExerciseById } from '../../data/exercises.js'
 import { calculateStreak, isSameDayAs, getGreeting, formatDateHeader } from '../../utils/dates.js'
 import useStore from '../../store/index.js'
 import { useWeeklyStats } from '../../hooks/useWeeklyStats.js'
+import { GOAL_CONFIG } from '../../data/presetPrograms.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -300,31 +301,21 @@ function StreakCard({ streak }) {
   )
 }
 
-function StatCards({ weeklyVolume, weeklySessions, topPR }) {
+function StatCards({ weeklyVolume, weeklySessions, topPR, weightDelta, statPriority }) {
   const volUp = useCountUp(weeklyVolume)
   const sessUp = useCountUp(weeklySessions)
   const prUp = useCountUp(topPR?.weight || 0)
+  const deltaUp = useCountUp(Math.abs(weightDelta || 0))
 
-  const cards = [
-    {
-      label: 'Volumen sem.',
-      value: formatVolume(volUp),
-      unit: 'kg esta semana',
-      accent: 'var(--accent)',
-    },
-    {
-      label: 'Sesiones',
-      value: String(sessUp),
-      unit: 'esta semana',
-      accent: 'var(--green)',
-    },
-    {
-      label: 'Mejor marca',
-      value: topPR ? `${prUp}kg` : '—',
-      unit: topPR ? (topPR.exerciseName.length > 12 ? topPR.exerciseName.slice(0, 12) + '…' : topPR.exerciseName) : 'Sin récords',
-      accent: '#D4A843',
-    },
-  ]
+  const allStats = {
+    '1rm':        { label: 'Mejor 1RM',     value: topPR ? `${prUp}kg` : '—', unit: topPR ? (topPR.exerciseName.length > 12 ? topPR.exerciseName.slice(0, 12) + '…' : topPR.exerciseName) : 'Sin récords', accent: 'var(--red)' },
+    'volume':     { label: 'Volumen sem.',   value: formatVolume(volUp),        unit: 'kg esta semana',  accent: 'var(--accent)' },
+    'sessions':   { label: 'Sesiones',       value: String(sessUp),             unit: 'esta semana',     accent: 'var(--green)' },
+    'bodyweight': { label: 'Progreso peso',  value: weightDelta != null ? `${weightDelta >= 0 ? '+' : ''}${(weightDelta || 0).toFixed(1)}` : '—', unit: 'kg este mes', accent: 'var(--green)' },
+  }
+
+  const priority = statPriority || ['volume', 'sessions', '1rm']
+  const cards = priority.slice(0, 3).map(key => allStats[key]).filter(Boolean)
 
   return (
     <div style={{ display: 'flex', gap: 8 }}>
@@ -384,11 +375,25 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
   const next = useMemo(() => deriveNextWorkout(program, templates, sessions), [program, templates, sessions])
   const topPR = useMemo(() => deriveTopRecentPR(prs, sessions), [prs, sessions])
 
-  const greeting = getGreeting(user?.name || 'Atleta').split(',')[0] // just "Buenos días"
+  const greeting = getGreeting(user?.name || 'Atleta').split(',')[0]
   const dateStr = formatDateHeader()
-
-  // Today's session already done?
   const todayDone = sessions.some(s => isSameDayAs(s.date, new Date()))
+
+  // Goal-based personalization
+  const goalCfg = GOAL_CONFIG[user?.goal] || GOAL_CONFIG['volumen']
+  const statPriority = goalCfg.statPriority || ['volume', 'sessions', '1rm']
+  const todayHint = goalCfg.todayHint || null
+
+  // Weight delta for bodyweight stat card
+  const weightDelta = (() => {
+    const metrics = useStore.getState().bodyMetrics
+    if (!metrics || metrics.length < 2) return null
+    const sorted = [...metrics].sort((a, b) => new Date(a.date) - new Date(b.date))
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+    const recent = sorted.filter(m => new Date(m.date).getTime() >= cutoff)
+    if (recent.length < 2) return null
+    return recent[recent.length - 1].weight - recent[0].weight
+  })()
 
   return (
     <div style={{
@@ -413,6 +418,9 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
             {user?.name || 'Atleta'} 👋
           </p>
           <p style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 500 }}>{dateStr}</p>
+          {todayHint && (
+            <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontStyle: 'italic' }}>{todayHint}</p>
+          )}
         </motion.div>
 
         {/* Hero workout card */}
@@ -451,6 +459,8 @@ export function TodayTab({ onStartWorkout, onOpenProfile }) {
             weeklyVolume={Math.round(thisWeekVolume)}
             weeklySessions={sessionCount}
             topPR={topPR}
+            weightDelta={weightDelta}
+            statPriority={statPriority}
           />
         </motion.div>
 

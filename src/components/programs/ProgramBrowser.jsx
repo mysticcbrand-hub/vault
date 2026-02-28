@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, ChevronDown, ChevronUp, Play, Sparkles } from 'lucide-react'
 import { PRESET_PROGRAMS, getRecommendedPreset } from '../../data/presetPrograms.js'
 import { getExerciseById } from '../../data/exercises.js'
@@ -224,13 +226,15 @@ export function ProgramBrowser({ open, onClose, onProgramActivated }) {
 
   const openDetail = (program) => { setSelected(program); setView('detail') }
 
-  if (!open) return null
-
-  return (
+  return createPortal(
+    <AnimatePresence>
+      {open && (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', animation: 'fadeIn 0.22s ease' }} />
+      <motion.div key="pb-bd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+        onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }} />
 
-      <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 81, height: '94dvh', display: 'flex', flexDirection: 'column', background: 'rgba(16,13,9,0.94)', backdropFilter: 'blur(56px) saturate(220%) brightness(1.05)', WebkitBackdropFilter: 'blur(56px) saturate(220%) brightness(1.05)', borderRadius: '32px 32px 0 0', boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)', animation: 'sheetIn 0.36s cubic-bezier(0.32,0.72,0,1)', overflow: 'hidden' }}>
+      <motion.div key="pb-sh" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 400, damping: 40, mass: 1 }}
+        style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 81, height: '94dvh', display: 'flex', flexDirection: 'column', background: 'rgba(16,13,9,0.94)', backdropFilter: 'blur(56px) saturate(220%) brightness(1.05)', WebkitBackdropFilter: 'blur(56px) saturate(220%) brightness(1.05)', borderRadius: '32px 32px 0 0', boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
         <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '12px auto 0', flexShrink: 0 }} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', flexShrink: 0 }}>
@@ -281,7 +285,10 @@ export function ProgramBrowser({ open, onClose, onProgramActivated }) {
             </div>
           </>
         )}
-      </div>
+      </motion.div>
     </>
+      )}
+    </AnimatePresence>,
+    document.body
   )
 }

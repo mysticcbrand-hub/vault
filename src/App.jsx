@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Onboarding } from './components/Onboarding.jsx'
 import { personalizeFromOnboarding } from './data/presetPrograms.js'
 import { BottomNav } from './components/layout/BottomNav.jsx'
@@ -7,18 +9,22 @@ import { WorkoutTab } from './components/tabs/WorkoutTab.jsx'
 import { HistoryTab } from './components/tabs/HistoryTab.jsx'
 import { ProgressTab } from './components/tabs/ProgressTab.jsx'
 import { ProgramsTab } from './components/tabs/ProgramsTab.jsx'
+import { ProfileTab } from './components/tabs/ProfileTab.jsx'
 import { Sheet } from './components/layout/Sheet.jsx'
 import { ToastContainer } from './components/ui/Toast.jsx'
+import { BadgeUnlockToast } from './components/ui/BadgeUnlockToast.jsx'
+import { useBadgeDetection } from './hooks/useBadgeDetection.js'
 import useStore from './store/index.js'
 import './App.css'
 
-const TABS = ['today', 'history', 'workout', 'progress', 'programs']
+const TABS = ['today', 'history', 'workout', 'progress', 'programs', 'profile']
 const TAB_GLOWS = {
   today:    'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,146,74,0.10) 0%, transparent 70%)',
   workout:  'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,146,74,0.14) 0%, transparent 70%)',
   history:  'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,146,74,0.08) 0%, transparent 70%)',
   progress: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(52,199,123,0.08) 0%, transparent 70%)',
   programs: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,146,74,0.06) 0%, transparent 70%)',
+  profile:  'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(163,127,212,0.07) 0%, transparent 70%)',
 }
 const DUR = 260
 
@@ -101,20 +107,21 @@ function RecoverySheet({ elapsed, onContinue, onDiscard }) {
   const s = elapsed % 60
   const timeStr = `${m}:${String(s).padStart(2, '0')}`
 
-  return (
+  return createPortal(
     <>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500, animation: 'fadeIn 0.2s ease' }} />
-      <div style={{
-        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 501,
-        background: 'rgba(16,13,9,0.88)',
-        backdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
-        WebkitBackdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
-        borderRadius: '32px 32px 0 0',
-        boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
-        padding: '20px 24px',
-        paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
-        animation: 'sheetIn 0.36s cubic-bezier(0.32,0.72,0,1)',
-      }}>
+      <motion.div key="rec-bd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500 }} />
+      <motion.div key="rec-sh" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+        style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 501,
+          background: 'rgba(16,13,9,0.88)',
+          backdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
+          WebkitBackdropFilter: 'blur(56px) saturate(220%) brightness(1.05)',
+          borderRadius: '32px 32px 0 0',
+          boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
+          padding: '20px 24px',
+          paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+        }}>
         <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 20px' }} />
         <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6, letterSpacing: '-0.02em' }}>
           Sesión en progreso
@@ -139,12 +146,15 @@ function RecoverySheet({ elapsed, onContinue, onDiscard }) {
             Continuar sesión
           </button>
         </div>
-      </div>
-    </>
+      </motion.div>
+    </>,
+    document.body
   )
 }
 
 export default function App() {
+  useBadgeDetection()
+
   const [activeTab, setActiveTab] = useState('today')
   const [prevTab, setPrevTab] = useState(null)
   const [direction, setDirection] = useState(1)
@@ -161,7 +171,7 @@ export default function App() {
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
 
-  const isOnboarded = !!(user?.name && user?.level && user?.goal)
+  const isOnboarded = !!(user?.name && user?.level && user?.goal && user?.currentWeight !== undefined && user?.currentWeight !== null)
 
   // Splash: 800ms show → 300ms fade
   useEffect(() => {
@@ -238,9 +248,26 @@ export default function App() {
     return (
       <Onboarding
         onComplete={(data) => {
-          updateUser({ name: data.name, level: data.level, goal: data.goal, startDate: new Date().toISOString() })
-          // Personalize: auto-activate best program + configure rest timer + rep range
+          updateUser({
+            name: data.name,
+            level: data.level,
+            goal: data.goal,
+            unit: data.unit || 'kg',
+            currentWeight: data.currentWeight,
+            goalWeight: data.goalWeight ?? null,
+            goalTimeframe: data.goalTimeframe ?? null,
+            weeklyTarget: data.weeklyTarget ?? null,
+            onboardingDate: data.onboardingDate || new Date().toISOString(),
+            startDate: new Date().toISOString(),
+          })
+          // Save initial body metric if provided
+          if (data.currentWeight) {
+            useStore.getState().addBodyMetric({ weight: data.currentWeight })
+          }
+          // Personalize: auto-activate best program + configure rest timer + rep range + chart default
           personalizeFromOnboarding(data.level, data.goal, useStore.getState())
+          // Sync unit to settings
+          useStore.getState().updateSettings({ weightUnit: data.unit || 'kg' })
         }}
       />
     )
@@ -286,6 +313,7 @@ export default function App() {
         )}
 
         <ToastContainer />
+        <BadgeUnlockToast />
 
         {/* App header — GRAW mark + wordmark + avatar */}
         <div style={{
@@ -339,6 +367,9 @@ export default function App() {
           <div style={getTabStyle('programs')}>
             <ProgramsTab onSwitchTab={handleTabChange} />
           </div>
+          <div style={getTabStyle('profile')}>
+            <ProfileTab />
+          </div>
         </div>
 
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
@@ -391,19 +422,21 @@ export default function App() {
         </Sheet>
 
         {/* Session recovery sheet */}
-        {recoveryElapsed !== null && (
-          <RecoverySheet
-            elapsed={recoveryElapsed}
-            onContinue={() => {
-              setRecoveryElapsed(null)
-              handleTabChange('workout')
-            }}
-            onDiscard={() => {
-              cancelWorkout()
-              setRecoveryElapsed(null)
-            }}
-          />
-        )}
+        <AnimatePresence>
+          {recoveryElapsed !== null && (
+            <RecoverySheet
+              elapsed={recoveryElapsed}
+              onContinue={() => {
+                setRecoveryElapsed(null)
+                handleTabChange('workout')
+              }}
+              onDiscard={() => {
+                cancelWorkout()
+                setRecoveryElapsed(null)
+              }}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </>
   )

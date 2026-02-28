@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { Sun, Clock, Zap, TrendingUp, LayoutGrid } from 'lucide-react'
+import { Sun, Clock, Zap, TrendingUp, User } from 'lucide-react'
 import useStore from '../../store/index.js'
 
 const TABS = [
@@ -7,7 +7,7 @@ const TABS = [
   { id: 'history',  Icon: Clock,       label: 'Historial' },
   { id: 'workout',  Icon: Zap,         label: 'Entrenar', center: true },
   { id: 'progress', Icon: TrendingUp,  label: 'Progreso' },
-  { id: 'programs', Icon: LayoutGrid,  label: 'Programas' },
+  { id: 'profile',  Icon: User,        label: 'Perfil' },
 ]
 
 export const BottomNav = memo(function BottomNav({ activeTab, onTabChange }) {

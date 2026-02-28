@@ -19,7 +19,19 @@ function computeE1RM(weight, reps) {
 }
 
 const initialState = () => ({
-  user: { name: 'Atleta', startDate: new Date().toISOString(), unit: 'kg' },
+  user: {
+    name: 'Atleta',
+    startDate: new Date().toISOString(),
+    unit: 'kg',
+    level: null,
+    goal: null,
+    currentWeight: null,
+    goalWeight: null,
+    goalTimeframe: null,
+    onboardingDate: null,
+    weeklyTarget: null,
+    avatarEmoji: null,
+  },
   programs: SEED_PROGRAMS,
   activeProgram: 'ppl',
   templates: SEED_TEMPLATES,
@@ -27,8 +39,17 @@ const initialState = () => ({
   activeWorkout: null,
   prs: {},
   bodyMetrics: [],
-  settings: { unit: 'kg', theme: 'dark', restTimerDefault: 120 },
+  settings: {
+    unit: 'kg',
+    theme: 'dark',
+    restTimerDefault: 120,
+    repRangeGuidance: null,
+    weightUnit: 'kg',
+    progressDefaultChart: 'volume',
+  },
   toasts: [],
+  unlockedBadges: [],
+  pendingBadgeToast: null,
 })
 
 const useStore = create(
@@ -43,6 +64,9 @@ const useStore = create(
       updateSettings: (data) => set(s => ({ settings: { ...s.settings, ...data } })),
 
       // ── PROGRAMS ──────────────────────────────────────────────────────────
+      addProgram: (program) => set(s => ({
+        programs: [...s.programs, program]
+      })),
       createProgram: (data) => set(s => ({
         programs: [...s.programs, { id: uid(), days: [], ...data }]
       })),
@@ -117,7 +141,10 @@ const useStore = create(
         })
       },
 
-      cancelWorkout: () => set({ activeWorkout: null }),
+      cancelWorkout: () => {
+        localStorage.removeItem('graw_workout_start_ts')
+        set({ activeWorkout: null })
+      },
 
       updateWorkoutName: (name) => set(s => ({
         activeWorkout: s.activeWorkout ? { ...s.activeWorkout, name } : null
@@ -263,12 +290,10 @@ const useStore = create(
           exercises: activeWorkout.exercises,
           totalVolume: Math.round(totalVolume),
           notes,
-          muscles: [...new Set(activeWorkout.exercises.map(ex => {
-            // will be resolved in component
-            return ex.exerciseId
-          }))],
+          muscles: [...new Set(activeWorkout.exercises.map(ex => ex.exerciseId))],
         }
 
+        localStorage.removeItem('graw_workout_start_ts')
         set(s => ({
           sessions: [session, ...s.sessions],
           activeWorkout: null,
@@ -286,6 +311,10 @@ const useStore = create(
         sessions: s.sessions.map(s2 => s2.id === id ? { ...s2, notes } : s2)
       })),
 
+      updateSession: (id, data) => set(s => ({
+        sessions: s.sessions.map(s2 => s2.id === id ? { ...s2, ...data } : s2)
+      })),
+
       // ── BODY METRICS ──────────────────────────────────────────────────────
       addBodyMetric: (data) => set(s => ({
         bodyMetrics: [
@@ -293,6 +322,20 @@ const useStore = create(
           ...s.bodyMetrics,
         ]
       })),
+
+      deleteBodyMetric: (id) => set(s => ({
+        bodyMetrics: s.bodyMetrics.filter(m => m.id !== id)
+      })),
+
+      // ── BADGES ────────────────────────────────────────────────────────────
+      unlockBadges: (badges) => set(s => ({
+        unlockedBadges: [
+          ...s.unlockedBadges,
+          ...badges.filter(b => !s.unlockedBadges.find(u => u.id === b.id)),
+        ]
+      })),
+      setPendingBadgeToast: (badge) => set({ pendingBadgeToast: badge }),
+      clearPendingBadgeToast: () => set({ pendingBadgeToast: null }),
 
       // ── TOASTS ────────────────────────────────────────────────────────────
       addToast: (toast) => {
@@ -327,6 +370,7 @@ const useStore = create(
         prs: state.prs,
         bodyMetrics: state.bodyMetrics,
         settings: state.settings,
+        unlockedBadges: state.unlockedBadges,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.warn('Failed to rehydrate store:', error)

@@ -1,4 +1,6 @@
 import { memo, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { formatTime } from '../../hooks/useGrawTimer.js'
 
 export const RestTimerPill = memo(function RestTimerPill({ timer }) {
@@ -13,8 +15,6 @@ export const RestTimerPill = memo(function RestTimerPill({ timer }) {
     }
   }, [remaining, isActive])
 
-  if (!isActive && !isExiting) return null
-
   const ratio = total > 0 ? remaining / total : 0
   const dotColor = ratio > 0.5 ? 'var(--green)' : ratio > 0.25 ? 'var(--accent)' : 'var(--red)'
   const shadowColor = ratio > 0.5
@@ -23,13 +23,18 @@ export const RestTimerPill = memo(function RestTimerPill({ timer }) {
       ? 'rgba(232,146,74,0.18)'
       : 'rgba(229,83,75,0.18)'
 
-  return (
-    <div
+  const pill = (isActive || isExiting) ? (
+    <motion.div
+      key="rest-pill"
+      initial={{ opacity: 0, y: -16, x: '-50%' }}
+      animate={{ opacity: flashing ? 0.4 : 1, y: 0, x: '-50%' }}
+      exit={{ opacity: 0, y: -12, x: '-50%' }}
+      transition={{ type: 'spring', stiffness: 400, damping: 35 }}
       style={{
         position: 'fixed',
         top: 'calc(env(safe-area-inset-top, 0px) + 68px)',
         left: '50%',
-        transform: 'translateX(-50%)',
+        /* NO CSS transform here — Framer Motion x handles the -50% offset */
         zIndex: 150,
         display: 'flex',
         alignItems: 'center',
@@ -47,11 +52,6 @@ export const RestTimerPill = memo(function RestTimerPill({ timer }) {
           0 0 0 0.5px rgba(255,235,200,0.1),
           0 0 20px ${shadowColor}
         `,
-        animation: isExiting
-          ? 'pillExit 0.24s cubic-bezier(0.32,0.72,0,1) forwards'
-          : 'pillEnter 0.36s cubic-bezier(0.34,1.56,0.64,1) both',
-        opacity: flashing ? 0.4 : 1,
-        transition: 'opacity 0.15s ease',
         whiteSpace: 'nowrap',
       }}
     >
@@ -150,6 +150,11 @@ export const RestTimerPill = memo(function RestTimerPill({ timer }) {
       >
         Saltar
       </button>
-    </div>
+    </motion.div>
+  ) : null
+
+  return createPortal(
+    <AnimatePresence>{pill}</AnimatePresence>,
+    document.body
   )
 })

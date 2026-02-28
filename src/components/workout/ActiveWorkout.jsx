@@ -1,4 +1,6 @@
 import { useState, memo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Plus } from 'lucide-react'
 import { ExerciseCard } from './ExerciseCard.jsx'
 import { RestTimerPill } from './RestTimer.jsx'
@@ -82,31 +84,53 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     return null
   })()
 
-  // Inline confirm dialogs
-  const ConfirmOverlay = ({ children }) => (
-    <>
-      <div
-        onClick={() => { setShowCancel(false); setShowFinish(false) }}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 60, animation: 'fadeIn 0.2s ease' }}
-      />
-      <div style={{
-        position: 'fixed',
-        left: '50%', top: '50%',
-        transform: 'translate(-50%,-50%)',
-        width: 'calc(100% - 40px)', maxWidth: 340,
-        background: 'rgba(16,13,9,0.96)',
-        backdropFilter: 'blur(40px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-        border: '0.5px solid rgba(255,235,200,0.12)',
-        borderRadius: 24,
-        padding: 24,
-        zIndex: 61,
-        boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.09), 0 20px 60px rgba(0,0,0,0.7)',
-        animation: 'scaleIn 0.22s cubic-bezier(0.34,1.56,0.64,1)',
-      }}>
-        {children}
-      </div>
-    </>
+  // Inline confirm dialogs — rendered via portal to avoid timer re-render conflicts
+  const ConfirmOverlay = ({ id, children, onDismiss }) => createPortal(
+    <AnimatePresence>
+      {true && (
+        <>
+          <motion.div
+            key={`${id}-backdrop`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={onDismiss}
+            style={{
+              position: 'fixed', inset: 0,
+              background: 'rgba(0,0,0,0.65)',
+              zIndex: 60,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          />
+          <motion.div
+            key={`${id}-dialog`}
+            initial={{ opacity: 0, scale: 0.92, x: '-50%', y: 'calc(-50% + 12px)' }}
+            animate={{ opacity: 1, scale: 1,   x: '-50%', y: '-50%' }}
+            exit={{ opacity: 0,   scale: 0.95,  x: '-50%', y: 'calc(-50% + 8px)' }}
+            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+            style={{
+              position: 'fixed',
+              top: '50%', left: '50%',
+              /* NO CSS transform — Framer Motion x/y handle -50%/-50% centering */
+              width: 'calc(100% - 40px)', maxWidth: 340,
+              zIndex: 61,
+              background: 'rgba(16,13,9,0.96)',
+              backdropFilter: 'blur(40px) saturate(200%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+              border: '0.5px solid rgba(255,235,200,0.12)',
+              borderRadius: 24,
+              padding: 24,
+              boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.09), 0 20px 60px rgba(0,0,0,0.7)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {children}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>,
+    document.body
   )
 
   return (
@@ -255,7 +279,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
 
       {/* Cancel confirm */}
       {showCancel && (
-        <ConfirmOverlay>
+        <ConfirmOverlay id="cancel" onDismiss={() => setShowCancel(false)}>
           <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8, letterSpacing: '-0.02em' }}>¿Cancelar sesión?</p>
           <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 24, lineHeight: 1.5 }}>Se perderán todos los datos de esta sesión.</p>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -267,7 +291,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
 
       {/* Finish confirm */}
       {showFinish && (
-        <ConfirmOverlay>
+        <ConfirmOverlay id="finish" onDismiss={() => setShowFinish(false)}>
           <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 16, letterSpacing: '-0.02em' }}>Finalizar sesión</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
             {[

@@ -334,6 +334,80 @@ textarea.input { resize: none; }
 /* ─── KEYBOARD STATE ─────────────────────────────────────────────────────── */
 .keyboard-open .bottom-nav { display: none !important; }
 
+/* ─── BADGE ANIMATIONS ───────────────────────────────────────────────────── */
+
+/* Legendary badge outer glow pulse */
+@keyframes legendaryPulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.08); }
+}
+
+/* Shimmer sweep across badge surface */
+@keyframes badgeShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Orbit animation for legendary particles */
+@keyframes orbit {
+  from {
+    transform: rotate(var(--start-angle)) translateX(var(--orbit-r)) rotate(calc(-1 * var(--start-angle)));
+  }
+  to {
+    transform: rotate(calc(var(--start-angle) + 360deg)) translateX(var(--orbit-r)) rotate(calc(-1 * (var(--start-angle) + 360deg)));
+  }
+}
+
+.legendary-particle {
+  animation: orbit var(--duration, 4s) linear infinite;
+}
+
+/* Count-up animation trigger */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Badge shimmer rect — used as SVG overlay */
+.badge-shimmer-rect {
+  animation: badgeShimmer 3s linear infinite;
+}
+
+/* Profile stat cell count-up */
+.stat-count-up {
+  animation: countUp 0.4s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* Identity pill */
+.identity-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Settings row */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 16px;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row:active { background: var(--surface3); }
+
 /* ─── REDUCED MOTION ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
