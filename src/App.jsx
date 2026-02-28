@@ -315,8 +315,7 @@ export default function App() {
   return (
     <div style={{
       backgroundColor: '#0C0A09',
-      minHeight: '100dvh',
-      minHeight: '100vh',
+      minHeight: 'max(100dvh, 100vh)',
       position: 'relative',
       overflow: 'hidden',
     }}>
