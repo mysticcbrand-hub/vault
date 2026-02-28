@@ -2,6 +2,8 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Edit2, CheckCircle, TrendingUp, AlertCircle, Minus } from 'lucide-react'
+import { format, subDays, differenceInDays } from 'date-fns'
+import { es } from 'date-fns/locale'
 import useStore from '../../store/index.js'
 
 // ─── Bezier curve path ─────────────────────────────────────────────────────
@@ -45,87 +47,391 @@ const STATUS = {
 
 // ─── Full Body Metrics Dashboard ─────────────────────────────────────────────
 
-function WeightChart({ metrics, goalWeight, unit }) {
+function BodyWeightChart({ metrics = [], goalWeight = null, unit = 'kg' }) {
+  const [activeRange, setActiveRange] = useState('1m')
+  const [tooltip, setTooltip] = useState(null)
   const svgRef = useRef(null)
-  const [pathLen, setPathLen] = useState(0)
-  const [animated, setAnimated] = useState(false)
-  const W = 320, H = 120, PAD = { l: 36, r: 16, t: 12, b: 24 }
-  const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b
 
-  const pts = useMemo(() => {
+  const filtered = useMemo(() => {
     if (!metrics.length) return []
-    const sorted = [...metrics].sort((a, b) => new Date(a.date) - new Date(b.date))
-    const weights = sorted.map(m => m.weight)
-    const allW = goalWeight ? [...weights, goalWeight] : weights
-    const mn = Math.min(...allW) - 2, mx = Math.max(...allW) + 2
-    const range = mx - mn || 1
-    return sorted.map((m, i) => ({
-      x: PAD.l + (i / Math.max(sorted.length - 1, 1)) * iw,
-      y: PAD.t + ih - ((m.weight - mn) / range) * ih,
-      weight: m.weight, date: m.date,
-      goalY: goalWeight ? PAD.t + ih - ((goalWeight - mn) / range) * ih : null,
-    }))
-  }, [metrics, goalWeight, iw, ih])
+    const now = new Date()
+    now.setHours(23, 59, 59, 999)
+    const cutoff = {
+      '2w': subDays(now, 13),
+      '1m': subDays(now, 29),
+      '3m': subDays(now, 89),
+      '6m': subDays(now, 179),
+      'all': new Date(0),
+    }[activeRange]
 
-  const linePath = useMemo(() => pts.length > 1 ? bezierPath(pts) : '', [pts])
-  const areaPath = useMemo(() => {
-    if (pts.length < 2) return ''
-    const bottom = PAD.t + ih
-    return linePath + ` L ${pts[pts.length - 1].x} ${bottom} L ${pts[0].x} ${bottom} Z`
-  }, [linePath, pts, ih])
+    return metrics
+      .filter(m => {
+        const d = new Date(m.date)
+        return !isNaN(d) && d >= cutoff && d <= now
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map(m => ({
+        ...m,
+        date: new Date(m.date),
+        weight: typeof m.weight === 'number' ? m.weight : parseFloat(m.weight),
+      }))
+      .filter(m => !isNaN(m.weight) && m.weight > 0)
+  }, [metrics, activeRange])
 
-  useEffect(() => {
-    if (svgRef.current && linePath) {
-      const el = svgRef.current.querySelector('#bmc-line')
-      if (el) { setPathLen(el.getTotalLength()); setAnimated(true) }
+  const domainEnd = useMemo(() => {
+    const d = new Date()
+    d.setHours(23, 59, 59, 999)
+    return d
+  }, [])
+
+  const domainStart = useMemo(() => {
+    if (filtered.length === 0) return subDays(domainEnd, 30)
+    const cutoff = {
+      '2w': subDays(domainEnd, 13),
+      '1m': subDays(domainEnd, 29),
+      '3m': subDays(domainEnd, 89),
+      '6m': subDays(domainEnd, 179),
+      'all': filtered[0].date,
+    }[activeRange]
+    return cutoff
+  }, [filtered, activeRange, domainEnd])
+
+  const totalDays = Math.max(differenceInDays(domainEnd, domainStart), 1)
+
+  const W = 320
+  const H = 160
+  const PAD = { top: 20, right: 12, bottom: 28, left: 38 }
+  const plotW = W - PAD.left - PAD.right
+  const plotH = H - PAD.top - PAD.bottom
+
+  const scaleX = (date) => {
+    const days = differenceInDays(date, domainStart)
+    return PAD.left + (days / totalDays) * plotW
+  }
+
+  const { minY, maxY } = useMemo(() => {
+    if (filtered.length === 0) return { minY: 60, maxY: 100 }
+    const weights = filtered.map(m => m.weight)
+    if (goalWeight) weights.push(goalWeight)
+    const lo = Math.min(...weights)
+    const hi = Math.max(...weights)
+    const pad = Math.max((hi - lo) * 0.15, 2)
+    return { minY: lo - pad, maxY: hi + pad }
+  }, [filtered, goalWeight])
+
+  const scaleY = (weight) => {
+    return PAD.top + (1 - (weight - minY) / (maxY - minY)) * plotH
+  }
+
+  const points = filtered.map(m => ({
+    x: scaleX(m.date),
+    y: scaleY(m.weight),
+    weight: m.weight,
+    date: m.date,
+  }))
+
+  const linePath = useMemo(() => {
+    if (points.length < 2) return ''
+    let d = `M ${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`
+    for (let i = 1; i < points.length; i++) {
+      const p0 = points[i - 1]
+      const p1 = points[i]
+      const cpx = (p0.x + p1.x) / 2
+      d += ` C ${cpx.toFixed(2)},${p0.y.toFixed(2)} ${cpx.toFixed(2)},${p1.y.toFixed(2)} ${p1.x.toFixed(2)},${p1.y.toFixed(2)}`
     }
-  }, [linePath])
+    return d
+  }, [points])
 
-  const goalY = pts[0]?.goalY
-  const xLabels = (() => {
-    if (!pts.length) return []
-    const step = Math.max(1, Math.floor(pts.length / 4))
-    return pts.filter((_, i) => i % step === 0 || i === pts.length - 1)
-      .map(p => ({ x: p.x, label: new Date(p.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'numeric' }) }))
-  })()
+  const fillPath = useMemo(() => {
+    if (points.length < 2) return ''
+    const baseline = PAD.top + plotH
+    return `${linePath} L ${points[points.length - 1].x.toFixed(2)},${baseline} L ${points[0].x.toFixed(2)},${baseline} Z`
+  }, [linePath, points, PAD.top, plotH])
 
-  if (!pts.length) return (
-    <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ fontSize: 13, color: 'var(--text3)' }}>Sin datos suficientes</p>
-    </div>
-  )
+  const xTicks = useMemo(() => {
+    const ticks = []
+    const intervalDays = {
+      '2w': 2,
+      '1m': 7,
+      '3m': 14,
+      '6m': 30,
+      'all': Math.ceil(totalDays / 6),
+    }[activeRange]
+
+    let cursor = new Date(domainStart)
+    if (activeRange === '1m' || activeRange === '3m') {
+      const day = cursor.getDay()
+      const diff = (day === 0 ? 1 : 8 - day) % 7
+      cursor = new Date(cursor)
+      cursor.setDate(cursor.getDate() + diff)
+    } else if (activeRange === '6m' || activeRange === 'all') {
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    }
+
+    while (cursor <= domainEnd) {
+      const x = scaleX(cursor)
+      if (x >= PAD.left && x <= W - PAD.right) {
+        ticks.push({
+          x,
+          label: activeRange === '6m' || activeRange === 'all'
+            ? format(cursor, 'MMM', { locale: es })
+            : format(cursor, 'd MMM', { locale: es }),
+        })
+      }
+      cursor = new Date(cursor)
+      cursor.setDate(cursor.getDate() + intervalDays)
+    }
+
+    const todayX = scaleX(new Date())
+    const lastTickX = ticks[ticks.length - 1]?.x ?? 0
+    if (todayX - lastTickX > 20) {
+      ticks.push({ x: todayX, label: 'Hoy', isToday: true })
+    }
+
+    return ticks
+  }, [activeRange, domainStart, domainEnd, totalDays])
+
+  const yTicks = useMemo(() => {
+    const count = 4
+    const step = (maxY - minY) / (count - 1)
+    return Array.from({ length: count }, (_, i) => {
+      const weight = minY + i * step
+      return {
+        y: scaleY(weight),
+        label: Math.round(weight * 10) / 10,
+      }
+    }).reverse()
+  }, [minY, maxY])
+
+  const handleSvgTouch = (e) => {
+    if (!svgRef.current || points.length === 0) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const touchX = e.touches?.[0]?.clientX ?? e.clientX
+    const relX = ((touchX - rect.left) / rect.width) * W
+
+    let closest = null
+    let minDist = Infinity
+    points.forEach(pt => {
+      const dist = Math.abs(pt.x - relX)
+      if (dist < minDist) {
+        minDist = dist
+        closest = pt
+      }
+    })
+
+    if (closest && minDist < 30) {
+      setTooltip(closest)
+    } else {
+      setTooltip(null)
+    }
+  }
+
+  if (metrics.length === 0) {
+    return (
+      <div style={{
+        borderRadius: 20,
+        background: 'rgba(20,16,10,0.72)',
+        backdropFilter: 'blur(28px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        border: '0.5px solid rgba(255,235,200,0.08)',
+        padding: '40px 20px',
+        textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>⚖️</div>
+        <div style={{ fontSize: 14, color: 'rgba(245,239,230,0.4)', lineHeight: 1.5 }}>
+          Registra tu primer peso<br/>para ver tu progreso aquí
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible' }}>
-      <defs>
-        <linearGradient id="bmc-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {/* Goal line */}
-      {goalY != null && (
-        <>
-          <line x1={PAD.l} y1={goalY} x2={W - PAD.r} y2={goalY} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4 3" opacity="0.5" />
-          <text x={W - PAD.r + 2} y={goalY + 4} fontSize="9" fill="var(--accent)" opacity="0.7">{goalWeight}{unit}</text>
-        </>
-      )}
-      {/* Area fill */}
-      <path d={areaPath} fill="url(#bmc-grad)" />
-      {/* Line */}
-      <path id="bmc-line" d={linePath} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"
-        strokeDasharray={pathLen || undefined}
-        strokeDashoffset={animated ? 0 : (pathLen || 0)}
-        style={{ transition: animated ? 'stroke-dashoffset 1s cubic-bezier(0.32,0.72,0,1)' : 'none' }} />
-      {/* Latest point */}
-      {pts.length > 0 && (
-        <circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r="5" fill="var(--accent)" stroke="var(--bg)" strokeWidth="2" />
-      )}
-      {/* X labels */}
-      {xLabels.map((l, i) => (
-        <text key={i} x={l.x} y={H - 2} textAnchor="middle" fontSize="8.5" fill="var(--text3)">{l.label}</text>
-      ))}
-    </svg>
+    <div style={{
+      borderRadius: 20,
+      background: 'rgba(20,16,10,0.72)',
+      backdropFilter: 'blur(28px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+      border: '0.5px solid rgba(255,235,200,0.08)',
+      boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.07)',
+      overflow: 'hidden',
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+    }}>
+      <div style={{ display: 'flex', padding: '14px 14px 2px', gap: 2 }}>
+        {[
+          { key: '2w', label: '2 sem' },
+          { key: '1m', label: '1 mes' },
+          { key: '3m', label: '3 meses' },
+          { key: '6m', label: '6 meses' },
+          { key: 'all', label: 'Todo' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => { setActiveRange(key); setTooltip(null) }}
+            style={{
+              flex: 1, height: 28,
+              borderRadius: 8,
+              border: 'none',
+              background: activeRange === key ? 'rgba(232,146,74,0.16)' : 'transparent',
+              color: activeRange === key ? '#E8924A' : 'rgba(245,239,230,0.32)',
+              fontSize: 11, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
+        {tooltip ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: 'rgba(232,146,74,0.14)',
+            border: '0.5px solid rgba(232,146,74,0.3)',
+            borderRadius: 20, padding: '3px 12px',
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#E8924A', fontFamily: 'DM Mono, monospace' }}>
+              {tooltip.weight} {unit}
+            </span>
+            <span style={{ fontSize: 11, color: 'rgba(245,239,230,0.45)' }}>
+              {format(tooltip.date, 'd MMM yyyy', { locale: es })}
+            </span>
+          </div>
+        ) : (
+          <span style={{ fontSize: 11, color: 'rgba(245,239,230,0.2)' }}>Toca la gráfica para ver un registro</span>
+        )}
+      </div>
+
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={H}
+        style={{ display: 'block', touchAction: 'none' }}
+        onTouchStart={handleSvgTouch}
+        onTouchMove={handleSvgTouch}
+        onTouchEnd={() => setTooltip(null)}
+        onClick={handleSvgTouch}
+      >
+        <defs>
+          <linearGradient id="bwGradFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E8924A" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#E8924A" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {yTicks.map((tick, i) => (
+          <line
+            key={i}
+            x1={PAD.left} y1={tick.y}
+            x2={W - PAD.right} y2={tick.y}
+            stroke="rgba(255,235,200,0.05)"
+            strokeWidth="1"
+          />
+        ))}
+
+        {(() => {
+          const todayX = scaleX(new Date())
+          return todayX >= PAD.left && todayX <= W - PAD.right ? (
+            <line
+              x1={todayX} y1={PAD.top}
+              x2={todayX} y2={PAD.top + plotH}
+              stroke="rgba(232,146,74,0.15)"
+              strokeWidth="1"
+              strokeDasharray="3 3"
+            />
+          ) : null
+        })()}
+
+        {goalWeight && goalWeight >= minY && goalWeight <= maxY && (() => {
+          const gy = scaleY(goalWeight)
+          return (
+            <>
+              <line
+                x1={PAD.left} y1={gy}
+                x2={W - PAD.right} y2={gy}
+                stroke="rgba(232,146,74,0.3)"
+                strokeWidth="1"
+                strokeDasharray="5 4"
+              />
+              <text
+                x={W - PAD.right - 2}
+                y={gy - 4}
+                textAnchor="end"
+                fontSize="8.5"
+                fill="rgba(232,146,74,0.55)"
+                fontFamily="DM Mono, monospace"
+              >
+                meta {goalWeight}{unit}
+              </text>
+            </>
+          )
+        })()}
+
+        {fillPath && <path d={fillPath} fill="url(#bwGradFill)" />}
+
+        {linePath && (
+          <path
+            d={linePath}
+            fill="none"
+            stroke="#E8924A"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {points.map((pt, i) => {
+          const isActive = tooltip?.x === pt.x
+          const isLast = i === points.length - 1
+          return (
+            <g key={i}>
+              {(isActive || isLast) && (
+                <circle cx={pt.x} cy={pt.y} r={isActive ? 7 : 5} fill="rgba(232,146,74,0.18)" />
+              )}
+              <circle
+                cx={pt.x} cy={pt.y}
+                r={isActive ? 4.5 : isLast ? 3.5 : 2.5}
+                fill={isActive || isLast ? '#E8924A' : 'rgba(232,146,74,0.7)'}
+                stroke={isActive || isLast ? '#0C0A09' : 'none'}
+                strokeWidth="1.5"
+              />
+            </g>
+          )
+        })}
+
+        {yTicks.map((tick, i) => (
+          <text
+            key={i}
+            x={PAD.left - 5}
+            y={tick.y + 3.5}
+            textAnchor="end"
+            fontSize="9"
+            fill="rgba(245,239,230,0.28)"
+            fontFamily="DM Mono, monospace"
+          >
+            {tick.label}
+          </text>
+        ))}
+
+        {xTicks.map((tick, i) => (
+          <text
+            key={i}
+            x={tick.x}
+            y={H - 5}
+            textAnchor="middle"
+            fontSize="9"
+            fill={tick.isToday ? 'rgba(232,146,74,0.6)' : 'rgba(245,239,230,0.28)'}
+            fontFamily="DM Mono, monospace"
+            fontWeight={tick.isToday ? '700' : '400'}
+          >
+            {tick.label}
+          </text>
+        ))}
+      </svg>
+    </div>
   )
 }
 
@@ -206,8 +512,6 @@ export function BodyMetricsDashboard() {
   const user = useStore(s => s.user)
   const [weightInput, setWeightInput] = useState('')
   const [editGoalOpen, setEditGoalOpen] = useState(false)
-  const [timeFilter, setTimeFilter] = useState('1m')
-
   const unit = user?.unit || 'kg'
   const currentWeight = user?.currentWeight
   const goalWeight = user?.goalWeight
@@ -216,16 +520,6 @@ export function BodyMetricsDashboard() {
     const sorted = [...bodyMetrics].sort((a, b) => new Date(a.date) - new Date(b.date))
     return sorted[0].weight
   }, [bodyMetrics, currentWeight])
-
-  // Filter metrics by time range
-  const filteredMetrics = useMemo(() => {
-    const now = Date.now()
-    const ranges = { '2w': 14, '1m': 30, '3m': 90, '6m': 180, 'todo': 9999 }
-    const days = ranges[timeFilter] || 30
-    return [...bodyMetrics]
-      .filter(m => (now - new Date(m.date).getTime()) / 86400000 <= days)
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-  }, [bodyMetrics, timeFilter])
 
   // Latest entry
   const latest = useMemo(() => {
@@ -369,15 +663,8 @@ export function BodyMetricsDashboard() {
 
       {/* ── WEIGHT CHART ── */}
       <div style={{ background: 'rgba(24,21,16,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '18px 18px', boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.07)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <p style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)' }}>EVOLUCIÓN</p>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[['2w', '2 sem'], ['1m', '1 mes'], ['3m', '3 meses'], ['6m', '6 meses'], ['todo', 'Todo']].map(([id, lbl]) => (
-              <button key={id} onClick={() => setTimeFilter(id)} style={{ padding: '3px 8px', borderRadius: 'var(--r-pill)', background: timeFilter === id ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${timeFilter === id ? 'var(--accent-border)' : 'transparent'}`, color: timeFilter === id ? 'var(--accent)' : 'var(--text3)', fontSize: 10, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{lbl}</button>
-            ))}
-          </div>
-        </div>
-        <WeightChart metrics={filteredMetrics} goalWeight={goalWeight} unit={unit} />
+        <p style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 10 }}>EVOLUCIÓN</p>
+        <BodyWeightChart metrics={bodyMetrics} goalWeight={goalWeight} unit={unit} />
       </div>
 
       {/* ── WEEKLY WEIGH-IN STRIP ── */}
