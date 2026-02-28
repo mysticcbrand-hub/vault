@@ -310,7 +310,7 @@ export default function App() {
 
   if (!isOnboarded) {
     return (
-      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#0C0A09', zIndex: 9999 }}>
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#0C0A09', color: '#F5EFE6', zIndex: 9999 }}>
         <Onboarding onComplete={handleOnboardingComplete} />
       </div>
     )
@@ -319,6 +319,7 @@ export default function App() {
   return (
     <div style={{
       backgroundColor: '#0C0A09',
+      color: '#F5EFE6',
       minHeight: 'max(100dvh, 100vh)',
       position: 'relative',
       overflow: 'hidden',

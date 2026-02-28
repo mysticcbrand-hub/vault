@@ -286,6 +286,7 @@ export default function Onboarding({ onComplete }) {
       top: 0, left: 0, right: 0, bottom: 0,
       zIndex: 9999,
       backgroundColor: '#0C0A09',
+      color: '#F5EFE6',
       overflowY: 'scroll',
       overflowX: 'hidden',
       WebkitOverflowScrolling: 'touch',
