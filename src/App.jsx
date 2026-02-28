@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Onboarding } from './components/Onboarding.jsx'
+import Onboarding from './components/Onboarding.jsx'
 import { personalizeFromOnboarding } from './data/presetPrograms.js'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
@@ -169,11 +169,26 @@ export default function App() {
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
 
-  const isOnboarded = !!(user?.name && user?.level && user?.goal && user?.currentWeight !== undefined && user?.currentWeight !== null)
+  const [isOnboarded, setIsOnboarded] = useState(() => {
+    try {
+      const raw = localStorage.getItem('liftvault-storage')
+      if (!raw) return false
+      const parsed = JSON.parse(raw)
+      const u = parsed?.state?.user
+      return !!(u?.name && u?.level && u?.goal)
+    } catch {
+      return false
+    }
+  })
 
   // Only run badge detection after onboarding is complete
-  // Prevents "Primer Programa" badge firing during personalizeFromOnboarding()
   useBadgeDetection(isOnboarded)
+
+  useEffect(() => {
+    if (isOnboarded) {
+      document.body.classList.remove('onboarding-active')
+    }
+  }, [isOnboarded])
 
   const handleOnboardingComplete = (data) => {
     updateUser({
@@ -181,23 +196,42 @@ export default function App() {
       level: data.level,
       goal: data.goal,
       unit: data.unit || 'kg',
-      currentWeight: data.currentWeight,
-      goalWeight: data.goalWeight ?? null,
+      currentWeight: parseFloat(data.currentWeight) || null,
+      goalWeight: parseFloat(data.goalWeight) || null,
       goalTimeframe: data.goalTimeframe ?? null,
       weeklyTarget: data.weeklyTarget ?? null,
       onboardingDate: data.onboardingDate || new Date().toISOString(),
       startDate: new Date().toISOString(),
     })
+
+    // Force localStorage write immediately to avoid hydration lag
+    try {
+      const current = JSON.parse(localStorage.getItem('liftvault-storage') || '{}')
+      if (!current.state) current.state = {}
+      current.state.user = {
+        name: data.name,
+        level: data.level,
+        goal: data.goal,
+        unit: data.unit || 'kg',
+        currentWeight: parseFloat(data.currentWeight) || null,
+        goalWeight: parseFloat(data.goalWeight) || null,
+        goalTimeframe: data.goalTimeframe ?? null,
+        weeklyTarget: data.weeklyTarget ?? null,
+        onboardingDate: data.onboardingDate || new Date().toISOString(),
+        startDate: new Date().toISOString(),
+      }
+      localStorage.setItem('liftvault-storage', JSON.stringify(current))
+    } catch {}
+
     if (data.currentWeight) {
-      useStore.getState().addBodyMetric({ weight: data.currentWeight })
+      useStore.getState().addBodyMetric({ weight: parseFloat(data.currentWeight) })
     }
-    // Defer personalization until after isOnboarded flips true (state has updated)
-    // Badge detection is now enabled, and the 1500ms toast delay ensures
-    // the toast appears after the app transition animation completes
-    setTimeout(() => {
+
+    try {
       personalizeFromOnboarding(data.level, data.goal, useStore.getState())
-      useStore.getState().updateSettings({ weightUnit: data.unit || 'kg' })
-    }, 100)
+    } catch {}
+
+    setIsOnboarded(true)
   }
 
   // Splash: 800ms show → 300ms fade
@@ -270,12 +304,20 @@ export default function App() {
     }
   }
 
+  if (!isOnboarded) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#0C0A09', zIndex: 9999 }}>
+        <Onboarding onComplete={handleOnboardingComplete} />
+      </div>
+    )
+  }
+
   return (
     <div style={{
+      backgroundColor: '#0C0A09',
+      minHeight: '100dvh',
+      minHeight: '100vh',
       position: 'relative',
-      width: '100%',
-      height: '100dvh',
-      background: '#0C0A09',
       overflow: 'hidden',
     }}>
       {/* Splash */}
@@ -284,20 +326,6 @@ export default function App() {
           <SplashScreen />
         </div>
       )}
-
-      {/* Onboarding overlay — renders on top, fades out when done */}
-      <AnimatePresence>
-        {!isOnboarded && !splash && (
-          <motion.div
-            key="onboarding"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.35, ease: [0.32, 0.72, 0, 1] } }}
-            style={{ position: 'absolute', inset: 0, zIndex: 100, background: '#0C0A09' }}
-          >
-            <Onboarding onComplete={handleOnboardingComplete} />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div style={{
         display: 'flex', flexDirection: 'column',

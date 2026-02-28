@@ -1,3 +1,28 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #0C0A09 !important;
+  height: 100%;
+}
+
+body {
+  background-color: #0C0A09 !important;
+  color: #F5EFE6;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  background-color: #0C0A09 !important;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 @import "tailwindcss";
 
 /* ─── DESIGN TOKENS ─────────────────────────────────────────────────────── */
@@ -338,13 +363,9 @@ textarea.input { resize: none; }
 
 /* ─── ONBOARDING: HIDE NAV (NUCLEAR) ────────────────────────── */
 body.onboarding-active .bottom-nav,
-body.onboarding-active [class*="bottom-nav"],
-body.onboarding-active [class*="BottomNav"],
-body.onboarding-active nav {
+body.onboarding-active nav,
+body.onboarding-active [class*="nav"] {
   display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
 }
 
 body.onboarding-active {

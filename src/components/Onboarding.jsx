@@ -255,13 +255,6 @@ export default function Onboarding({ onComplete }) {
 
   useEffect(() => {
     document.body.classList.add('onboarding-active')
-    document.body.style.overflow = 'auto'
-    document.documentElement.style.overflow = 'auto'
-    return () => {
-      document.body.classList.remove('onboarding-active')
-      document.body.style.overflow = ''
-      document.documentElement.style.overflow = ''
-    }
   }, [])
 
   const canProceed = {
