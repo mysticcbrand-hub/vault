@@ -89,10 +89,10 @@ const TIMEFRAMES = [
   { id: '12m', label: '1 año',    weeks: 52   },
 ]
 
-// Dots progress indicator — 5 steps
+// Dots progress indicator — 5 steps, in-flow
 function Dots({ step, total = 5 }) {
   return (
-    <div style={{ display: 'flex', gap: 6, justifyContent: 'center', position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 20px)', left: 0, right: 0 }}>
+    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       {Array.from({ length: total }).map((_, i) => (
         <div key={i} style={{
           height: 5, borderRadius: 3,
@@ -424,57 +424,79 @@ export function Onboarding({ onComplete }) {
   const inputSt = { width: '100%', background: 'rgba(24,21,16,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid var(--border2)', borderRadius: 'var(--r-sm)', padding: '16px 18px', fontSize: 32, fontWeight: 700, fontFamily: 'DM Mono, monospace', color: 'var(--text)', letterSpacing: '-0.02em', outline: 'none', textAlign: 'center', WebkitUserSelect: 'text', userSelect: 'text', transition: 'border-color 0.15s ease, box-shadow 0.15s ease' }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 900, background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top,0px) + 72px)', paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 28px)', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', top: -80, left: '50%', transform: 'translateX(-50%)', width: 320, height: 320, borderRadius: '50%', pointerEvents: 'none', zIndex: 0, background: 'radial-gradient(ellipse, rgba(232,146,74,0.16) 0%, transparent 70%)', filter: 'blur(40px)' }} />
-      <Dots step={step} total={5} />
-      {/* Back button for steps 1-4 */}
-      {step > 0 && (
-        <button onClick={() => setStep(step - 1)} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top,0px) + 14px)', left: 20, width: 40, height: 40, borderRadius: 12, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', zIndex: 2 }}>
-          <ChevronLeft size={22} />
-        </button>
-      )}
-      <AnimatePresence mode="wait">
-        {/* ── STEP 0: Name ── */}
-        {step === 0 && (
-          <motion.div key="s0" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}><GrawMark size={48} /></div>
-            <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 10 }}>Bienvenido a GRAW</p>
-            <p style={{ textAlign: 'center', fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 8, lineHeight: 1.1 }}>¿Cómo te llamas?</p>
-            <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--text2)', marginBottom: 36, lineHeight: 1.5 }}>Así personalizaremos tu experiencia.</p>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 900,
+      background: 'var(--bg)',
+      overflowY: 'auto', overflowX: 'hidden',
+      WebkitOverflowScrolling: 'touch',
+      overscrollBehavior: 'contain',
+    }}>
+      {/* Ambient glow — pointer-events none, fixed so it doesn't scroll */}
+      <div style={{ position: 'fixed', top: -80, left: '50%', transform: 'translateX(-50%)', width: 320, height: 320, borderRadius: '50%', pointerEvents: 'none', zIndex: 0, background: 'radial-gradient(ellipse, rgba(232,146,74,0.16) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+
+      {/* Scrollable content wrapper */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        minHeight: '100dvh',
+        display: 'flex', flexDirection: 'column',
+        padding: '0 24px',
+        paddingTop: 'calc(env(safe-area-inset-top,0px) + 20px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 32px)',
+      }}>
+        {/* Fixed header bar — dots + back button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, marginBottom: 8, flexShrink: 0, position: 'relative' }}>
+          {step > 0 && (
+            <button onClick={() => setStep(step - 1)} style={{ position: 'absolute', left: 0, width: 40, height: 40, borderRadius: 12, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>
+              <ChevronLeft size={22} />
+            </button>
+          )}
+          <Dots step={step} total={5} />
+        </div>
+
+        <AnimatePresence mode="wait">
+          {/* ── STEP 0: Name ── */}
+          {step === 0 && (
+            <motion.div key="s0" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><GrawMark size={48} /></div>
+              <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 8 }}>Bienvenido a GRAW</p>
+              <p style={{ textAlign: 'center', fontSize: 'clamp(24px, 7vw, 30px)', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 8, lineHeight: 1.1 }}>¿Cómo te llamas?</p>
+              <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--text2)', marginBottom: 24, lineHeight: 1.5 }}>Así personalizaremos tu experiencia.</p>
             <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && name.trim().length >= 2) setStep(1) }} placeholder="Tu nombre" autoComplete="given-name"
-              style={{ width: '100%', background: 'rgba(24,21,16,0.70)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: '1px solid var(--border2)', borderRadius: 'var(--r-sm)', padding: '18px 20px', fontSize: 20, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', color: 'var(--text)', letterSpacing: '-0.01em', outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.06)', transition: 'border-color 0.2s ease, box-shadow 0.2s ease', WebkitUserSelect: 'text', userSelect: 'text', marginBottom: 'auto' }}
+              style={{ width: '100%', background: 'rgba(24,21,16,0.70)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: '1px solid var(--border2)', borderRadius: 'var(--r-sm)', padding: '18px 20px', fontSize: 20, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', color: 'var(--text)', letterSpacing: '-0.01em', outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.06)', transition: 'border-color 0.2s ease, box-shadow 0.2s ease', WebkitUserSelect: 'text', userSelect: 'text' }}
               onFocus={e => { e.target.style.borderColor = 'var(--accent-border)'; e.target.style.boxShadow = 'inset 0 1px 0 rgba(255,235,200,0.06), 0 0 0 3px var(--accent-dim)' }}
               onBlur={e => { e.target.style.borderColor = 'var(--border2)'; e.target.style.boxShadow = 'inset 0 1px 0 rgba(255,235,200,0.06)' }}
             />
-            <div style={{ height: 20 }} />
-            <CTAButton label="Continuar" disabled={name.trim().length < 2} onClick={() => setStep(1)} />
-          </motion.div>
-        )}
-        {/* ── STEP 1: Level ── */}
-        {step === 1 && (
-          <motion.div key="s1" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1, overflowY: 'auto' }}>
-            <p style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 4 }}>{name.trim() || 'Hola'} 👋</p>
-            <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 24 }}>¿Cuánto tiempo llevas entrenando?</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {LEVELS.map(l => <LevelCard key={l.id} {...l} selected={level === l.id} onSelect={setLevel} />)}
-            </div>
-          </motion.div>
-        )}
-        {/* ── STEP 2: Goal ── */}
-        {step === 2 && (
-          <motion.div key="s2" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1, overflowY: 'auto' }}>
-            <p style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 4 }}>{name.trim()}, ¿cuál es tu objetivo?</p>
-            <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 24 }}>Esto guiará tus recomendaciones.</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {GOALS.map(g => <GoalCard key={g.id} {...g} selected={goal === g.id} onSelect={setGoal} />)}
-            </div>
-          </motion.div>
-        )}
-        {/* ── STEP 3: Body metrics ── */}
-        {step === 3 && (
-          <motion.div key="s3" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1, overflowY: 'auto' }}>
-            <p style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 4 }}>Casi listo, {name.trim()}.</p>
-            <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 28 }}>
+              <div style={{ flex: 1, minHeight: 24 }} />
+              <CTAButton label="Continuar" disabled={name.trim().length < 2} onClick={() => setStep(1)} />
+            </motion.div>
+          )}
+
+          {/* ── STEP 1: Level ── */}
+          {step === 1 && (
+            <motion.div key="s1" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1 }}>
+              <p style={{ fontSize: 'clamp(22px, 6vw, 26px)', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 4 }}>{name.trim() || 'Hola'} 👋</p>
+              <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 20 }}>¿Cuánto tiempo llevas entrenando?</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {LEVELS.map(l => <LevelCard key={l.id} {...l} selected={level === l.id} onSelect={setLevel} />)}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── STEP 2: Goal ── */}
+          {step === 2 && (
+            <motion.div key="s2" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1 }}>
+              <p style={{ fontSize: 'clamp(22px, 6vw, 26px)', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 4 }}>{name.trim()}, ¿cuál es tu objetivo?</p>
+              <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 20 }}>Esto guiará tus recomendaciones.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {GOALS.map(g => <GoalCard key={g.id} {...g} selected={goal === g.id} onSelect={setGoal} />)}
+              </div>
+            </motion.div>
+          )}
+          {/* ── STEP 3: Body metrics ── */}
+          {step === 3 && (
+            <motion.div key="s3" {...SLIDE} style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1 }}>
+              <p style={{ fontSize: 'clamp(22px, 6vw, 26px)', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 4 }}>Casi listo, {name.trim()}.</p>
+              <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 20 }}>
               {goal === 'fuerza' ? '¿Cuánto pesas actualmente?' : goal === 'bajar_grasa' ? 'Vamos a establecer tu objetivo.' : 'Para calcular tu progreso correctamente.'}
             </p>
             {/* Unit toggle */}
@@ -525,13 +547,14 @@ export function Onboarding({ onComplete }) {
                 )}
               </motion.div>
             )}
-            <div style={{ flex: 1 }} />
-            <div style={{ height: 20 }} />
-            <CTAButton label="Continuar" disabled={!step4Valid} onClick={() => setStep(4)} />
-          </motion.div>
-        )}
-        {/* ── STEP 4: Confirmation cards — handled by showCompletion guard above ── */}
-      </AnimatePresence>
+              <div style={{ flex: 1, minHeight: 24 }} />
+              <CTAButton label="Continuar" disabled={!step4Valid} onClick={() => setStep(4)} />
+            </motion.div>
+          )}
+
+          {/* ── STEP 4: Confirmation cards — handled by showCompletion guard above ── */}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
