@@ -173,6 +173,26 @@ export default function App() {
 
   const isOnboarded = !!(user?.name && user?.level && user?.goal && user?.currentWeight !== undefined && user?.currentWeight !== null)
 
+  const handleOnboardingComplete = (data) => {
+    updateUser({
+      name: data.name,
+      level: data.level,
+      goal: data.goal,
+      unit: data.unit || 'kg',
+      currentWeight: data.currentWeight,
+      goalWeight: data.goalWeight ?? null,
+      goalTimeframe: data.goalTimeframe ?? null,
+      weeklyTarget: data.weeklyTarget ?? null,
+      onboardingDate: data.onboardingDate || new Date().toISOString(),
+      startDate: new Date().toISOString(),
+    })
+    if (data.currentWeight) {
+      useStore.getState().addBodyMetric({ weight: data.currentWeight })
+    }
+    personalizeFromOnboarding(data.level, data.goal, useStore.getState())
+    useStore.getState().updateSettings({ weightUnit: data.unit || 'kg' })
+  }
+
   // Splash: 800ms show → 300ms fade
   useEffect(() => {
     const show = setTimeout(() => setSplashFading(true), 800)
@@ -243,44 +263,34 @@ export default function App() {
     }
   }
 
-  // Onboarding — rendered INSIDE return, after all hooks
-  if (!splash && !isOnboarded) {
-    return (
-      <Onboarding
-        onComplete={(data) => {
-          updateUser({
-            name: data.name,
-            level: data.level,
-            goal: data.goal,
-            unit: data.unit || 'kg',
-            currentWeight: data.currentWeight,
-            goalWeight: data.goalWeight ?? null,
-            goalTimeframe: data.goalTimeframe ?? null,
-            weeklyTarget: data.weeklyTarget ?? null,
-            onboardingDate: data.onboardingDate || new Date().toISOString(),
-            startDate: new Date().toISOString(),
-          })
-          // Save initial body metric if provided
-          if (data.currentWeight) {
-            useStore.getState().addBodyMetric({ weight: data.currentWeight })
-          }
-          // Personalize: auto-activate best program + configure rest timer + rep range + chart default
-          personalizeFromOnboarding(data.level, data.goal, useStore.getState())
-          // Sync unit to settings
-          useStore.getState().updateSettings({ weightUnit: data.unit || 'kg' })
-        }}
-      />
-    )
-  }
-
   return (
-    <>
+    <div style={{
+      position: 'relative',
+      width: '100%',
+      height: '100dvh',
+      background: '#0C0A09',
+      overflow: 'hidden',
+    }}>
       {/* Splash */}
       {splash && (
-        <div style={{ opacity: splashFading ? 0 : 1, transition: 'opacity 0.3s ease', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 200, opacity: splashFading ? 0 : 1, transition: 'opacity 0.3s ease', pointerEvents: 'none' }}>
           <SplashScreen />
         </div>
       )}
+
+      {/* Onboarding overlay — renders on top, fades out when done */}
+      <AnimatePresence>
+        {!isOnboarded && !splash && (
+          <motion.div
+            key="onboarding"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.35, ease: [0.32, 0.72, 0, 1] } }}
+            style={{ position: 'absolute', inset: 0, zIndex: 100, background: '#0C0A09' }}
+          >
+            <Onboarding onComplete={handleOnboardingComplete} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div style={{
         display: 'flex', flexDirection: 'column',
@@ -438,6 +448,6 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
-    </>
+    </div>
   )
 }

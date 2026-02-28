@@ -82,10 +82,12 @@ body::after {
 
 #root {
   min-height: 100dvh;
+  min-height: 100vh;
   background: #0C0A09;
-  color: #F5EFE6;
   background: var(--bg);
+  color: #F5EFE6;
   color: var(--text);
+  position: relative;
 }
 
 input, textarea { -webkit-user-select: text; user-select: text; }

@@ -342,7 +342,7 @@ export function Onboarding({ onComplete }) {
     }
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fire onComplete after completion animation
+  // Fire onComplete after completion animation — wait 1800ms so user reads all cards
   useEffect(() => {
     if (showCompletion) {
       const finalData = {
@@ -356,7 +356,7 @@ export function Onboarding({ onComplete }) {
         onboardingDate: new Date().toISOString(),
         unit,
       }
-      const t = setTimeout(() => onComplete(finalData), 1200)
+      const t = setTimeout(() => onComplete(finalData), 1800)
       return () => clearTimeout(t)
     }
   }, [showCompletion]) // eslint-disable-line react-hooks/exhaustive-deps
