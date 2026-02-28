@@ -7,7 +7,7 @@ import { HistoryTab } from './components/tabs/HistoryTab.jsx'
 import { ProgressTab } from './components/tabs/ProgressTab.jsx'
 import { ProgramsTab } from './components/tabs/ProgramsTab.jsx'
 import { ProfileTab } from './components/tabs/ProfileTab.jsx'
-import { Sheet } from './components/layout/Sheet.jsx'
+import { Sheet } from './components/ui/Sheet.jsx'
 import { ToastContainer } from './components/ui/Toast.jsx'
 import { BadgeUnlockToast } from './components/ui/BadgeUnlockToast.jsx'
 import { useBadgeDetection } from './hooks/useBadgeDetection.js'
@@ -298,28 +298,29 @@ export default function App() {
             }}>GRAW</span>
           </div>
 
-          {/* Right: user avatar */}
+          {/* Right: user avatar → navigates to Profile tab */}
           <button
-            onClick={() => { setEditName(user?.name || ''); setProfileOpen(true) }}
+            onClick={() => handleTabChange('profile')}
             className="pressable"
             style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: 'linear-gradient(145deg, var(--accent), var(--accent-deep))',
-              border: 'none', cursor: 'pointer',
+              width: 34, height: 34, borderRadius: '50%',
+              background: 'rgba(232,146,74,0.12)',
+              border: '1.5px solid rgba(232,146,74,0.28)',
+              cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 800, color: 'white',
-              boxShadow: '0 0 0 1.5px rgba(232,146,74,0.3)',
+              fontSize: 14, fontWeight: 700, color: '#E8924A',
               flexShrink: 0,
+              transition: 'transform 0.15s ease',
             }}
           >
-            {(user?.name || 'A').charAt(0).toUpperCase()}
+            {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}
           </button>
         </div>
 
         {/* Tab content */}
         <div style={{ flex: 1, position: 'relative', paddingBottom: 'var(--nav-h)' }}>
           <div style={getTabStyle('today')}>
-            <TodayTab onStartWorkout={handleStartWorkout} onOpenProfile={() => { setEditName(user?.name || ''); setProfileOpen(true) }} />
+            <TodayTab onStartWorkout={handleStartWorkout} onNavigate={handleTabChange} />
           </div>
           <div style={getTabStyle('workout')}>
             <WorkoutTab onSwitchTab={handleTabChange} />
@@ -340,24 +341,9 @@ export default function App() {
 
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
 
-        {/* Profile sheet */}
-        <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="Mi perfil">
-          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: 24,
-                background: 'linear-gradient(145deg, var(--accent), var(--accent-deep))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 0 30px rgba(232,146,74,0.22)',
-                fontSize: 32, fontWeight: 800, color: 'white',
-              }}>
-                {(user?.name || 'A').charAt(0).toUpperCase()}
-              </div>
-              <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>{user?.name}</p>
-              <p style={{ fontSize: 12, color: 'var(--text3)' }}>
-                Desde {new Date(user?.startDate || Date.now()).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-              </p>
-            </div>
+        {/* Profile quick-edit sheet — keep for quick name edit */}
+        <Sheet isOpen={profileOpen} onClose={() => setProfileOpen(false)} title="Mi perfil" size="small">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <p className="t-label" style={{ marginBottom: 8 }}>Nombre</p>
               <input
@@ -376,14 +362,10 @@ export default function App() {
                 width: '100%', height: 52, borderRadius: 14,
                 background: 'var(--accent)', border: 'none',
                 color: 'white', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(232,146,74,0.25)',
               }}
             >
               Guardar
             </button>
-            <p style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', lineHeight: 1.6 }}>
-              Datos guardados localmente · Sin cuenta · Sin conexión
-            </p>
           </div>
         </Sheet>
 

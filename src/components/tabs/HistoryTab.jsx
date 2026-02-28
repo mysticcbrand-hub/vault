@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Search, X } from 'lucide-react'
-import { Sheet } from '../layout/Sheet.jsx'
+import { Sheet } from '../ui/Sheet.jsx'
 import { groupSessionsByWeek, formatDate, formatDuration } from '../../utils/dates.js'
 import { formatKg, getMuscleVars, relativeDate } from '../../utils/format.js'
 import { getExerciseById, MUSCLE_NAMES } from '../../data/exercises.js'
@@ -27,7 +27,7 @@ export function HistoryTab() {
   const grouped = useMemo(() => groupSessionsByWeek(filtered), [filtered])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ padding: '24px 20px 14px', flexShrink: 0 }}>
         <div className="si" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -54,7 +54,7 @@ export function HistoryTab() {
       </div>
 
       {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', paddingBottom: 'calc(var(--nav-h) + 20px)' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', padding: '0 20px', paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)' }}>
         {grouped.map(({ label, items }) => {
           const weekVol = items.reduce((t, s) => t + (s.totalVolume || 0), 0)
           return (
@@ -115,7 +115,7 @@ export function HistoryTab() {
       </div>
 
       {/* Session detail sheet */}
-      <Sheet open={!!selected} onClose={() => setSelected(null)} title="Detalle de sesión" fullHeight>
+      <Sheet isOpen={!!selected} onClose={() => setSelected(null)} title="Detalle de sesión" size="large">
         {selected && (
           <div style={{ padding: '16px 20px', paddingBottom: 'calc(100px + env(safe-area-inset-bottom,0px))', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>

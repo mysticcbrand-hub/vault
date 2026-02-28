@@ -1,49 +1,64 @@
-import { useState } from 'react'
+import { TrendingUp, User } from 'lucide-react'
 import { VolumeChart } from '../progress/VolumeChart.jsx'
 import { StrengthCurve } from '../progress/StrengthCurve.jsx'
 import { PRBoard } from '../progress/PRBoard.jsx'
 import { Heatmap } from '../progress/Heatmap.jsx'
 import { BodyMetricsDashboard } from '../progress/BodyMetricsChart.jsx'
-import useStore from '../../store/index.js'
+
+function SectionDivider({ label, icon }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '28px 20px 12px',
+    }}>
+      <div style={{ color: 'rgba(245,239,230,0.35)', display: 'flex', alignItems: 'center' }}>{icon}</div>
+      <span style={{
+        fontSize: 11, fontWeight: 700,
+        letterSpacing: '0.09em',
+        textTransform: 'uppercase',
+        color: 'rgba(245,239,230,0.35)',
+      }}>
+        {label}
+      </span>
+      <div style={{
+        flex: 1, height: '0.5px',
+        background: 'rgba(255,235,200,0.07)',
+        marginLeft: 4,
+      }} />
+    </div>
+  )
+}
 
 export function ProgressTab() {
-  const settings = useStore(s => s.settings)
-  const defaultChart = settings?.progressDefaultChart || 'volume'
-  // Sub-tab: 'rendimiento' | 'cuerpo'
-  // If user's goal defaults to bodyweight chart, start on 'cuerpo'
-  const [subTab, setSubTab] = useState(defaultChart === 'bodyweight' ? 'cuerpo' : 'rendimiento')
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
-      {/* Header + sub-tab switcher */}
-      <div style={{ padding: '24px 20px 0', flexShrink: 0 }}>
+    <div style={{
+      position: 'absolute', inset: 0,
+      overflowY: 'auto', overflowX: 'hidden',
+      WebkitOverflowScrolling: 'touch',
+      overscrollBehavior: 'contain',
+      paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)',
+    }}>
+      {/* Page header */}
+      <div style={{ padding: '24px 20px 8px' }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text)', marginBottom: 4 }}>Progreso</h1>
-        <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16 }}>Tu evolución en datos</p>
-        {/* Pill sub-tab switcher */}
-        <div style={{ display: 'flex', gap: 6, background: 'var(--surface2)', borderRadius: 'var(--r-pill)', padding: 3, alignSelf: 'flex-start', width: 'fit-content', marginBottom: 4 }}>
-          {[
-            { id: 'rendimiento', label: 'Rendimiento' },
-            { id: 'cuerpo',      label: 'Cuerpo' },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setSubTab(tab.id)} style={{ height: 34, padding: '0 18px', borderRadius: 'var(--r-pill)', background: subTab === tab.id ? 'var(--surface3)' : 'transparent', border: subTab === tab.id ? '1px solid var(--border2)' : 'none', color: subTab === tab.id ? 'var(--text)' : 'var(--text3)', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s ease', whiteSpace: 'nowrap' }}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <p style={{ fontSize: 13, color: 'var(--text2)' }}>Tu evolución en datos</p>
       </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', paddingBottom: 'calc(var(--nav-h) + 24px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {subTab === 'rendimiento' ? (
-          <>
-            <div className="si"><VolumeChart /></div>
-            <div className="si" style={{ animationDelay: '0.05s' }}><StrengthCurve /></div>
-            <div className="si" style={{ animationDelay: '0.10s' }}><PRBoard /></div>
-            <div className="si" style={{ animationDelay: '0.15s' }}><Heatmap /></div>
-          </>
-        ) : (
-          <BodyMetricsDashboard />
-        )}
+      {/* ── RENDIMIENTO ─────────────────────────── */}
+      <SectionDivider label="Rendimiento" icon={<TrendingUp size={13} />} />
+
+      <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="si"><VolumeChart /></div>
+        <div className="si" style={{ animationDelay: '0.05s' }}><StrengthCurve /></div>
+        <div className="si" style={{ animationDelay: '0.10s' }}><PRBoard /></div>
+        <div className="si" style={{ animationDelay: '0.15s' }}><Heatmap /></div>
+      </div>
+
+      {/* ── CUERPO ───────────────────────────────── */}
+      <SectionDivider label="Cuerpo" icon={<User size={13} />} />
+
+      <div style={{ padding: '0 20px' }}>
+        <BodyMetricsDashboard />
       </div>
     </div>
   )

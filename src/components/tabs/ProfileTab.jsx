@@ -4,6 +4,7 @@ import useStore from '../../store/index.js'
 import { ALL_BADGES } from '../../data/badges.js'
 import { calculateUserStats } from '../../utils/userStats.js'
 import { AchievementsModal } from '../profile/AchievementsModal.jsx'
+import { Sheet, OptionPicker, ConfirmDialog } from '../ui/Sheet.jsx'
 
 const EMOJI_OPTIONS = ['💪','🔥','⚡','🏋️','🎯','🦁','🐺','🦅','⚔️','🛡️','🌊','🏔️','🌙','☄️','🧬','💎','🔱','⚙️','🎖️','🏆']
 const REST_PRESETS = [45, 60, 90, 120, 180, 300]
@@ -140,7 +141,13 @@ export function ProfileTab() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+    <div style={{
+      position: 'absolute', inset: 0,
+      overflowY: 'auto', overflowX: 'hidden',
+      WebkitOverflowScrolling: 'touch',
+      overscrollBehavior: 'contain',
+      paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 24px)',
+    }}>
       {/* Section 1 — Identity */}
       <div style={{ padding: '20px 20px 0' }}>
         <div className="identity-card" style={{
@@ -327,8 +334,90 @@ export function ProfileTab() {
         </div>
       </div>
 
+      {/* ── SHEETS (all via portal, never cut off) ───── */}
+
       {/* Emoji picker */}
-      {emojiOpen && (
+      <Sheet isOpen={emojiOpen} onClose={() => setEmojiOpen(false)} title="Elige tu avatar" size="small">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+          {EMOJI_OPTIONS.map(e => (
+            <button key={e} onClick={() => { updateUser({ avatarEmoji: e }); setEmojiOpen(false) }}
+              style={{ height: 52, borderRadius: 14, background: 'rgba(255,235,200,0.05)', border: '1px solid rgba(255,235,200,0.08)', fontSize: 22, cursor: 'pointer' }}>
+              {e}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+
+      {/* Rest timer picker */}
+      <OptionPicker
+        isOpen={restOpen}
+        onClose={() => setRestOpen(false)}
+        title="Descanso entre series"
+        selected={settings.restTimerDefault}
+        onSelect={v => updateSettings({ restTimerDefault: v })}
+        options={[
+          { value: 45,  label: '45 segundos' },
+          { value: 60,  label: '1 minuto' },
+          { value: 90,  label: '1 minuto 30s' },
+          { value: 120, label: '2 minutos' },
+          { value: 180, label: '3 minutos' },
+          { value: 300, label: '5 minutos' },
+        ]}
+      />
+
+      {/* Program picker */}
+      <OptionPicker
+        isOpen={programOpen}
+        onClose={() => setProgramOpen(false)}
+        title="Programa activo"
+        selected={activeProgramId}
+        onSelect={v => setActiveProgram(v)}
+        options={programs.map(p => ({ value: p.id, label: p.name }))}
+      />
+
+      {/* Rep range picker */}
+      <OptionPicker
+        isOpen={repRangeOpen}
+        onClose={() => setRepRangeOpen(false)}
+        title="Rango de repeticiones"
+        selected={settings.repRangeGuidance}
+        onSelect={v => updateSettings({ repRangeGuidance: v })}
+        options={[
+          { value: 'Hipertrofia (8–12)', label: 'Hipertrofia (8–12)' },
+          { value: 'Fuerza (3–6)',        label: 'Fuerza (3–6)' },
+          { value: 'Recomposición (8–15)',label: 'Recomposición (8–15)' },
+          { value: 'Personalizado',       label: 'Personalizado' },
+        ]}
+      />
+
+      {/* Clear confirmation */}
+      <Sheet isOpen={clearOpen} onClose={() => setClearOpen(false)} title="Borrar todos los datos" size="small" dismissable={false}>
+        <p style={{ fontSize: 13, color: 'rgba(245,239,230,0.55)', marginBottom: 16, lineHeight: 1.5 }}>
+          Se borrarán todas tus sesiones, PRs y métricas. Esta acción no se puede deshacer.
+        </p>
+        <p style={{ fontSize: 12, color: 'rgba(245,239,230,0.4)', marginBottom: 8 }}>Escribe BORRAR para confirmar</p>
+        <input
+          value={clearText}
+          onChange={e => setClearText(e.target.value)}
+          className="input"
+          placeholder="BORRAR"
+          style={{ marginBottom: 16, width: '100%' }}
+        />
+        <button
+          onClick={handleClear}
+          disabled={clearText.trim().toUpperCase() !== 'BORRAR'}
+          style={{
+            width: '100%', height: 48, borderRadius: 14,
+            background: clearText.trim().toUpperCase() === 'BORRAR' ? 'var(--red)' : 'rgba(229,83,75,0.12)',
+            border: 'none', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Confirmar
+        </button>
+      </Sheet>
+
+      {/* KEEP old emoji/rest/program/repRange/clear open={false} so React doesn't break */}
+      {false && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }} onClick={() => setEmojiOpen(false)}>
           <div style={{ width: '100%', background: 'rgba(14,11,8,0.96)', borderRadius: '28px 28px 0 0', padding: '20px', boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.1)' }} onClick={e => e.stopPropagation()}>
             <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 18px' }} />

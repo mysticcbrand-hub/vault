@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Plus, Edit2, Trash2, Play, Compass, Sparkles, ChevronLeft } from 'lucide-react'
 import { TemplateEditor } from '../programs/TemplateEditor.jsx'
 import { ProgramEditor } from '../programs/ProgramEditor.jsx'
-import { Sheet } from '../layout/Sheet.jsx'
+import { Sheet, ConfirmDialog } from '../ui/Sheet.jsx'
 import { getMuscleVars } from '../../utils/format.js'
 import { MUSCLE_NAMES, getExerciseById } from '../../data/exercises.js'
 import { PRESET_PROGRAMS, getRecommendedPreset } from '../../data/presetPrograms.js'
@@ -254,7 +254,7 @@ export function ProgramsTab({ onSwitchTab }) {
       <TemplateEditor open={templateEditorOpen} onClose={() => { setTemplateEditorOpen(false); setEditingTemplate(null) }} template={editingTemplate} />
       <ProgramEditor open={programEditorOpen} onClose={() => { setProgramEditorOpen(false); setEditingProgram(null) }} program={editingProgram} />
 
-      <Sheet open={exploreOpen} onClose={() => setExploreOpen(false)} title="Explorar programas" fullHeight>
+      <Sheet isOpen={exploreOpen} onClose={() => setExploreOpen(false)} title="Explorar programas" size="full">
         <div style={{ padding: '12px 20px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
           {exploreView === 'detail' && selectedPreset ? (
             <ProgramDetail program={selectedPreset} recommended={recommended?.id === selectedPreset.id} onBack={() => setExploreView('list')} onActivate={activatePreset} />
