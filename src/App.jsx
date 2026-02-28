@@ -153,8 +153,6 @@ function RecoverySheet({ elapsed, onContinue, onDiscard }) {
 }
 
 export default function App() {
-  useBadgeDetection()
-
   const [activeTab, setActiveTab] = useState('today')
   const [prevTab, setPrevTab] = useState(null)
   const [direction, setDirection] = useState(1)
@@ -173,6 +171,10 @@ export default function App() {
 
   const isOnboarded = !!(user?.name && user?.level && user?.goal && user?.currentWeight !== undefined && user?.currentWeight !== null)
 
+  // Only run badge detection after onboarding is complete
+  // Prevents "Primer Programa" badge firing during personalizeFromOnboarding()
+  useBadgeDetection(isOnboarded)
+
   const handleOnboardingComplete = (data) => {
     updateUser({
       name: data.name,
@@ -189,8 +191,13 @@ export default function App() {
     if (data.currentWeight) {
       useStore.getState().addBodyMetric({ weight: data.currentWeight })
     }
-    personalizeFromOnboarding(data.level, data.goal, useStore.getState())
-    useStore.getState().updateSettings({ weightUnit: data.unit || 'kg' })
+    // Defer personalization until after isOnboarded flips true (state has updated)
+    // Badge detection is now enabled, and the 1500ms toast delay ensures
+    // the toast appears after the app transition animation completes
+    setTimeout(() => {
+      personalizeFromOnboarding(data.level, data.goal, useStore.getState())
+      useStore.getState().updateSettings({ weightUnit: data.unit || 'kg' })
+    }, 100)
   }
 
   // Splash: 800ms show → 300ms fade
