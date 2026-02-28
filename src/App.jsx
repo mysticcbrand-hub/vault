@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { BottomNav } from './components/layout/BottomNav.jsx'
+import Onboarding from './components/Onboarding.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
 import { WorkoutTab } from './components/tabs/WorkoutTab.jsx'
 import { HistoryTab } from './components/tabs/HistoryTab.jsx'
@@ -153,6 +154,14 @@ function RecoverySheet({ elapsed, onContinue, onDiscard }) {
 export default function App() {
   const [activeTab, setActiveTab] = useState('today')
   const [prevTab, setPrevTab] = useState(null)
+  const [isOnboarded, setIsOnboarded] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem('graw_store') ?? '{}')
+      return !!(s?.state?.user?.onboardingComplete)
+    } catch {
+      return false
+    }
+  })
   const [direction, setDirection] = useState(1)
   const [transitioning, setTransitioning] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -167,8 +176,12 @@ export default function App() {
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
 
-  // Badge detection always enabled now that onboarding is removed
-  useBadgeDetection(true)
+  // Only run badge detection after onboarding completes
+  useBadgeDetection(isOnboarded)
+
+  const handleOnboardingComplete = () => {
+    setIsOnboarded(true)
+  }
 
   // Keyboard detection — hide bottom nav
   useEffect(() => {
@@ -231,6 +244,10 @@ export default function App() {
           ? `${direction > 0 ? 'tabExitRight' : 'tabExitLeft'} ${DUR}ms cubic-bezier(0.32,0.72,0,1) both`
           : 'none',
     }
+  }
+
+  if (!isOnboarded) {
+    return <Onboarding onComplete={handleOnboardingComplete} />
   }
 
   return (
