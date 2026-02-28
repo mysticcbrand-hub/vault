@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, Sprout, Flame, Zap, Dumbbell, TrendingUp, Shield, ChevronLeft } from 'lucide-react'
+import { Check, Sprout, Flame, Zap, Dumbbell, TrendingUp, Shield } from 'lucide-react'
 
 // ── STEP 1 — Name ─────────────────────────────────────────────
-function StepName({ name, setName, onNext }) {
+function NameContent({ name, setName }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       <h1 style={{
         fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em',
         color: '#F5EFE6', marginBottom: 8, lineHeight: 1.2,
@@ -18,12 +18,11 @@ function StepName({ name, setName, onNext }) {
 
       <input
         type="text"
-        autoFocus
         autoComplete="given-name"
         placeholder="Tu nombre"
         value={name}
         onChange={e => setName(e.target.value)}
-        onKeyDown={e => e.key === 'Enter' && name.trim().length >= 2 && onNext()}
+        onKeyDown={e => e.key === 'Enter' && name.trim().length >= 2}
         style={{
           width: '100%',
           background: 'rgba(24,21,16,0.8)',
@@ -36,94 +35,64 @@ function StepName({ name, setName, onNext }) {
           outline: 'none',
           boxSizing: 'border-box',
           fontFamily: 'inherit',
-          WebkitUserSelect: 'text',
-          userSelect: 'text',
         }}
       />
-
-      <div style={{ flex: 1, minHeight: 32 }} />
-
-      <button
-        onClick={onNext}
-        disabled={name.trim().length < 2}
-        style={{
-          width: '100%',
-          height: 56,
-          borderRadius: 14,
-          background: name.trim().length >= 2
-            ? 'linear-gradient(135deg, #E8924A, #C9712D)'
-            : 'rgba(255,235,200,0.08)',
-          border: 'none',
-          color: name.trim().length >= 2
-            ? 'rgba(255,245,235,0.95)'
-            : 'rgba(245,239,230,0.25)',
-          fontSize: 16,
-          fontWeight: 700,
-          cursor: name.trim().length >= 2 ? 'pointer' : 'not-allowed',
-          transition: 'all 0.2s ease',
-          fontFamily: 'inherit',
-        }}
-      >
-        Continuar
-      </button>
     </div>
   )
 }
 
 // ── STEP 2 — Level ────────────────────────────────────────────
 const LEVELS = [
-  { id: 'principiante', label: 'Menos de 1 año',  sub: 'Aprendiendo los fundamentos',              Icon: Sprout },
-  { id: 'intermedio',   label: 'De 1 a 3 años',   sub: 'Base sólida, buscando progresar',          Icon: Flame  },
-  { id: 'avanzado',     label: 'Más de 3 años',    sub: 'Técnica pulida, entrenamiento periodizado', Icon: Zap    },
+  { id: 'principiante', label: 'Menos de 1 año',   sub: 'Aprendiendo los fundamentos',          Icon: Sprout },
+  { id: 'intermedio',   label: 'De 1 a 3 años',    sub: 'Base sólida, buscando progresar',      Icon: Flame },
+  { id: 'avanzado',     label: 'Más de 3 años',    sub: 'Técnica pulida, entrenamiento periodizado', Icon: Zap },
 ]
 
-function LevelCard({ id, label, sub, Icon, selected, onSelect }) {
+function LevelContent({ level, onSelect }) {
   return (
-    <button
-      onClick={() => onSelect(id)}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        padding: '16px 18px',
-        borderRadius: 18,
-        background: selected ? 'rgba(232,146,74,0.12)' : 'rgba(22,18,12,0.7)',
-        border: `1px solid ${selected ? 'rgba(232,146,74,0.35)' : 'rgba(255,235,200,0.08)'}`,
-        cursor: 'pointer',
-        textAlign: 'left',
-        transition: 'all 0.18s ease',
-        fontFamily: 'inherit',
-        width: '100%',
-      }}
-    >
-      <div style={{
-        width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-        background: selected ? 'rgba(232,146,74,0.15)' : 'rgba(255,235,200,0.05)',
-        border: `1px solid ${selected ? 'rgba(232,146,74,0.3)' : 'rgba(255,235,200,0.08)'}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon size={18} color={selected ? '#E8924A' : 'rgba(245,239,230,0.4)'} />
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#F5EFE6', marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 12, color: 'rgba(245,239,230,0.45)' }}>{sub}</div>
-      </div>
-      {selected && <Check size={16} color="#E8924A" />}
-    </button>
-  )
-}
-
-function StepLevel({ level, setLevel, onNext }) {
-  const select = (id) => { setLevel(id); setTimeout(onNext, 280) }
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: '#F5EFE6', marginBottom: 8 }}>
         ¿Cuánto llevas entrenando?
       </h1>
       <p style={{ fontSize: 15, color: 'rgba(245,239,230,0.5)', marginBottom: 28 }}>
         Elegiremos el programa más adecuado.
       </p>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {LEVELS.map(l => (
-          <LevelCard key={l.id} {...l} selected={level === l.id} onSelect={select} />
+        {LEVELS.map(({ id, label, sub, Icon }) => (
+          <button
+            key={id}
+            onClick={() => onSelect(id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '16px 18px',
+              borderRadius: 18,
+              background: level === id
+                ? 'rgba(232,146,74,0.12)'
+                : 'rgba(22,18,12,0.7)',
+              border: `1px solid ${level === id
+                ? 'rgba(232,146,74,0.35)'
+                : 'rgba(255,235,200,0.08)'}`,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.18s ease',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div style={{
+              width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+              background: level === id ? 'rgba(232,146,74,0.15)' : 'rgba(255,235,200,0.05)',
+              border: `1px solid ${level === id ? 'rgba(232,146,74,0.3)' : 'rgba(255,235,200,0.08)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={18} color={level === id ? '#E8924A' : 'rgba(245,239,230,0.4)'} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#F5EFE6', marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 12, color: 'rgba(245,239,230,0.45)' }}>{sub}</div>
+            </div>
+            {level === id && <Check size={16} color="#E8924A" />}
+          </button>
         ))}
       </div>
     </div>
@@ -132,59 +101,53 @@ function StepLevel({ level, setLevel, onNext }) {
 
 // ── STEP 3 — Goal ─────────────────────────────────────────────
 const GOALS = [
-  { id: 'fuerza',        label: 'Ganar fuerza',  sub: 'Más peso. 1RM más alto.',              Icon: Dumbbell   },
-  { id: 'volumen',       label: 'Ganar músculo', sub: 'Más masa. Mayor volumen.',              Icon: TrendingUp },
-  { id: 'bajar_grasa',   label: 'Bajar grasa',   sub: 'Perder grasa, preservar músculo.',      Icon: Flame      },
-  { id: 'mantenimiento', label: 'Mantenerme',    sub: 'Salud y forma a largo plazo.',          Icon: Shield     },
+  { id: 'fuerza',        label: 'Ganar fuerza',   sub: 'Más peso. 1RM más alto.',          Icon: Dumbbell },
+  { id: 'volumen',       label: 'Ganar músculo',  sub: 'Más masa. Mayor volumen.',         Icon: TrendingUp },
+  { id: 'bajar_grasa',   label: 'Bajar grasa',    sub: 'Perder grasa, preservar músculo.', Icon: Flame },
+  { id: 'mantenimiento', label: 'Mantenerme',     sub: 'Salud y forma a largo plazo.',     Icon: Shield },
 ]
 
-function GoalCard({ id, label, sub, Icon, selected, onSelect }) {
+function GoalContent({ goal, onSelect }) {
   return (
-    <button
-      onClick={() => onSelect(id)}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        padding: '16px 18px',
-        borderRadius: 18,
-        background: selected ? 'rgba(232,146,74,0.12)' : 'rgba(22,18,12,0.7)',
-        border: `1px solid ${selected ? 'rgba(232,146,74,0.35)' : 'rgba(255,235,200,0.08)'}`,
-        cursor: 'pointer',
-        textAlign: 'left',
-        transition: 'all 0.18s ease',
-        fontFamily: 'inherit',
-        width: '100%',
-      }}
-    >
-      <div style={{
-        width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-        background: selected ? 'rgba(232,146,74,0.15)' : 'rgba(255,235,200,0.05)',
-        border: `1px solid ${selected ? 'rgba(232,146,74,0.3)' : 'rgba(255,235,200,0.08)'}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon size={18} color={selected ? '#E8924A' : 'rgba(245,239,230,0.4)'} />
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#F5EFE6', marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 12, color: 'rgba(245,239,230,0.45)' }}>{sub}</div>
-      </div>
-      {selected && <Check size={16} color="#E8924A" />}
-    </button>
-  )
-}
-
-function StepGoal({ goal, setGoal, onNext }) {
-  const select = (id) => { setGoal(id); setTimeout(onNext, 280) }
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: '#F5EFE6', marginBottom: 8 }}>
         ¿Cuál es tu objetivo?
       </h1>
       <p style={{ fontSize: 15, color: 'rgba(245,239,230,0.5)', marginBottom: 28 }}>
         Ajustaremos todo para que consigas tu meta.
       </p>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {GOALS.map(g => (
-          <GoalCard key={g.id} {...g} selected={goal === g.id} onSelect={select} />
+        {GOALS.map(({ id, label, sub, Icon }) => (
+          <button
+            key={id}
+            onClick={() => onSelect(id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '16px 18px',
+              borderRadius: 18,
+              background: goal === id ? 'rgba(232,146,74,0.12)' : 'rgba(22,18,12,0.7)',
+              border: `1px solid ${goal === id ? 'rgba(232,146,74,0.35)' : 'rgba(255,235,200,0.08)'}`,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.18s ease',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div style={{
+              width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+              background: goal === id ? 'rgba(232,146,74,0.15)' : 'rgba(255,235,200,0.05)',
+              border: `1px solid ${goal === id ? 'rgba(232,146,74,0.3)' : 'rgba(255,235,200,0.08)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={18} color={goal === id ? '#E8924A' : 'rgba(245,239,230,0.4)'} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#F5EFE6', marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 12, color: 'rgba(245,239,230,0.45)' }}>{sub}</div>
+            </div>
+            {goal === id && <Check size={16} color="#E8924A" />}
+          </button>
         ))}
       </div>
     </div>
@@ -192,46 +155,18 @@ function StepGoal({ goal, setGoal, onNext }) {
 }
 
 // ── STEP 4 — Body metrics ─────────────────────────────────────
-const inputStyle = {
-  width: '100%',
-  boxSizing: 'border-box',
-  background: 'rgba(24,21,16,0.8)',
-  border: '1px solid rgba(255,235,200,0.12)',
-  borderRadius: 14,
-  padding: '16px 20px',
-  fontSize: 20,
-  fontWeight: 600,
-  color: '#F5EFE6',
-  outline: 'none',
-  fontFamily: 'DM Mono, monospace',
-  WebkitUserSelect: 'text',
-  userSelect: 'text',
-}
-
-const labelStyle = {
-  display: 'block',
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
-  color: 'rgba(245,239,230,0.4)',
-  marginBottom: 8,
-}
-
-function StepBody({ currentWeight, setCurrentWeight, goalWeight, setGoalWeight, unit, setUnit, goal, name, onComplete }) {
+function BodyContent({ currentWeight, setCurrentWeight, goalWeight, setGoalWeight, unit, setUnit, goal, name }) {
   const needsGoalWeight = goal !== 'fuerza'
-  const canContinue = currentWeight && parseFloat(currentWeight) > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: '#F5EFE6', marginBottom: 8 }}>
         Casi listo, {name}.
       </h1>
-      <p style={{ fontSize: 15, color: 'rgba(245,239,230,0.5)', marginBottom: 28 }}>
+      <p style={{ fontSize: 15, color: 'rgba(245,239,230,0.5)', marginBottom: 32 }}>
         Estos datos nos ayudan a medir tu progreso real.
       </p>
 
-      {/* Unit toggle */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         {['kg', 'lbs'].map(u => (
           <button
@@ -252,96 +187,105 @@ function StepBody({ currentWeight, setCurrentWeight, goalWeight, setGoalWeight, 
         ))}
       </div>
 
-      {/* Current weight */}
       <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Peso actual</label>
+        <label style={{
+          display: 'block', fontSize: 11, fontWeight: 600,
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+          color: 'rgba(245,239,230,0.4)', marginBottom: 8,
+        }}>
+          Peso actual
+        </label>
         <input
           type="number"
           inputMode="decimal"
           placeholder={unit === 'kg' ? '75' : '165'}
           value={currentWeight}
           onChange={e => setCurrentWeight(e.target.value)}
-          style={inputStyle}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: 'rgba(24,21,16,0.8)',
+            border: '1px solid rgba(255,235,200,0.12)',
+            borderRadius: 14, padding: '16px 20px',
+            fontSize: 20, fontWeight: 600,
+            color: '#F5EFE6', outline: 'none',
+            fontFamily: 'DM Mono, monospace',
+          }}
         />
       </div>
 
-      {/* Goal weight — only if not fuerza */}
       {needsGoalWeight && (
         <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Peso objetivo (opcional)</label>
+          <label style={{
+            display: 'block', fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            color: 'rgba(245,239,230,0.4)', marginBottom: 8,
+          }}>
+            Peso objetivo (opcional)
+          </label>
           <input
             type="number"
             inputMode="decimal"
             placeholder={unit === 'kg' ? '82' : '180'}
             value={goalWeight}
             onChange={e => setGoalWeight(e.target.value)}
-            style={inputStyle}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'rgba(24,21,16,0.8)',
+              border: '1px solid rgba(255,235,200,0.12)',
+              borderRadius: 14, padding: '16px 20px',
+              fontSize: 20, fontWeight: 600,
+              color: '#F5EFE6', outline: 'none',
+              fontFamily: 'DM Mono, monospace',
+            }}
           />
         </div>
       )}
-
-      <div style={{ flex: 1, minHeight: 32 }} />
-
-      <button
-        onClick={onComplete}
-        disabled={!canContinue}
-        style={{
-          width: '100%',
-          height: 56,
-          borderRadius: 14,
-          background: canContinue
-            ? 'linear-gradient(135deg, #E8924A, #C9712D)'
-            : 'rgba(255,235,200,0.08)',
-          border: 'none',
-          color: canContinue ? 'rgba(255,245,235,0.95)' : 'rgba(245,239,230,0.25)',
-          fontSize: 16,
-          fontWeight: 700,
-          cursor: canContinue ? 'pointer' : 'not-allowed',
-          fontFamily: 'inherit',
-          transition: 'all 0.2s ease',
-        }}
-      >
-        Empezar en GRAW
-      </button>
     </div>
   )
 }
 
-// ── ROOT COMPONENT ─────────────────────────────────────────────
-export function Onboarding({ onComplete }) {
-  const [step, setStep] = useState(1)   // 1–4
+export default function Onboarding({ onComplete }) {
+  const [step, setStep] = useState(1)
   const [name, setName] = useState('')
   const [level, setLevel] = useState(null)
   const [goal, setGoal] = useState(null)
   const [currentWeight, setCurrentWeight] = useState('')
   const [goalWeight, setGoalWeight] = useState('')
   const [unit, setUnit] = useState('kg')
-  const TOTAL_STEPS = 4
 
-  // Allow body to scroll during onboarding
   useEffect(() => {
-    const prevBody = document.body.style.overflow
-    const prevHtml = document.documentElement.style.overflow
+    document.body.classList.add('onboarding-active')
     document.body.style.overflow = 'auto'
     document.documentElement.style.overflow = 'auto'
     return () => {
-      document.body.style.overflow = prevBody
-      document.documentElement.style.overflow = prevHtml
+      document.body.classList.remove('onboarding-active')
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
     }
   }, [])
 
-  const goNext = () => setStep(s => Math.min(s + 1, TOTAL_STEPS))
-  const goBack = () => setStep(s => Math.max(s - 1, 1))
+  const canProceed = {
+    1: name.trim().length >= 2,
+    2: !!level,
+    3: !!goal,
+    4: !!currentWeight && parseFloat(currentWeight) > 0,
+  }[step]
 
-  const handleComplete = () => {
-    onComplete({
-      name: name.trim() || 'Atleta',
-      level,
-      goal,
-      currentWeight: parseFloat(currentWeight) || null,
-      goalWeight: parseFloat(goalWeight) || null,
-      unit,
-    })
+  const handleNext = () => {
+    if (step < 4) setStep(s => s + 1)
+    else handleComplete()
+  }
+
+  const handleComplete = async () => {
+    await new Promise(r => setTimeout(r, 200))
+    onComplete({ name: name.trim(), level, goal, currentWeight, goalWeight, unit })
+  }
+
+  const buttonLabel = step === 4 ? 'Empezar en GRAW' : 'Continuar'
+
+  const handleCardSelect = (setter, value) => {
+    setter(value)
+    setTimeout(() => setStep(s => s + 1), 280)
   }
 
   return (
@@ -350,104 +294,103 @@ export function Onboarding({ onComplete }) {
       top: 0, left: 0, right: 0, bottom: 0,
       zIndex: 9999,
       backgroundColor: '#0C0A09',
-      overflowY: 'auto',
+      overflowY: 'scroll',
       overflowX: 'hidden',
       WebkitOverflowScrolling: 'touch',
     }}>
-      {/* Inner wrapper — min-height forces full screen, can grow taller to enable scroll */}
       <div style={{
-        minHeight: 'max(100dvh, 100vh)',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '0 24px 60px',
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-        boxSizing: 'border-box',
         maxWidth: 480,
         margin: '0 auto',
+        padding: '56px 24px 0',
+        boxSizing: 'border-box',
+        minHeight: 'calc(100vh - 100px)',
       }}>
-
-        {/* Back button row */}
-        <div style={{
-          height: 44,
-          display: 'flex',
-          alignItems: 'center',
-          marginBottom: 8,
-          flexShrink: 0,
-        }}>
+        <div style={{ height: 44, display: 'flex', alignItems: 'center', marginBottom: 16 }}>
           {step > 1 && (
-            <button
-              onClick={goBack}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'rgba(245,239,230,0.5)',
-                fontSize: 15, fontWeight: 500,
-                padding: '8px 0',
-                minWidth: 44, minHeight: 44,
-                fontFamily: 'inherit',
-              }}
-            >
-              <ChevronLeft size={18} /> Atrás
+            <button onClick={() => setStep(s => s - 1)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(245,239,230,0.45)', fontSize: 15, fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '8px 0', minHeight: 44, fontFamily: 'inherit',
+            }}>
+              ← Atrás
             </button>
           )}
         </div>
 
-        {/* Progress bar dots */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 40, flexShrink: 0 }}>
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                height: 4,
-                borderRadius: 2,
-                flex: i + 1 === step ? 2 : 1,
-                background: i + 1 <= step
-                  ? '#E8924A'
-                  : 'rgba(255,235,200,0.12)',
-                transition: 'all 0.3s ease',
-              }}
-            />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 40 }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{
+              height: 4, borderRadius: 2,
+              flex: i === step ? 2 : 1,
+              background: i <= step ? '#E8924A' : 'rgba(255,235,200,0.1)',
+              transition: 'all 0.3s ease',
+            }} />
           ))}
         </div>
 
-        {/* Step content */}
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+            transition={{ duration: 0.2 }}
           >
-            {step === 1 && (
-              <StepName name={name} setName={setName} onNext={goNext} />
-            )}
-            {step === 2 && (
-              <StepLevel level={level} setLevel={setLevel} onNext={goNext} />
-            )}
-            {step === 3 && (
-              <StepGoal goal={goal} setGoal={setGoal} onNext={goNext} />
-            )}
+            {step === 1 && <NameContent name={name} setName={setName} />}
+            {step === 2 && <LevelContent level={level} onSelect={v => handleCardSelect(setLevel, v)} />}
+            {step === 3 && <GoalContent goal={goal} onSelect={v => handleCardSelect(setGoal, v)} />}
             {step === 4 && (
-              <StepBody
-                currentWeight={currentWeight}
-                setCurrentWeight={setCurrentWeight}
-                goalWeight={goalWeight}
-                setGoalWeight={setGoalWeight}
-                unit={unit}
-                setUnit={setUnit}
-                goal={goal}
-                name={name.trim() || 'atleta'}
-                onComplete={handleComplete}
+              <BodyContent
+                currentWeight={currentWeight} setCurrentWeight={setCurrentWeight}
+                goalWeight={goalWeight} setGoalWeight={setGoalWeight}
+                unit={unit} setUnit={setUnit}
+                goal={goal} name={name}
               />
             )}
           </motion.div>
         </AnimatePresence>
 
+        <div style={{ height: 24 }} />
       </div>
+
+      {(step === 1 || step === 4) && (
+        <div style={{
+          position: 'sticky',
+          bottom: 0,
+          background: 'linear-gradient(to bottom, rgba(12,10,9,0) 0%, #0C0A09 32px)',
+          padding: '32px 24px 0',
+          paddingBottom: 'max(env(safe-area-inset-bottom), 28px)',
+        }}>
+          <button
+            onClick={handleNext}
+            disabled={!canProceed}
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: 480,
+              margin: '0 auto',
+              height: 56,
+              borderRadius: 14,
+              border: 'none',
+              background: canProceed
+                ? 'linear-gradient(135deg, #E8924A, #C9712D)'
+                : 'rgba(255,235,200,0.07)',
+              color: canProceed
+                ? 'rgba(255,245,235,0.95)'
+                : 'rgba(245,239,230,0.2)',
+              fontSize: 16, fontWeight: 700,
+              cursor: canProceed ? 'pointer' : 'default',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {buttonLabel}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-export default Onboarding
+export { Onboarding }

@@ -336,6 +336,21 @@ textarea.input { resize: none; }
 /* ─── KEYBOARD STATE ─────────────────────────────────────────────────────── */
 .keyboard-open .bottom-nav { display: none !important; }
 
+/* ─── ONBOARDING: HIDE NAV (NUCLEAR) ────────────────────────── */
+body.onboarding-active .bottom-nav,
+body.onboarding-active [class*="bottom-nav"],
+body.onboarding-active [class*="BottomNav"],
+body.onboarding-active nav {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.onboarding-active {
+  overflow: auto !important;
+}
+
 /* ─── BADGE ANIMATIONS ───────────────────────────────────────────────────── */
 
 /* Legendary badge outer glow pulse */
