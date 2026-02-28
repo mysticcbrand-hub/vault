@@ -175,7 +175,7 @@ export default function App() {
       if (!raw) return false
       const parsed = JSON.parse(raw)
       const u = parsed?.state?.user
-      return !!(u?.name && u?.level && u?.goal)
+      return !!(u?.name && u?.level && u?.goal && u?.currentWeight !== null && u?.currentWeight !== undefined)
     } catch {
       return false
     }

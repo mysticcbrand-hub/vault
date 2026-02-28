@@ -20,8 +20,8 @@ function computeE1RM(weight, reps) {
 
 const initialState = () => ({
   user: {
-    name: 'Atleta',
-    startDate: new Date().toISOString(),
+    name: null,
+    startDate: null,
     unit: 'kg',
     level: null,
     goal: null,
