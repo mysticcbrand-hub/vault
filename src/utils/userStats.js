@@ -14,7 +14,7 @@ function weekKey(date) {
   return `${d.getFullYear()}-W${String(getISOWeek(d)).padStart(2, '0')}`
 }
 
-export function calculateUserStats(sessions, bodyMetrics, user, programs, prs) {
+export function calculateUserStats(sessions, bodyMetrics, user, programs, prs, storeCounters = {}) {
   // ── Basic counts ──────────────────────────────────────────────────────────
   const totalSessions = sessions.length
   const totalVolume = sessions.reduce((s, sess) => s + (sess.totalVolume ?? 0), 0)
@@ -146,8 +146,13 @@ export function calculateUserStats(sessions, bodyMetrics, user, programs, prs) {
     deadliftPR,
     currentWeight: latestWeight ?? user?.currentWeight ?? 0,
     totalWeightLogs: (bodyMetrics || []).length,
+    // Manual-only counters — pulled from store, not derived from data
+    // This is the only correct source of truth for badge conditions
+    userCreatedPrograms: storeCounters.userCreatedPrograms ?? 0,
+    manualWeightLogs: storeCounters.manualWeightLogs ?? 0,
     onboardingComplete: !!(user?.name && user?.level && user?.goal),
-    customProgramsCreated: (programs || []).filter(p => !p.isPreset).length,
+    // Legacy — kept for backward compat but no longer used in badge conditions
+    customProgramsCreated: (programs || []).filter(p => p.source === 'user').length,
     customExercisesCreated: 0,
     unlockedBadgesCount: 0, // filled in after badge check
   }

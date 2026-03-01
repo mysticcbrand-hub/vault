@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Sun, Clock, Zap, TrendingUp, User } from 'lucide-react'
 import useStore from '../../store/index.js'
 
@@ -12,6 +13,9 @@ const TABS = [
 
 export const BottomNav = memo(function BottomNav({ activeTab, onTabChange }) {
   const activeWorkout = useStore(s => s.activeWorkout)
+
+  // Focus Mode is active — hide regular nav (FocusMode renders its own via portal)
+  if (activeWorkout) return null
 
   return (
     <nav className="bottom-nav" style={{

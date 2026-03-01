@@ -9,6 +9,7 @@ import { ExercisePicker } from './ExercisePicker.jsx'
 import { useWorkoutTimer, useRestTimer, formatElapsed } from '../../hooks/useGrawTimer.js'
 import { formatKg } from '../../utils/format.js'
 import { getExerciseById } from '../../data/exercises.js'
+import { getSmartRestSuggestion } from '../../data/restProfiles.js'
 import useStore from '../../store/index.js'
 
 export const ActiveWorkout = memo(function ActiveWorkout() {
@@ -63,9 +64,30 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const handleCompleteSet = (exerciseId, setId) => {
     const result = completeSet(exerciseId, setId)
     setRestingExerciseId(exerciseId)
-    restTimer.start(settings?.restTimerDefault || 120)
+
+    // Smart rest: find the set that was just completed to get weight/reps
+    const exercise = activeWorkout.exercises.find(ex => ex.id === exerciseId)
+    const set = exercise?.sets.find(s => s.id === setId)
+    const prs = useStore.getState().prs
+    const defaultRest = settings?.restTimerDefault || 120
+
+    const suggestion = getSmartRestSuggestion(
+      exerciseId,
+      parseFloat(set?.weight) || 0,
+      parseInt(set?.reps) || 0,
+      prs,
+      defaultRest
+    )
+    restTimer.start(suggestion.seconds)
     return result
   }
+
+  // Listen for finish request from FocusMode nav button
+  useEffect(() => {
+    const handler = () => setShowFinish(true)
+    window.addEventListener('graw:requestFinish', handler)
+    return () => window.removeEventListener('graw:requestFinish', handler)
+  }, [])
 
   const handleFinishConfirm = () => {
     setShowFinish(false)

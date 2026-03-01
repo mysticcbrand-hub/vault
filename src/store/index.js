@@ -39,6 +39,9 @@ const initialState = () => ({
   activeWorkout: null,
   prs: {},
   bodyMetrics: [],
+  // Badge-specific counters — only incremented by intentional user actions
+  userCreatedPrograms: 0,   // incremented by saveCustomProgram(), NOT addRecommendedProgram()
+  manualWeightLogs: 0,      // incremented by addBodyMetric() when source !== 'onboarding'
   settings: {
     unit: 'kg',
     theme: 'dark',
@@ -70,8 +73,29 @@ const useStore = create(
       createProgram: (data) => set(s => ({
         programs: [...s.programs, { id: uid(), days: [], ...data }]
       })),
+      // saveCustomProgram — called from ProgramEditor when user taps "Guardar"
+      // This is the ONLY action that increments userCreatedPrograms
+      saveCustomProgram: (program) => set(s => ({
+        programs: [...s.programs, {
+          ...program,
+          id: program.id || uid(),
+          source: 'user',
+          createdAt: program.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }],
+        userCreatedPrograms: s.userCreatedPrograms + 1,
+      })),
+      // addRecommendedProgram — called by personalizeFromOnboarding()
+      // Does NOT increment userCreatedPrograms
+      addRecommendedProgram: (program) => set(s => ({
+        programs: [...s.programs, {
+          ...program,
+          source: 'recommended',
+          createdAt: new Date().toISOString(),
+        }],
+      })),
       updateProgram: (id, data) => set(s => ({
-        programs: s.programs.map(p => p.id === id ? { ...p, ...data } : p)
+        programs: s.programs.map(p => p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p)
       })),
       deleteProgram: (id) => set(s => ({
         programs: s.programs.filter(p => p.id !== id),
@@ -272,7 +296,7 @@ const useStore = create(
       },
 
       finishWorkout: (notes = '') => {
-        const { activeWorkout } = get()
+        const { activeWorkout, prs } = get()
         if (!activeWorkout) return null
 
         const endTime = new Date()
@@ -280,26 +304,57 @@ const useStore = create(
         const duration = Math.floor((endTime - startTime) / 1000)
         const totalVolume = calcSessionVolume(activeWorkout.exercises)
 
+        // Detect new PRs — compare e1RM of each completed set vs stored PRs
+        const newPRs = {}
+        activeWorkout.exercises.forEach(ex => {
+          ex.sets.forEach(set => {
+            if (!set.completed) return
+            const w = parseFloat(set.weight) || 0
+            const r = parseInt(set.reps) || 0
+            if (!w || !r) return
+            const e1rm = computeE1RM(w, r)
+            const existing = prs[ex.exerciseId]
+            if (e1rm > 0 && (!existing || e1rm > existing.e1rm)) {
+              if (!newPRs[ex.exerciseId] || e1rm > newPRs[ex.exerciseId].e1rm) {
+                newPRs[ex.exerciseId] = { weight: w, reps: r, e1rm, date: new Date().toISOString() }
+              }
+            }
+          })
+        })
+
+        // Determine muscle groups from exercises (use muscle field if available)
+        const muscles = [...new Set(
+          activeWorkout.exercises
+            .map(ex => {
+              // Try to get muscle from exercise data — fallback to exerciseId
+              const stored = activeWorkout.exercises.find(e => e.id === ex.id)
+              return stored?.muscle || null
+            })
+            .filter(Boolean)
+        )]
+
         const session = {
           id: uid(),
           templateId: activeWorkout.templateId,
           programId: activeWorkout.programId,
           name: activeWorkout.name,
           date: activeWorkout.startTime,
+          startTime: activeWorkout.startTime,
           duration,
           exercises: activeWorkout.exercises,
           totalVolume: Math.round(totalVolume),
           notes,
-          muscles: [...new Set(activeWorkout.exercises.map(ex => ex.exerciseId))],
+          muscles,
         }
 
         localStorage.removeItem('graw_workout_start_ts')
         set(s => ({
           sessions: [session, ...s.sessions],
           activeWorkout: null,
+          prs: { ...s.prs, ...newPRs },
         }))
 
-        return session
+        return { session, newPRs }
       },
 
       // ── SESSIONS ──────────────────────────────────────────────────────────
@@ -316,12 +371,16 @@ const useStore = create(
       })),
 
       // ── BODY METRICS ──────────────────────────────────────────────────────
-      addBodyMetric: (data) => set(s => ({
-        bodyMetrics: [
-          { id: uid(), date: new Date().toISOString(), ...data },
-          ...s.bodyMetrics,
-        ]
-      })),
+      addBodyMetric: (data) => set(s => {
+        const isManual = data.source !== 'onboarding'
+        return {
+          bodyMetrics: [
+            { id: uid(), date: new Date().toISOString(), ...data },
+            ...s.bodyMetrics,
+          ],
+          manualWeightLogs: isManual ? s.manualWeightLogs + 1 : s.manualWeightLogs,
+        }
+      }),
 
       deleteBodyMetric: (id) => set(s => ({
         bodyMetrics: s.bodyMetrics.filter(m => m.id !== id)
@@ -338,8 +397,12 @@ const useStore = create(
       clearPendingBadgeToast: () => set({ pendingBadgeToast: null }),
 
       // ── TOASTS ────────────────────────────────────────────────────────────
-      addToast: (toast) => {
+      // Accepts either a string or an object { message, type, duration }
+      addToast: (toastOrMessage) => {
         const id = uid()
+        const toast = typeof toastOrMessage === 'string'
+          ? { message: toastOrMessage, type: 'default' }
+          : toastOrMessage
         set(s => ({ toasts: [...s.toasts, { id, ...toast }] }))
         setTimeout(() => {
           set(s => ({ toasts: s.toasts.filter(t => t.id !== id) }))
@@ -369,11 +432,13 @@ const useStore = create(
         activeWorkout: state.activeWorkout,
         prs: state.prs,
         bodyMetrics: state.bodyMetrics,
+        userCreatedPrograms: state.userCreatedPrograms,
+        manualWeightLogs: state.manualWeightLogs,
         settings: state.settings,
         unlockedBadges: state.unlockedBadges,
       }),
       onRehydrateStorage: () => (state, error) => {
-        if (error) console.warn('Failed to rehydrate store:', error)
+        if (error) console.error('Failed to rehydrate store:', error)
       },
     }
   )

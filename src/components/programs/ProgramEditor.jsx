@@ -1,347 +1,698 @@
-import { useState, useEffect } from 'react'
-import { ChevronLeft, Plus, X } from 'lucide-react'
-import { Sheet } from '../layout/Sheet.jsx'
+// ─── ProgramEditor.jsx ───────────────────────────────────────────────────────
+// PLANNING TOOL ONLY. Zero connection to workout session/activeWorkout.
+// Reads/writes ONLY to the programs slice of the store.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { useState, useCallback, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, X, ChevronDown, Search, Check } from 'lucide-react'
+import { Sheet } from '../ui/Sheet.jsx'
+import { EXERCISES, MUSCLE_NAMES } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
 
-// Standalone full-screen program editor — ZERO connection to workout store
-export function ProgramEditor({ open, onClose, program }) {
-  const addProgram = useStore(s => s.addProgram)
-  const updateProgram = useStore(s => s.updateProgram)
-  const templates = useStore(s => s.templates)
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [totalWeeks, setTotalWeeks] = useState('')
-  const [days, setDays] = useState([])
-  const [errors, setErrors] = useState({})
-  const [dirty, setDirty] = useState(false)
-  const [showDiscard, setShowDiscard] = useState(false)
-  const [pickerDayIdx, setPickerDayIdx] = useState(null) // which day is picking a template
+const MUSCLE_GROUPS = [
+  { id: 'all',       label: 'Todos' },
+  { id: 'chest',     label: 'Pecho' },
+  { id: 'back',      label: 'Espalda' },
+  { id: 'shoulders', label: 'Hombros' },
+  { id: 'arms',      label: 'Brazos' },
+  { id: 'forearms',  label: 'Antebrazos' },
+  { id: 'legs',      label: 'Piernas' },
+  { id: 'calves',    label: 'Gemelos' },
+  { id: 'core',      label: 'Core' },
+]
 
+const MUSCLE_HEX = {
+  chest:     '#E8924A',
+  back:      '#5B9CF6',
+  shoulders: '#A37FD4',
+  arms:      '#D4A843',
+  forearms:  '#7EB8A0',
+  legs:      '#34C77B',
+  calves:    '#9B8EC4',
+  core:      '#C46B3A',
+}
+
+const getMHex = (m) => MUSCLE_HEX[m] ?? 'rgba(245,239,230,0.35)'
+
+// ─── SectionLabel ─────────────────────────────────────────────────────────────
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      fontSize: 10, fontWeight: 700,
+      letterSpacing: '0.08em', textTransform: 'uppercase',
+      color: 'rgba(245,239,230,0.35)',
+      marginBottom: 8, paddingLeft: 2,
+      display: 'flex', alignItems: 'center', gap: 6,
+    }}>
+      {children}
+    </div>
+  )
+}
+
+// ─── InlineNumberInput — stepper ──────────────────────────────────────────────
+function InlineNumberInput({ value, min, max, onChange }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center',
+      background: 'rgba(255,235,200,0.05)',
+      border: '0.5px solid rgba(255,235,200,0.12)',
+      borderRadius: 8, overflow: 'hidden',
+    }}>
+      <button
+        onClick={e => { e.stopPropagation(); onChange(Math.max(min, value - 1)) }}
+        style={{
+          width: 24, height: 30, background: 'none', border: 'none',
+          color: 'rgba(245,239,230,0.45)', fontSize: 16, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >−</button>
+      <div style={{
+        minWidth: 24, textAlign: 'center',
+        fontSize: 12, fontWeight: 700,
+        color: '#F5EFE6', fontFamily: 'DM Mono, monospace',
+        userSelect: 'none',
+      }}>
+        {value}
+      </div>
+      <button
+        onClick={e => { e.stopPropagation(); onChange(Math.min(max, value + 1)) }}
+        style={{
+          width: 24, height: 30, background: 'none', border: 'none',
+          color: 'rgba(245,239,230,0.45)', fontSize: 16, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >+</button>
+    </div>
+  )
+}
+
+// ─── ExerciseRow ─────────────────────────────────────────────────────────────
+function ExerciseRow({ exercise, isLast, onRemove, onUpdate }) {
+  const accentColor = getMHex(exercise.muscle)
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', padding: '9px 12px', gap: 8,
+      borderBottom: isLast ? 'none' : '0.5px solid rgba(255,235,200,0.05)',
+    }}>
+      <div style={{
+        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+        background: accentColor, boxShadow: `0 0 5px ${accentColor}70`,
+      }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 13, fontWeight: 600, color: '#F5EFE6',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {exercise.name}
+        </div>
+        <div style={{ fontSize: 10, color: 'rgba(245,239,230,0.3)', marginTop: 1, textTransform: 'capitalize' }}>
+          {MUSCLE_NAMES[exercise.muscle] || exercise.muscle}
+        </div>
+      </div>
+      <InlineNumberInput value={exercise.sets} min={1} max={10} onChange={v => onUpdate('sets', v)} />
+      <span style={{ fontSize: 11, color: 'rgba(245,239,230,0.25)', fontFamily: 'DM Mono, monospace', flexShrink: 0 }}>×</span>
+      <InlineNumberInput value={exercise.reps} min={1} max={50} onChange={v => onUpdate('reps', v)} />
+      <select
+        value={exercise.restSeconds}
+        onChange={e => onUpdate('restSeconds', parseInt(e.target.value))}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'rgba(255,235,200,0.05)', border: '0.5px solid rgba(255,235,200,0.1)',
+          borderRadius: 7, color: 'rgba(245,239,230,0.5)',
+          fontSize: 10, fontWeight: 600, padding: '3px 4px', cursor: 'pointer',
+          fontFamily: 'DM Mono, monospace', outline: 'none',
+          appearance: 'none', WebkitAppearance: 'none', flexShrink: 0,
+        }}
+      >
+        <option value={45}>0:45</option>
+        <option value={60}>1:00</option>
+        <option value={90}>1:30</option>
+        <option value={120}>2:00</option>
+        <option value={150}>2:30</option>
+        <option value={180}>3:00</option>
+        <option value={240}>4:00</option>
+      </select>
+      <button
+        onClick={onRemove}
+        style={{
+          width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none',
+          color: 'rgba(229,83,75,0.45)', cursor: 'pointer', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+        onTouchStart={e => { e.currentTarget.style.color = '#E5534B' }}
+        onTouchEnd={e => { e.currentTarget.style.color = 'rgba(229,83,75,0.45)' }}
+      >
+        <X size={13} />
+      </button>
+    </div>
+  )
+}
+
+// ─── DayCard ──────────────────────────────────────────────────────────────────
+function DayCard({ day, dayIndex, isExpanded, onToggle, onRename, onRemove, onAddExercise, onRemoveExercise, onUpdateExercise }) {
+  const [editingName, setEditingName] = useState(false)
+
+  return (
+    <div style={{
+      borderRadius: 18,
+      background: 'rgba(22,18,12,0.78)',
+      border: '0.5px solid rgba(255,235,200,0.09)',
+      boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.05)',
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'center',
+          padding: '13px 14px', cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent', userSelect: 'none',
+        }}
+      >
+        {/* Day number */}
+        <div style={{
+          width: 28, height: 28, borderRadius: 9, flexShrink: 0, marginRight: 10,
+          background: 'rgba(232,146,74,0.12)', border: '0.5px solid rgba(232,146,74,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 800, color: '#E8924A',
+        }}>
+          {dayIndex + 1}
+        </div>
+
+        {/* Day name */}
+        {editingName ? (
+          <input
+            autoFocus
+            value={day.name}
+            onChange={e => onRename(e.target.value)}
+            onBlur={() => setEditingName(false)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingName(false) }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              flex: 1, background: 'transparent', border: 'none',
+              borderBottom: '1.5px solid rgba(232,146,74,0.5)',
+              color: '#F5EFE6', fontSize: 14, fontWeight: 700,
+              outline: 'none', fontFamily: 'inherit', padding: '1px 0',
+            }}
+          />
+        ) : (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#F5EFE6' }}>{day.name}</span>
+            <span
+              onClick={e => { e.stopPropagation(); setEditingName(true) }}
+              style={{ fontSize: 11, color: 'rgba(245,239,230,0.22)', cursor: 'text' }}
+            >✎</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8, flexShrink: 0 }}>
+          {day.exercises.length > 0 && (
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,239,230,0.32)' }}>
+              {day.exercises.length} ej.
+            </span>
+          )}
+          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown size={16} color="rgba(245,239,230,0.28)" />
+          </motion.div>
+        </div>
+
+        <button
+          onClick={e => { e.stopPropagation(); onRemove() }}
+          style={{
+            width: 28, height: 28, borderRadius: 8, background: 'transparent', border: 'none',
+            color: 'rgba(229,83,75,0.5)', cursor: 'pointer', marginLeft: 6, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onTouchStart={e => { e.currentTarget.style.color = '#E5534B' }}
+          onTouchEnd={e => { e.currentTarget.style.color = 'rgba(229,83,75,0.5)' }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Expanded body */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ borderTop: '0.5px solid rgba(255,235,200,0.07)' }}>
+              {day.exercises.length === 0 ? (
+                <div style={{ padding: '18px 14px', textAlign: 'center', fontSize: 12, color: 'rgba(245,239,230,0.28)' }}>
+                  Sin ejercicios — añade uno abajo
+                </div>
+              ) : (
+                day.exercises.map((ex, i) => (
+                  <ExerciseRow
+                    key={`${ex.exerciseId}-${i}`}
+                    exercise={ex}
+                    isLast={i === day.exercises.length - 1}
+                    onRemove={() => onRemoveExercise(i)}
+                    onUpdate={(field, val) => onUpdateExercise(i, field, val)}
+                  />
+                ))
+              )}
+              <button
+                onClick={onAddExercise}
+                style={{
+                  width: '100%', height: 44, background: 'rgba(232,146,74,0.05)', border: 'none',
+                  borderTop: day.exercises.length > 0 ? '0.5px solid rgba(255,235,200,0.06)' : 'none',
+                  color: 'rgba(232,146,74,0.78)', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  WebkitTapHighlightColor: 'transparent', transition: 'background 0.12s ease',
+                }}
+                onTouchStart={e => { e.currentTarget.style.background = 'rgba(232,146,74,0.1)' }}
+                onTouchEnd={e => { e.currentTarget.style.background = 'rgba(232,146,74,0.05)' }}
+              >
+                <Plus size={13} /> Añadir ejercicio
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── ExercisePickerSheet ──────────────────────────────────────────────────────
+function ExercisePickerSheet({ isOpen, onClose, onSelect }) {
+  const [query, setQuery] = useState('')
+  const [muscleFilter, setMuscleFilter] = useState('all')
+  const [selected, setSelected] = useState(null)
+
+  const exercises = EXERCISES || []
+
+  const filtered = exercises.filter(ex => {
+    const matchMuscle = muscleFilter === 'all' || ex.muscle === muscleFilter
+    const matchQuery  = !query || ex.name.toLowerCase().includes(query.toLowerCase())
+    return matchMuscle && matchQuery
+  })
+
+  const grouped = filtered.reduce((acc, ex) => {
+    const key = ex.muscle ?? 'other'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(ex)
+    return acc
+  }, {})
+
+  const handleSelect = (exercise) => {
+    setSelected(exercise.id)
+    setTimeout(() => {
+      onSelect(exercise)
+      setSelected(null)
+      setQuery('')
+      setMuscleFilter('all')
+    }, 160)
+  }
+
+  return (
+    <Sheet isOpen={isOpen} onClose={() => { setQuery(''); setMuscleFilter('all'); onClose() }} size="full" title="Añadir ejercicio">
+      {/* Search */}
+      <div style={{ position: 'relative', marginBottom: 12 }}>
+        <Search size={14} color="rgba(245,239,230,0.3)" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          placeholder="Buscar ejercicio..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: 'rgba(26,20,12,0.8)',
+            border: '0.5px solid rgba(255,235,200,0.1)',
+            borderRadius: 12, padding: '12px 14px 12px 36px',
+            fontSize: 16, color: '#F5EFE6',
+            outline: 'none', fontFamily: 'inherit',
+          }}
+        />
+      </div>
+
+      {/* Muscle filter pills */}
+      <div style={{
+        display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 4,
+        marginBottom: 16, scrollbarWidth: 'none', msOverflowStyle: 'none',
+        WebkitOverflowScrolling: 'touch',
+      }}>
+        {MUSCLE_GROUPS.map(m => (
+          <button
+            key={m.id}
+            onClick={() => setMuscleFilter(m.id)}
+            style={{
+              height: 30, padding: '0 12px', borderRadius: 100, border: 'none',
+              background: muscleFilter === m.id ? 'rgba(232,146,74,0.16)' : 'rgba(255,235,200,0.06)',
+              color: muscleFilter === m.id ? '#E8924A' : 'rgba(245,239,230,0.45)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s ease',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Exercise list grouped by muscle */}
+      {Object.entries(grouped).map(([muscle, exList]) => (
+        <div key={muscle} style={{ marginBottom: 16 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+            textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)',
+            marginBottom: 7, paddingLeft: 2,
+          }}>
+            {MUSCLE_NAMES[muscle] || muscle}
+          </div>
+          <div style={{
+            borderRadius: 14, background: 'rgba(22,18,12,0.7)',
+            border: '0.5px solid rgba(255,235,200,0.07)', overflow: 'hidden',
+          }}>
+            {exList.map((ex, i) => (
+              <motion.button
+                key={ex.id}
+                whileTap={{ scale: 0.985 }}
+                onClick={() => handleSelect(ex)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center',
+                  padding: '12px 14px',
+                  background: selected === ex.id ? 'rgba(232,146,74,0.1)' : 'transparent',
+                  border: 'none',
+                  borderTop: i > 0 ? '0.5px solid rgba(255,235,200,0.05)' : 'none',
+                  cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                  transition: 'background 0.12s ease',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                <div style={{
+                  width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                  background: getMHex(ex.muscle), marginRight: 10,
+                }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#F5EFE6', lineHeight: 1.2 }}>
+                    {ex.name}
+                  </div>
+                  {ex.equipment && (
+                    <div style={{ fontSize: 11, color: 'rgba(245,239,230,0.28)', marginTop: 2 }}>
+                      {ex.equipment}
+                    </div>
+                  )}
+                </div>
+                <AnimatePresence>
+                  {selected === ex.id && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      style={{ marginLeft: 8, flexShrink: 0 }}
+                    >
+                      <Check size={16} color="#E8924A" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(245,239,230,0.28)', fontSize: 14 }}>
+          Sin resultados{query ? ` para "${query}"` : ''}
+        </div>
+      )}
+    </Sheet>
+  )
+}
+
+// ─── ProgramEditor — main export ─────────────────────────────────────────────
+export function ProgramEditor({ open, onClose, program: existingProgram = null }) {
+  const isEditing = !!existingProgram
+  const saveCustomProgram = useStore(s => s.saveCustomProgram)
+  const updateProgram     = useStore(s => s.updateProgram)
+  const addToast          = useStore(s => s.addToast)
+
+  const makeDay = (name, exercises = []) => ({
+    id: `day-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name,
+    exercises,
+  })
+
+  const hydrateDay = (d) => ({
+    id: d.id || `day-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: d.name || 'Día',
+    exercises: (d.exercises || []).map(ex => ({
+      exerciseId: ex.exerciseId,
+      name: ex.name || EXERCISES.find(e => e.id === ex.exerciseId)?.name || ex.exerciseId,
+      muscle: ex.muscle || EXERCISES.find(e => e.id === ex.exerciseId)?.muscle || 'chest',
+      sets: ex.sets ?? 3,
+      reps: ex.reps ?? 10,
+      restSeconds: ex.restSeconds ?? 120,
+    })),
+  })
+
+  const [name, setName]           = useState('')
+  const [days, setDays]           = useState([])
+  const [expandedDay, setExpanded] = useState(null)
+  const [pickerDayId, setPickerId] = useState(null)
+
+  // Reset state whenever the sheet opens or the target program changes
   useEffect(() => {
     if (!open) return
-    if (program) {
-      setName(program.name || '')
-      setDescription(program.description || '')
-      setTotalWeeks(program.totalWeeks ? String(program.totalWeeks) : '')
-      setDays((program.days || []).map(d => ({ ...d, id: d.id || crypto.randomUUID() })))
+    if (existingProgram) {
+      setName(existingProgram.name ?? '')
+      const hydrated = (existingProgram.days ?? []).map(hydrateDay)
+      setDays(hydrated)
+      setExpanded(hydrated[0]?.id ?? null)
     } else {
+      const firstDay = makeDay('Día 1')
       setName('')
-      setDescription('')
-      setTotalWeeks('')
-      setDays([{ id: crypto.randomUUID(), name: 'Día 1', templateId: null }])
+      setDays([firstDay])
+      setExpanded(firstDay.id)
     }
-    setErrors({})
-    setDirty(false)
-  }, [open, program])
+    setPickerId(null)
+  }, [open, existingProgram?.id])
 
-  if (!open) return null
+  // ── Day operations ────────────────────────────────────────────────────────
+  const addDay = useCallback(() => {
+    setDays(prev => {
+      const d = makeDay(`Día ${prev.length + 1}`)
+      setExpanded(d.id)
+      return [...prev, d]
+    })
+  }, [])
 
-  const mark = () => setDirty(true)
+  const removeDay = useCallback((dayId) => {
+    setDays(prev => prev.filter(d => d.id !== dayId))
+    setExpanded(prev => prev === dayId ? null : prev)
+  }, [])
 
-  const addDay = () => {
-    setDays(prev => [...prev, { id: crypto.randomUUID(), name: `Día ${prev.length + 1}`, templateId: null }])
-    mark()
-  }
+  const renameDay = useCallback((dayId, newName) => {
+    setDays(prev => prev.map(d => d.id === dayId ? { ...d, name: newName } : d))
+  }, [])
 
-  const removeDay = (id) => {
-    setDays(prev => prev.filter(d => d.id !== id))
-    mark()
-  }
+  // ── Exercise operations ───────────────────────────────────────────────────
+  const addExercise = useCallback((dayId, exercise) => {
+    setDays(prev => prev.map(d =>
+      d.id !== dayId ? d : {
+        ...d,
+        exercises: [...d.exercises, {
+          exerciseId: exercise.id,
+          name: exercise.name,
+          muscle: exercise.muscle,
+          sets: 3,
+          reps: 10,
+          restSeconds: 120,
+        }],
+      }
+    ))
+  }, [])
 
-  const updateDay = (id, field, value) => {
-    setDays(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d))
-    mark()
-  }
+  const removeExercise = useCallback((dayId, exIndex) => {
+    setDays(prev => prev.map(d =>
+      d.id !== dayId ? d : {
+        ...d,
+        exercises: d.exercises.filter((_, i) => i !== exIndex),
+      }
+    ))
+  }, [])
 
-  const validate = () => {
-    const errs = {}
-    if (!name.trim() || name.trim().length < 3) errs.name = 'El nombre debe tener al menos 3 caracteres'
-    if (days.length === 0) errs.days = 'Añade al menos un día'
-    setErrors(errs)
-    return Object.keys(errs).length === 0
-  }
+  const updateExerciseField = useCallback((dayId, exIndex, field, value) => {
+    setDays(prev => prev.map(d =>
+      d.id !== dayId ? d : {
+        ...d,
+        exercises: d.exercises.map((ex, i) => i !== exIndex ? ex : { ...ex, [field]: value }),
+      }
+    ))
+  }, [])
 
+  // ── Validation ────────────────────────────────────────────────────────────
+  const isValid = name.trim().length >= 2
+    && days.length >= 1
+    && days.every(d => d.exercises.length >= 1)
+
+  // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = () => {
-    if (!validate()) return
-    const data = {
+    if (!isValid) return
+    const program = {
       name: name.trim(),
-      description: description.trim(),
-      totalWeeks: totalWeeks ? Number(totalWeeks) : null,
-      days: days.map(d => ({
-        id: d.id,
-        name: d.name,
-        templateId: d.templateId || null,
-      })),
+      days,
+      source: 'user',
+      daysPerWeek: days.length,
     }
-    if (program?.id) {
-      updateProgram(program.id, data)
+    if (isEditing) {
+      updateProgram(existingProgram.id, {
+        ...existingProgram,
+        ...program,
+        updatedAt: new Date().toISOString(),
+      })
+      addToast({ message: 'Programa actualizado ✓', type: 'success' })
     } else {
-      addProgram(data)
+      saveCustomProgram({
+        ...program,
+        id: `user-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      addToast({ message: 'Programa creado ✓', type: 'success' })
     }
     onClose()
   }
 
-  const handleBack = () => {
-    if (dirty) setShowDiscard(true)
-    else onClose()
-  }
-
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 300,
-      background: 'var(--bg)',
-      display: 'flex', flexDirection: 'column',
-      paddingTop: 'env(safe-area-inset-top, 0px)',
-      animation: 'slideInRight 0.3s cubic-bezier(0.32,0.72,0,1)',
-    }}>
-      {/* Top bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 16px',
-        borderBottom: '1px solid var(--border)',
-        background: 'rgba(10,8,6,0.82)',
-        backdropFilter: 'blur(40px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-        boxShadow: 'inset 0 -1px 0 rgba(255,235,200,0.06)',
-        flexShrink: 0,
-      }}>
-        <button onClick={handleBack} className="pressable" style={{
-          display: 'flex', alignItems: 'center', gap: 4,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: 'var(--text2)', fontSize: 15, fontWeight: 500, padding: '8px 4px',
-          minWidth: 44, minHeight: 44,
-        }}>
-          <ChevronLeft size={18} />
-          Cancelar
-        </button>
-        <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-          {program ? 'Editar programa' : 'Nuevo programa'}
-        </p>
-        <button onClick={handleSave} className="pressable" style={{
-          padding: '8px 16px', borderRadius: 10,
-          background: 'var(--accent)', border: 'none',
-          color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-          minHeight: 36,
-        }}>
-          Guardar
-        </button>
-      </div>
-
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: 'calc(40px + env(safe-area-inset-bottom,0px))', display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-        {/* Name */}
-        <div>
-          <p className="t-label" style={{ marginBottom: 8 }}>Nombre del programa</p>
+    <>
+      <Sheet
+        isOpen={open && !pickerDayId}
+        onClose={onClose}
+        size="full"
+        title={isEditing ? 'Editar programa' : 'Nuevo programa'}
+      >
+        {/* ── Program name ─────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 24 }}>
+          <SectionLabel>Nombre del programa</SectionLabel>
           <input
             type="text"
             value={name}
-            onChange={e => { setName(e.target.value); mark() }}
-            placeholder="Ej: PPL, Upper/Lower..."
-            className="input"
-            style={{ fontSize: 16 }}
-          />
-          {errors.name && <p style={{ fontSize: 12, color: 'var(--red)', marginTop: 6 }}>{errors.name}</p>}
-        </div>
-
-        {/* Description */}
-        <div>
-          <p className="t-label" style={{ marginBottom: 8 }}>Descripción (opcional)</p>
-          <textarea
-            value={description}
-            onChange={e => { setDescription(e.target.value); mark() }}
-            placeholder="Describe el programa..."
-            rows={2}
-            className="input"
-            style={{ fontSize: 16, resize: 'none' }}
-          />
-        </div>
-
-        {/* Total weeks */}
-        <div>
-          <p className="t-label" style={{ marginBottom: 8 }}>Semanas totales (opcional)</p>
-          <input
-            type="number"
-            value={totalWeeks}
-            onChange={e => { setTotalWeeks(e.target.value); mark() }}
-            placeholder="12"
-            min="1"
-            className="input"
-            style={{ fontSize: 16, width: 120 }}
-          />
-        </div>
-
-        {/* Training days */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <p className="t-label">Días de entrenamiento</p>
-            <span style={{ fontSize: 12, color: 'var(--text3)' }}>{days.length} días</span>
-          </div>
-          {errors.days && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 10 }}>{errors.days}</p>}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {days.map((day, i) => {
-              const tpl = templates.find(t => t.id === day.templateId)
-              return (
-                <div key={day.id} style={{
-                  background: 'rgba(22,18,12,0.68)',
-                  backdropFilter: 'blur(24px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                  border: '0.5px solid rgba(255,235,200,0.07)',
-                  borderRadius: 'var(--r)',
-                  padding: '14px',
-                  boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.06)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                    <div style={{
-                      width: 28, height: 28, borderRadius: 8,
-                      background: 'var(--surface3)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)' }}>{i + 1}</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={day.name}
-                      onChange={e => updateDay(day.id, 'name', e.target.value)}
-                      style={{
-                        flex: 1, background: 'none', border: 'none',
-                        borderBottom: '1px solid var(--border2)',
-                        fontSize: 15, fontWeight: 600, color: 'var(--text)',
-                        outline: 'none', padding: '2px 0', fontFamily: 'inherit',
-                      }}
-                    />
-                    {days.length > 1 && (
-                      <button onClick={() => removeDay(day.id)} className="pressable" style={{
-                        width: 28, height: 28, borderRadius: 8,
-                        background: 'var(--red-dim)', border: '1px solid rgba(229,83,75,0.2)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', flexShrink: 0,
-                      }}>
-                        <X size={13} color="var(--red)" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Template picker */}
-                  <button
-                    onClick={() => setPickerDayIdx(i)}
-                    className="pressable"
-                    style={{
-                      width: '100%', padding: '11px 14px',
-                      borderRadius: 12,
-                      background: tpl ? 'var(--accent-dim)' : 'var(--surface3)',
-                      border: `1px solid ${tpl ? 'var(--accent-border)' : 'var(--border2)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: tpl ? 600 : 400, color: tpl ? 'var(--accent)' : 'var(--text3)' }}>
-                      {tpl ? tpl.name : 'Seleccionar template...'}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text3)' }}>▾</span>
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-
-          <button onClick={addDay} className="pressable" style={{
-            marginTop: 10, width: '100%', padding: '14px',
-            borderRadius: 'var(--r)',
-            border: '1.5px dashed rgba(232,146,74,0.2)',
-            background: 'rgba(232,146,74,0.03)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            cursor: 'pointer',
-          }}>
-            <Plus size={16} color="var(--accent)" />
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>Añadir día</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Template picker sheet */}
-      <Sheet
-        open={pickerDayIdx !== null}
-        onClose={() => setPickerDayIdx(null)}
-        title="Seleccionar template"
-      >
-        <div style={{ padding: '12px 20px', paddingBottom: 'calc(32px + env(safe-area-inset-bottom,0px))' }}>
-          {/* Rest day option */}
-          <button
-            onClick={() => { updateDay(days[pickerDayIdx]?.id, 'templateId', null); setPickerDayIdx(null) }}
-            className="pressable"
+            onChange={e => setName(e.target.value)}
+            placeholder="Ej: Mi PPL personalizado"
+            maxLength={48}
             style={{
-              width: '100%', padding: '14px 16px', borderRadius: 14, marginBottom: 8,
-              background: !days[pickerDayIdx]?.templateId ? 'var(--surface3)' : 'var(--surface2)',
-              border: `1px solid ${!days[pickerDayIdx]?.templateId ? 'var(--border2)' : 'var(--border)'}`,
-              display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'left',
+              width: '100%', boxSizing: 'border-box',
+              background: 'rgba(28,22,14,0.8)',
+              border: `1.5px solid ${name.length >= 2 ? 'rgba(232,146,74,0.4)' : 'rgba(255,235,200,0.1)'}`,
+              borderRadius: 14, padding: '14px 16px',
+              fontSize: 16, fontWeight: 600, color: '#F5EFE6',
+              outline: 'none', fontFamily: 'inherit',
+              transition: 'border-color 0.2s ease',
             }}
-          >
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)' }}>Descanso</span>
-          </button>
-
-          {templates.map(t => {
-            const selected = days[pickerDayIdx]?.templateId === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => { updateDay(days[pickerDayIdx]?.id, 'templateId', t.id); setPickerDayIdx(null) }}
-                className="pressable"
-                style={{
-                  width: '100%', padding: '14px 16px', borderRadius: 14, marginBottom: 8,
-                  background: selected ? 'var(--accent-dim)' : 'var(--surface2)',
-                  border: `1px solid ${selected ? 'var(--accent-border)' : 'var(--border)'}`,
-                  display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'left',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{t.name}</p>
-                  <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{(t.exercises || []).length} ejercicios</p>
-                </div>
-                {selected && <span style={{ fontSize: 16, color: 'var(--accent)' }}>✓</span>}
-              </button>
-            )
-          })}
-
-          {templates.length === 0 && (
-            <div style={{ padding: '32px 0', textAlign: 'center' }}>
-              <p style={{ fontSize: 14, color: 'var(--text3)' }}>No hay templates. Crea uno primero.</p>
-            </div>
-          )}
+          />
         </div>
+
+        {/* ── Days ─────────────────────────────────────────────────────── */}
+        <SectionLabel>
+          Días de entrenamiento
+          <span style={{ fontSize: 10, color: 'rgba(245,239,230,0.28)', fontWeight: 500 }}>
+            {days.length}/7
+          </span>
+        </SectionLabel>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+          <AnimatePresence initial={false}>
+            {days.map((day, dayIndex) => (
+              <motion.div
+                key={day.id}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                style={{ overflow: 'hidden' }}
+              >
+                <DayCard
+                  day={day}
+                  dayIndex={dayIndex}
+                  isExpanded={expandedDay === day.id}
+                  onToggle={() => setExpanded(expandedDay === day.id ? null : day.id)}
+                  onRename={newName => renameDay(day.id, newName)}
+                  onRemove={() => removeDay(day.id)}
+                  onAddExercise={() => { setExpanded(day.id); setPickerId(day.id) }}
+                  onRemoveExercise={i => removeExercise(day.id, i)}
+                  onUpdateExercise={(i, field, val) => updateExerciseField(day.id, i, field, val)}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Add day ──────────────────────────────────────────────────── */}
+        {days.length < 7 && (
+          <button
+            onClick={addDay}
+            style={{
+              width: '100%', height: 48, marginTop: 12,
+              borderRadius: 14, background: 'rgba(255,235,200,0.04)',
+              border: '1px dashed rgba(255,235,200,0.14)',
+              color: 'rgba(232,146,74,0.72)', fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s ease', WebkitTapHighlightColor: 'transparent',
+            }}
+            onTouchStart={e => { e.currentTarget.style.background = 'rgba(232,146,74,0.07)' }}
+            onTouchEnd={e => { e.currentTarget.style.background = 'rgba(255,235,200,0.04)' }}
+          >
+            <Plus size={15} color="rgba(232,146,74,0.72)" /> Añadir día
+          </button>
+        )}
+
+        {/* ── Validation hint ───────────────────────────────────────────── */}
+        {days.length > 0 && !isValid && name.trim().length >= 2 && (
+          <p style={{
+            fontSize: 12, textAlign: 'center',
+            color: 'rgba(245,239,230,0.28)', marginTop: 12, lineHeight: 1.5,
+          }}>
+            Cada día necesita al menos un ejercicio
+          </p>
+        )}
+
+        {/* ── Save button ───────────────────────────────────────────────── */}
+        <button
+          onClick={handleSave}
+          disabled={!isValid}
+          style={{
+            width: '100%', height: 52, marginTop: 24, marginBottom: 8,
+            borderRadius: 14, border: 'none',
+            background: isValid
+              ? 'linear-gradient(135deg, #E8924A, #C9712D)'
+              : 'rgba(255,235,200,0.06)',
+            color: isValid ? 'rgba(255,245,235,0.96)' : 'rgba(245,239,230,0.2)',
+            fontSize: 16, fontWeight: 700,
+            cursor: isValid ? 'pointer' : 'default',
+            fontFamily: 'inherit',
+            transition: 'all 0.2s ease',
+            boxShadow: isValid ? '0 4px 20px rgba(232,146,74,0.25)' : 'none',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+          onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.85' }}
+          onTouchEnd={e => { e.currentTarget.style.opacity = '' }}
+        >
+          {isEditing ? 'Guardar cambios' : 'Crear programa'}
+        </button>
       </Sheet>
 
-      {/* Discard confirm */}
-      {showDiscard && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 310 }} onClick={() => setShowDiscard(false)} />
-          <div style={{
-            position: 'fixed', left: '50%', top: '50%',
-            transform: 'translate(-50%,-50%)',
-            width: 'calc(100% - 40px)', maxWidth: 320,
-            background: 'rgba(16,13,9,0.96)',
-            backdropFilter: 'blur(40px)',
-            WebkitBackdropFilter: 'blur(40px)',
-            border: '0.5px solid rgba(255,235,200,0.12)',
-            borderRadius: 24, padding: 24, zIndex: 311,
-            boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.08), 0 20px 60px rgba(0,0,0,0.7)',
-          }}>
-            <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>¿Descartar cambios?</p>
-            <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 20, lineHeight: 1.5 }}>Los cambios no guardados se perderán.</p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowDiscard(false)} className="pressable" style={{ flex: 1, padding: 12, borderRadius: 12, background: 'var(--surface3)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                Seguir editando
-              </button>
-              <button onClick={() => { setShowDiscard(false); onClose() }} className="pressable" style={{ flex: 1, padding: 12, borderRadius: 12, background: 'var(--red-dim)', border: '1px solid rgba(229,83,75,0.3)', color: 'var(--red)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                Descartar
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+      {/* ── Exercise picker — PLANNING ONLY, no workout connection ──────── */}
+      <ExercisePickerSheet
+        isOpen={!!pickerDayId}
+        onClose={() => setPickerId(null)}
+        onSelect={exercise => {
+          if (pickerDayId) addExercise(pickerDayId, exercise)
+          setPickerId(null)
+        }}
+      />
+    </>
   )
 }

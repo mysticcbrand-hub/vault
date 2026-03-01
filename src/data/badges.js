@@ -114,8 +114,9 @@ export const ALL_BADGES = [
     rarity: 'common',
     icon: 'Scale',
     shape: 'circle',
-    condition: (s) => s.totalWeightLogs >= 1,
-    progress: (s) => ({ current: Math.min(s.totalWeightLogs, 1), total: 1 }),
+    // Only fires on manual logs — onboarding weight entry does NOT count
+    condition: (s) => s.manualWeightLogs >= 1,
+    progress: (s) => ({ current: Math.min(s.manualWeightLogs, 1), total: 1 }),
   },
 
   // ════════════════════════════════════════
@@ -440,13 +441,15 @@ export const ALL_BADGES = [
   {
     id: 'custom_program',
     name: 'Tu Programa',
-    description: 'Creaste un programa personalizado',
-    flavor: 'El mejor programa es el tuyo.',
+    description: 'Creaste y guardaste tu primer programa personalizado',
+    flavor: 'El mejor programa es el que diseñas tú.',
     category: 'exploration',
     rarity: 'common',
     icon: 'PenLine',
     shape: 'circle',
-    condition: (s) => s.customProgramsCreated >= 1,
+    // Only fires when user manually creates a program in the editor
+    // Programs auto-created by personalizeFromOnboarding() do NOT count
+    condition: (s) => s.userCreatedPrograms >= 1,
   },
 
   {

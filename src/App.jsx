@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence } from 'framer-motion'
+import { SplashScreen } from './components/SplashScreen.jsx'
+import { FocusMode } from './components/workout/FocusMode.jsx'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import Onboarding from './components/Onboarding.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
@@ -46,58 +49,7 @@ function GrawMark({ size = 24 }) {
   )
 }
 
-// Splash screen — 800ms display, 300ms fade
-function SplashScreen() {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 999,
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg)',
-      animation: 'fadeIn 0.3s ease',
-    }}>
-      <div style={{
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', gap: 20,
-        animation: 'scaleIn 0.5s cubic-bezier(0.32,0.72,0,1)',
-      }}>
-        {/* Large GRAW mark */}
-        <div style={{
-          width: 80, height: 80, borderRadius: 22,
-          background: 'rgba(232,146,74,0.12)',
-          border: '1px solid rgba(232,146,74,0.25)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 0 48px rgba(232,146,74,0.18)',
-        }}>
-          <svg width="44" height="44" viewBox="0 0 40 40" fill="none">
-            <text
-              x="50%" y="54%"
-              dominantBaseline="middle"
-              textAnchor="middle"
-              fontFamily="DM Sans, -apple-system, sans-serif"
-              fontWeight="800"
-              fontSize="28"
-              fill="#E8924A"
-              letterSpacing="-2"
-            >G</text>
-          </svg>
-        </div>
-        {/* Wordmark */}
-        <div style={{ textAlign: 'center' }}>
-          <p style={{
-            fontSize: 28, fontWeight: 800,
-            letterSpacing: '-0.04em',
-            color: 'var(--text)',
-            lineHeight: 1,
-          }}>GRAW</p>
-          <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, letterSpacing: '0.01em' }}>
-            Entrena. Progresa. Domina.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
+// (SplashScreen is now imported from ./components/SplashScreen.jsx)
 
 // Recovery sheet — shown when app restarts with an orphaned workout session
 function RecoverySheet({ elapsed, onContinue, onDiscard }) {
@@ -162,15 +114,17 @@ export default function App() {
       const user = parsed?.state?.user ?? parsed?.user ?? null
       return !!(user?.onboardingComplete || (user?.name && user?.goal))
     } catch (e) {
-      console.warn('Could not read onboarding state:', e)
+      console.error('Could not read onboarding state:', e)
       return false
     }
   })
   const [direction, setDirection] = useState(1)
   const [transitioning, setTransitioning] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [splash, setSplash] = useState(false)
-  const [splashFading, setSplashFading] = useState(false)
+  // Splash: show on every fresh browser session (sessionStorage clears on tab close)
+  const [splashDone, setSplashDone] = useState(() =>
+    sessionStorage.getItem('splashShown') === 'true'
+  )
   const [offline, setOffline] = useState(!navigator.onLine)
   const [recoveryElapsed, setRecoveryElapsed] = useState(null)
 
@@ -262,11 +216,17 @@ export default function App() {
   const getTabStyle = (tab) => {
     const isActive = tab === activeTab
     const isExiting = tab === prevTab && transitioning
-    if (!isActive && !isExiting) return { display: 'none' }
+    // Invisible-but-in-DOM tabs: zero overhead, no layout shift, header never reflowed
+    if (!isActive && !isExiting) return {
+      position: 'absolute', inset: 0,
+      opacity: 0,
+      pointerEvents: 'none',
+      visibility: 'hidden',
+      overflow: 'hidden',
+    }
     return {
       position: 'absolute', inset: 0,
-      overflowY: isActive ? 'auto' : 'hidden',
-      overflowX: 'hidden',
+      overflow: 'hidden',
       animation: isActive && transitioning
         ? `${direction > 0 ? 'tabEnterRight' : 'tabEnterLeft'} ${DUR}ms cubic-bezier(0.32,0.72,0,1) both`
         : isExiting
@@ -287,12 +247,15 @@ export default function App() {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Splash */}
-      {splash && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 200, opacity: splashFading ? 0 : 1, transition: 'opacity 0.3s ease', pointerEvents: 'none' }}>
-          <SplashScreen />
-        </div>
-      )}
+      {/* Splash — shown once per browser session */}
+      <AnimatePresence>
+        {!splashDone && (
+          <SplashScreen onComplete={() => {
+            sessionStorage.setItem('splashShown', 'true')
+            setSplashDone(true)
+          }} />
+        )}
+      </AnimatePresence>
 
       <div style={{
         display: 'flex', flexDirection: 'column',
@@ -386,6 +349,17 @@ export default function App() {
         </div>
 
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+
+        {/* Focus Mode — renders progress bar + focus nav via portal when workout active */}
+        <FocusMode onFinish={() => {
+          // Trigger the finish flow in WorkoutTab by switching to it
+          handleTabChange('workout')
+          // Small delay to let tab render, then programmatically trigger finish
+          setTimeout(() => {
+            const finishEvent = new CustomEvent('graw:requestFinish')
+            window.dispatchEvent(finishEvent)
+          }, 80)
+        }} />
 
         {/* Profile quick-edit sheet — keep for quick name edit */}
         <Sheet isOpen={profileOpen} onClose={() => setProfileOpen(false)} title="Mi perfil" size="small">

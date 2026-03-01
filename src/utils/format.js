@@ -6,11 +6,31 @@ export function formatKg(n) {
   return String(num)
 }
 
-export function formatWeight(n) {
+// formatWeight — display a weight value with optional unit, no trailing .0
+export function formatWeight(n, unit = 'kg') {
   if (!n && n !== 0) return ''
-  const num = parseFloat(n)
-  if (isNaN(num)) return ''
-  return num % 1 === 0 ? String(num) : String(num)
+  const raw = parseFloat(n)
+  if (isNaN(raw)) return ''
+  const val = unit === 'lbs' ? raw * 2.20462 : raw
+  const rounded = Math.round(val * 10) / 10
+  const display = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+  return `${display} ${unit}`
+}
+
+// formatVolume — smart k/M suffix for volume totals
+export function formatVolume(kg) {
+  if (!kg && kg !== 0) return '0 kg'
+  if (kg >= 1_000_000) return `${(kg / 1_000_000).toFixed(1)}M kg`
+  if (kg >= 1_000) return `${(kg / 1_000).toFixed(1)}k kg`
+  return `${Math.round(kg)} kg`
+}
+
+// formatRest — seconds → M:SS string
+export function formatRest(seconds) {
+  const s = Math.max(0, Math.round(seconds))
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return `${m}:${String(rem).padStart(2, '0')}`
 }
 
 export function relativeDate(dateStr) {
@@ -33,16 +53,16 @@ export function cn(...classes) {
 
 export function getMuscleVars(muscle) {
   const map = {
-    chest:     { color: 'var(--chest)',     dim: 'var(--chest-dim)'     },
-    back:      { color: 'var(--back)',      dim: 'var(--back-dim)'      },
-    legs:      { color: 'var(--legs)',      dim: 'var(--legs-dim)'      },
-    shoulders: { color: 'var(--shoulders)', dim: 'var(--shoulders-dim)' },
-    arms:      { color: 'var(--arms)',      dim: 'var(--arms-dim)'      },
-    forearms:  { color: 'var(--forearms)',  dim: 'var(--forearms-dim)'  },
-    calves:    { color: 'var(--calves)',    dim: 'var(--calves-dim)'    },
-    core:      { color: 'var(--core)',      dim: 'var(--core-dim)'      },
+    chest:     { color: 'var(--chest)',     dim: 'var(--chest-dim)',     border: 'rgba(232,146,74,0.25)'  },
+    back:      { color: 'var(--back)',      dim: 'var(--back-dim)',      border: 'rgba(163,127,212,0.25)' },
+    legs:      { color: 'var(--legs)',      dim: 'var(--legs-dim)',      border: 'rgba(229,83,75,0.25)'   },
+    shoulders: { color: 'var(--shoulders)', dim: 'var(--shoulders-dim)', border: 'rgba(77,184,150,0.25)'  },
+    arms:      { color: 'var(--arms)',      dim: 'var(--arms-dim)',      border: 'rgba(212,168,67,0.25)'  },
+    forearms:  { color: 'var(--forearms)',  dim: 'var(--forearms-dim)',  border: 'rgba(126,184,160,0.25)' },
+    calves:    { color: 'var(--calves)',    dim: 'var(--calves-dim)',    border: 'rgba(155,142,196,0.25)' },
+    core:      { color: 'var(--core)',      dim: 'var(--core-dim)',      border: 'rgba(196,107,58,0.25)'  },
   }
-  return map[muscle] || { color: 'var(--accent)', dim: 'var(--accent-dim)' }
+  return map[muscle] || { color: 'var(--accent)', dim: 'var(--accent-dim)', border: 'rgba(232,146,74,0.25)' }
 }
 
 export function getMuscleGradient(muscle) {

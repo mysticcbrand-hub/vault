@@ -4,7 +4,6 @@ import { StrengthCurve } from '../progress/StrengthCurve.jsx'
 import { PRBoard } from '../progress/PRBoard.jsx'
 import { Heatmap } from '../progress/Heatmap.jsx'
 import { BodyMetricsDashboard } from '../progress/BodyMetricsChart.jsx'
-
 function SectionDivider({ label, icon }) {
   return (
     <div style={{

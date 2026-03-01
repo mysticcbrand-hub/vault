@@ -4,19 +4,36 @@ import { calculateUserStats } from '../utils/userStats.js'
 import useStore from '../store/index.js'
 
 export function useBadgeDetection(enabled = true) {
-  const sessions        = useStore(s => s.sessions)
-  const bodyMetrics     = useStore(s => s.bodyMetrics)
-  const user            = useStore(s => s.user)
-  const programs        = useStore(s => s.programs)
-  const prs             = useStore(s => s.prs)
-  const unlockedBadges  = useStore(s => s.unlockedBadges)
-  const unlockBadges    = useStore(s => s.unlockBadges)
+  const sessions             = useStore(s => s.sessions)
+  const bodyMetrics          = useStore(s => s.bodyMetrics)
+  const user                 = useStore(s => s.user)
+  const programs             = useStore(s => s.programs)
+  const prs                  = useStore(s => s.prs)
+  const userCreatedPrograms  = useStore(s => s.userCreatedPrograms)
+  const manualWeightLogs     = useStore(s => s.manualWeightLogs)
+  const unlockedBadges       = useStore(s => s.unlockedBadges)
+  const unlockBadges         = useStore(s => s.unlockBadges)
   const setPendingBadgeToast = useStore(s => s.setPendingBadgeToast)
 
   const stats = useMemo(() =>
-    calculateUserStats(sessions, bodyMetrics, user, programs, prs),
+    calculateUserStats(
+      sessions,
+      bodyMetrics,
+      user,
+      programs,
+      prs,
+      { userCreatedPrograms, manualWeightLogs }
+    ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sessions.length, bodyMetrics.length, Object.keys(prs).length, user?.goal, user?.goalWeight]
+    [
+      sessions.length,
+      bodyMetrics.length,
+      Object.keys(prs).length,
+      user?.goal,
+      user?.goalWeight,
+      userCreatedPrograms,
+      manualWeightLogs,
+    ]
   )
 
   useEffect(() => {

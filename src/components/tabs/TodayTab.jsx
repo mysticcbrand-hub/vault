@@ -1,12 +1,14 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { getMuscleVars } from '../../utils/format.js'
 import { MUSCLE_NAMES, getExerciseById } from '../../data/exercises.js'
 import { calculateStreak, isSameDayAs, getGreeting, formatDateHeader } from '../../utils/dates.js'
 import useStore from '../../store/index.js'
 import { useWeeklyStats } from '../../hooks/useWeeklyStats.js'
 import { GOAL_CONFIG } from '../../data/presetPrograms.js'
+import { WeeklySummaryCard, calculateWeeklySummaryStats, shouldShowWeeklySummary } from '../WeeklySummaryCard.jsx'
+import { ProgramOverviewSheet } from '../ProgramOverviewSheet.jsx'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -163,7 +165,7 @@ function WeekStrip({ strip }) {
   )
 }
 
-function HeroCard({ next, onStart }) {
+function HeroCard({ next, onStart, onShowProgram }) {
   const template = next?.template
   const muscles = template?.muscles || []
   const primaryMuscle = muscles[0]
@@ -188,12 +190,19 @@ function HeroCard({ next, onStart }) {
         <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Hoy</p>
         <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>Día de descanso</p>
         <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>La recuperación es donde crece el músculo.</p>
-        <button style={{
-          marginTop: 4, background: 'none', border: 'none',
-          color: 'var(--text2)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 4, padding: 0,
-        }}>
-          Ver siguiente sesión <ChevronRight size={14} />
+        <button
+          onClick={onShowProgram}
+          style={{
+            marginTop: 8, background: 'none', border: 'none',
+            color: 'var(--accent)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4, padding: 0,
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'opacity 0.15s ease',
+          }}
+          onTouchStart={e => { e.currentTarget.style.opacity = '0.65' }}
+          onTouchEnd={e => { e.currentTarget.style.opacity = '' }}
+        >
+          Ver programa completo <ChevronRight size={14} />
         </button>
       </div>
     )
@@ -375,6 +384,13 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
   const next = useMemo(() => deriveNextWorkout(program, templates, sessions), [program, templates, sessions])
   const topPR = useMemo(() => deriveTopRecentPR(prs, sessions), [prs, sessions])
 
+  // Weekly summary card — Sundays only
+  const [showWeeklySummary, setShowWeeklySummary] = useState(() => shouldShowWeeklySummary())
+  const weeklyStats = useMemo(() => calculateWeeklySummaryStats(sessions), [sessions])
+
+  // Program overview sheet — triggered from rest-day hero card
+  const [showProgramOverview, setShowProgramOverview] = useState(false)
+
   const greeting = getGreeting(user?.name || 'Atleta').split(',')[0]
   const dateStr = formatDateHeader()
   const todayDone = sessions.some(s => isSameDayAs(s.date, new Date()))
@@ -406,6 +422,19 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
       paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)',
       boxSizing: 'border-box',
     }}>
+      {/* Weekly summary card — Sundays only, dismissable */}
+      <AnimatePresence>
+        {showWeeklySummary && (
+          <WeeklySummaryCard
+            stats={weeklyStats}
+            onDismiss={() => {
+              localStorage.setItem('weekly_summary_dismissed', new Date().toISOString())
+              setShowWeeklySummary(false)
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -439,9 +468,24 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
                 {sessions.find(s => isSameDayAs(s.date, new Date()))?.name || 'Entrenamiento'}
               </p>
               <p style={{ fontSize: 13, color: 'var(--text2)' }}>La recuperación también es entrenar.</p>
+              <button
+                onClick={() => setShowProgramOverview(true)}
+                style={{
+                  marginTop: 8, background: 'none', border: 'none',
+                  color: 'var(--green)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4, padding: 0,
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                Ver programa <ChevronRight size={14} />
+              </button>
             </div>
           ) : (
-            <HeroCard next={next} onStart={onStartWorkout} />
+            <HeroCard
+              next={next}
+              onStart={onStartWorkout}
+              onShowProgram={() => setShowProgramOverview(true)}
+            />
           )}
         </motion.div>
 
@@ -520,6 +564,17 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
           </motion.div>
         )}
       </motion.div>
+
+      {/* Program overview sheet — opens from rest-day hero card */}
+      <ProgramOverviewSheet
+        isOpen={showProgramOverview}
+        onClose={() => setShowProgramOverview(false)}
+        program={program}
+        templates={templates}
+        sessions={sessions}
+        nextDayIndex={next?.dayIndex ?? 0}
+        onStartWorkout={onStartWorkout}
+      />
     </div>
   )
 }

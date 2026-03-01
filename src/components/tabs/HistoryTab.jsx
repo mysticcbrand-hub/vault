@@ -55,6 +55,20 @@ export function HistoryTab() {
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', padding: '0 20px', paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)' }}>
+        {grouped.length === 0 && (
+          <div style={{ padding: '56px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, opacity: 0.4 }}>🏋️</div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'rgba(245,239,230,0.6)' }}>
+              {search ? 'Sin resultados' : 'Sin entrenamientos aún'}
+            </p>
+            <p style={{ fontSize: 13, color: 'rgba(245,239,230,0.35)', lineHeight: 1.5, maxWidth: 260 }}>
+              {search
+                ? `No hay sesiones que coincidan con "${search}"`
+                : 'Completa tu primer entrenamiento y aparecerá aquí'}
+            </p>
+          </div>
+        )}
+        {/* OLD duplicate empty state below — removed. The correct one is above (grouped.length === 0). */}
         {grouped.map(({ label, items }) => {
           const weekVol = items.reduce((t, s) => t + (s.totalVolume || 0), 0)
           return (
@@ -100,18 +114,6 @@ export function HistoryTab() {
             </div>
           )
         })}
-        {grouped.length === 0 && (
-          <div style={{ padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, animation: 'fadeUp 0.3s ease' }}>
-            <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-              <rect x="16" y="28" width="40" height="7" rx="3.5" stroke="var(--text3)" strokeWidth="1.5"/>
-              <rect x="10" y="22" width="10" height="19" rx="3" stroke="var(--text3)" strokeWidth="1.5"/>
-              <rect x="52" y="22" width="10" height="19" rx="3" stroke="var(--text3)" strokeWidth="1.5"/>
-              <rect x="22" y="39" width="28" height="5" rx="2.5" stroke="var(--text3)" strokeWidth="1.5"/>
-            </svg>
-            <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>Tu primera sesión te está esperando.</p>
-            <p style={{ fontSize: 14, color: 'var(--text2)', textAlign: 'center' }}>Completa un entrenamiento para verlo aquí.</p>
-          </div>
-        )}
       </div>
 
       {/* Session detail sheet */}
