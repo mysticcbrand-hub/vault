@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Play, Compass, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TemplateEditor } from '../programs/TemplateEditor.jsx'
@@ -334,6 +334,18 @@ export function ProgramsTab({ onSwitchTab }) {
 
   const openTemplateEditor = (template = null) => { setEditingTemplate(template); setTemplateEditorOpen(true) }
   const openProgramEditor = (program = null) => { setEditingProgram(program); setProgramEditorOpen(true) }
+
+  useEffect(() => {
+    try {
+      const editId = sessionStorage.getItem('graw_edit_program_id')
+      if (!editId) return
+      const target = programs.find(p => p.id === editId)
+      if (target) {
+        openProgramEditor(target)
+      }
+      sessionStorage.removeItem('graw_edit_program_id')
+    } catch {}
+  }, [programs])
 
   const activatePreset = (preset) => {
     const userCopy = {

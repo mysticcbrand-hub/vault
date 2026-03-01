@@ -502,6 +502,74 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
           )}
         </motion.div>
 
+        {/* Program quick actions */}
+        <motion.div variants={itemVariants}>
+          <div style={{
+            borderRadius: 'var(--r-lg)',
+            background: 'rgba(22,18,12,0.68)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '0.5px solid rgba(255,235,200,0.08)',
+            padding: '16px 18px',
+            display: 'flex', flexDirection: 'column', gap: 10,
+            boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.06)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{
+                fontSize: 13, fontWeight: 700, color: 'var(--text)',
+                letterSpacing: '-0.01em',
+              }}>
+                {program?.name ? `Programa activo: ${program.name}` : 'Sin programa activo'}
+              </div>
+              <button
+                onClick={() => onNavigate?.('programs')}
+                className="pressable"
+                style={{
+                  border: 'none', background: 'none',
+                  color: 'var(--accent)', fontSize: 12, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                }}
+              >
+                Ver todos <ChevronRight size={13} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button
+                onClick={() => {
+                  if (program?.id) {
+                    try { sessionStorage.setItem('graw_edit_program_id', program.id) } catch {}
+                  }
+                  onNavigate?.('programs')
+                }}
+                className="pressable"
+                style={{
+                  height: 44, borderRadius: 12,
+                  background: 'rgba(232,146,74,0.12)',
+                  border: '1px solid rgba(232,146,74,0.25)',
+                  color: 'var(--accent)', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {program?.id ? 'Editar programa' : 'Crear programa'}
+              </button>
+              <button
+                onClick={() => onNavigate?.('programs')}
+                className="pressable"
+                style={{
+                  height: 44, borderRadius: 12,
+                  background: 'var(--surface3)',
+                  border: '1px solid var(--border2)',
+                  color: 'var(--text2)', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Cambiar programa
+              </button>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Week strip */}
         <motion.div variants={itemVariants}>
           <p className="t-label" style={{ marginBottom: 10 }}>Esta semana</p>
