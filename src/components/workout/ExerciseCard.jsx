@@ -53,7 +53,10 @@ export const ExerciseCard = memo(function ExerciseCard({
   const exData = getExerciseById(exercise.exerciseId)
   const mv = getMuscleVars(exData?.muscle)
   const currentPR = prs[exercise.exerciseId]
-  const repRange = settings?.repRangeGuidance || null
+  const repRangeRaw = settings?.repRangeGuidance || null
+  const repRange = typeof repRangeRaw === 'string'
+    ? { range: repRangeRaw, color: 'var(--text3)' }
+    : repRangeRaw
   const showFormTip = user?.level === 'principiante' && !!FORM_TIPS[exercise.exerciseId]
 
   // Last session data for this exercise — "Última vez" reference
@@ -155,7 +158,7 @@ export const ExerciseCard = memo(function ExerciseCard({
               background: 'transparent',
               fontFamily: 'DM Mono, monospace', fontWeight: 600, whiteSpace: 'nowrap',
             }}>
-              {repRange.range}
+              {repRange.range || repRange.label}
             </span>
           )}
 

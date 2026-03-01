@@ -96,6 +96,10 @@ export function ProfileTab() {
   const [restOpen, setRestOpen] = useState(false)
   const [programOpen, setProgramOpen] = useState(false)
   const [repRangeOpen, setRepRangeOpen] = useState(false)
+  const repRangeValue = settings.repRangeGuidance
+  const repRangeLabel = typeof repRangeValue === 'string'
+    ? repRangeValue
+    : repRangeValue?.label || repRangeValue?.range
   const [clearOpen, setClearOpen] = useState(false)
   const [clearText, setClearText] = useState('')
 
@@ -352,7 +356,7 @@ export function ProfileTab() {
           </div>
           <div className="settings-row" onClick={() => setRepRangeOpen(true)}>
             <span style={{ fontSize: 14, color: 'var(--text)' }}>Rango de reps</span>
-            <span style={{ fontSize: 13, color: 'var(--text2)' }}>{settings.repRangeGuidance || getRepRangeLabel(user?.goal)} ▾</span>
+            <span style={{ fontSize: 13, color: 'var(--text2)' }}>{repRangeLabel || getRepRangeLabel(user?.goal)} ▾</span>
           </div>
         </div>
 
@@ -432,7 +436,7 @@ export function ProfileTab() {
         isOpen={repRangeOpen}
         onClose={() => setRepRangeOpen(false)}
         title="Rango de repeticiones"
-        selected={settings.repRangeGuidance}
+        selected={repRangeLabel || getRepRangeLabel(user?.goal)}
         onSelect={v => updateSettings({ repRangeGuidance: v })}
         options={[
           { value: 'Hipertrofia (8–12)', label: 'Hipertrofia (8–12)' },
