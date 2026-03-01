@@ -21,8 +21,6 @@ export function WorkoutTab({ onSwitchTab }) {
   const startEmptyWorkout = useStore(s => s.startEmptyWorkout)
   const [showTemplates, setShowTemplates] = useState(false)
 
-  if (activeWorkout) return <ActiveWorkout />
-
   const program = programs.find(p => p.id === activeProgram)
 
   // Ensure custom programs have templates wired
@@ -33,6 +31,8 @@ export function WorkoutTab({ onSwitchTab }) {
     const normalized = ensureProgramTemplates(program, { createTemplate, updateTemplate })
     updateProgram(program.id, normalized)
   }, [program?.id, program?.days, createTemplate, updateTemplate, updateProgram])
+
+  if (activeWorkout) return <ActiveWorkout />
 
   // Determine the next day in the active program
   const getNextDay = () => {
