@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, Edit3, Download, Upload, Trash2 } from 'lucide-react'
+import { ChevronRight, Edit3, Download, Upload, Trash2, Medal } from 'lucide-react'
 import useStore from '../../store/index.js'
 import { ALL_BADGES, RARITY_STYLES } from '../../data/badges.js'
 import { calculateUserStats } from '../../utils/userStats.js'
