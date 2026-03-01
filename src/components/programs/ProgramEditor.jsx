@@ -5,8 +5,9 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, ChevronDown, Search, Check, GripVertical } from 'lucide-react'
-import { Sheet } from '../ui/Sheet.jsx'
+import { Plus, X, ChevronDown, Search, Check, GripVertical, ChevronLeft } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Sheet, ConfirmDialog } from '../ui/Sheet.jsx'
 import { EXERCISES, MUSCLE_NAMES } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
 
@@ -545,22 +546,26 @@ function ExercisePickerSheet({ isOpen, onClose, onSelect }) {
     </Sheet>
   )
 }
-
-// ─── ProgramEditor — main export ─────────────────────────────────────────────
+// ─── ProgramEditor — full-screen native view ──────────────────────────────────
+// Rendered into a portal at document.body.
+// No bottom-sheet, no swipe-to-dismiss — clean push navigation like UINavigationController.
+// Drag-to-reorder works unobstructed because there is zero touch conflict.
+// ─────────────────────────────────────────────────────────────────────────────
 export function ProgramEditor({ open, onClose, program: existingProgram = null }) {
-  const isEditing = !!existingProgram
+  const isEditing         = !!existingProgram
   const saveCustomProgram = useStore(s => s.saveCustomProgram)
   const updateProgram     = useStore(s => s.updateProgram)
   const addToast          = useStore(s => s.addToast)
 
-  const makeDay = (name, exercises = []) => ({
-    id: `day-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const makeDay = (name = 'Día 1', exercises = []) => ({
+    id: `day-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     name,
     exercises,
   })
 
   const hydrateDay = (d) => ({
-    id: d.id || `day-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: d.id || `day-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     name: d.name || 'Día',
     exercises: (d.exercises || []).map(ex => ({
       exerciseId: ex.exerciseId,
@@ -572,47 +577,74 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
     })),
   })
 
-  const [name, setName]           = useState('')
-  const [days, setDays]           = useState([])
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [name, setName]            = useState('')
+  const [days, setDays]            = useState([])
   const [expandedDay, setExpanded] = useState(null)
   const [pickerDayId, setPickerId] = useState(null)
+  const [dirty, setDirty]          = useState(false)
+  const [confirmExit, setConfirmExit] = useState(false)
 
-  // Reset state whenever the sheet opens or the target program changes
+  // Track original snapshot to detect real changes
+  const originalRef = useRef(null)
+
+  // ── Reset on open ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
     if (existingProgram) {
-      setName(existingProgram.name ?? '')
       const hydrated = (existingProgram.days ?? []).map(hydrateDay)
+      setName(existingProgram.name ?? '')
       setDays(hydrated)
       setExpanded(hydrated[0]?.id ?? null)
+      originalRef.current = JSON.stringify({ name: existingProgram.name, days: hydrated })
     } else {
       const firstDay = makeDay('Día 1')
       setName('')
       setDays([firstDay])
       setExpanded(firstDay.id)
+      originalRef.current = JSON.stringify({ name: '', days: [firstDay] })
     }
+    setDirty(false)
     setPickerId(null)
+    setConfirmExit(false)
   }, [open, existingProgram?.id])
 
-  // ── Day operations ────────────────────────────────────────────────────────
+  // ── Dirty tracking ─────────────────────────────────────────────────────────
+  const mark = () => setDirty(true)
+
+  // ── Back / Cancel ──────────────────────────────────────────────────────────
+  const handleBack = () => {
+    const current = JSON.stringify({ name, days })
+    const changed = current !== originalRef.current
+    if (changed) {
+      setConfirmExit(true)
+    } else {
+      onClose()
+    }
+  }
+
+  // ── Day operations ─────────────────────────────────────────────────────────
   const addDay = useCallback(() => {
     setDays(prev => {
       const d = makeDay(`Día ${prev.length + 1}`)
       setExpanded(d.id)
       return [...prev, d]
     })
+    mark()
   }, [])
 
   const removeDay = useCallback((dayId) => {
     setDays(prev => prev.filter(d => d.id !== dayId))
     setExpanded(prev => prev === dayId ? null : prev)
+    mark()
   }, [])
 
   const renameDay = useCallback((dayId, newName) => {
     setDays(prev => prev.map(d => d.id === dayId ? { ...d, name: newName } : d))
+    mark()
   }, [])
 
-  // ── Reorder helpers ───────────────────────────────────────────────────────
+  // ── Reorder ────────────────────────────────────────────────────────────────
   const reorder = (arr, from, to) => {
     const next = [...arr]
     const [item] = next.splice(from, 1)
@@ -622,18 +654,19 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
 
   const reorderDays = useCallback((from, to) => {
     setDays(prev => reorder(prev, from, to))
+    mark()
   }, [])
 
   const reorderExercises = useCallback((dayId, from, to) => {
     setDays(prev => prev.map(d =>
       d.id !== dayId ? d : { ...d, exercises: reorder(d.exercises, from, to) }
     ))
+    mark()
   }, [])
 
-  // ── Day drag (initialized after reorderDays is defined) ───────────────────
   const dayDrag = useDragReorder({ onReorder: reorderDays })
 
-  // ── Exercise operations ───────────────────────────────────────────────────
+  // ── Exercise operations ────────────────────────────────────────────────────
   const addExercise = useCallback((dayId, exercise) => {
     setDays(prev => prev.map(d =>
       d.id !== dayId ? d : {
@@ -648,15 +681,14 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
         }],
       }
     ))
+    mark()
   }, [])
 
   const removeExercise = useCallback((dayId, exIndex) => {
     setDays(prev => prev.map(d =>
-      d.id !== dayId ? d : {
-        ...d,
-        exercises: d.exercises.filter((_, i) => i !== exIndex),
-      }
+      d.id !== dayId ? d : { ...d, exercises: d.exercises.filter((_, i) => i !== exIndex) }
     ))
+    mark()
   }, [])
 
   const updateExerciseField = useCallback((dayId, exIndex, field, value) => {
@@ -666,17 +698,18 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
         exercises: d.exercises.map((ex, i) => i !== exIndex ? ex : { ...ex, [field]: value }),
       }
     ))
+    mark()
   }, [])
 
-  // ── Validation ────────────────────────────────────────────────────────────
+  // ── Validation ─────────────────────────────────────────────────────────────
   const isValid = name.trim().length >= 2
     && days.length >= 1
     && days.every(d => d.exercises.length >= 1)
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = () => {
     if (!isValid) return
-    const program = {
+    const payload = {
       name: name.trim(),
       days,
       source: 'user',
@@ -685,13 +718,13 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
     if (isEditing) {
       updateProgram(existingProgram.id, {
         ...existingProgram,
-        ...program,
+        ...payload,
         updatedAt: new Date().toISOString(),
       })
       addToast({ message: 'Programa actualizado ✓', type: 'success' })
     } else {
       saveCustomProgram({
-        ...program,
+        ...payload,
         id: `user-${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -701,120 +734,260 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
     onClose()
   }
 
-  return (
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (!open) return null
+
+  return createPortal(
     <>
-      <Sheet
-        isOpen={open && !pickerDayId}
-        onClose={onClose}
-        size="full"
-        title={isEditing ? 'Editar programa' : 'Nuevo programa'}
-      >
-        {/* ── Program name ─────────────────────────────────────────────── */}
-        <div style={{ marginBottom: 24 }}>
-          <SectionLabel>Nombre del programa</SectionLabel>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="Ej: Mi PPL personalizado"
-            maxLength={48}
+      {/* ── Full-screen editor ──────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {!pickerDayId && (
+          <motion.div
+            key="editor-screen"
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 40, mass: 1 }}
             style={{
-              width: '100%', boxSizing: 'border-box',
-              background: 'rgba(28,22,14,0.8)',
-              border: `1.5px solid ${name.length >= 2 ? 'rgba(232,146,74,0.4)' : 'rgba(255,235,200,0.1)'}`,
-              borderRadius: 14, padding: '14px 16px',
-              fontSize: 16, fontWeight: 600, color: '#F5EFE6',
-              outline: 'none', fontFamily: 'inherit',
-              transition: 'border-color 0.2s ease',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 500,
+              background: 'var(--bg, #0C0A09)',
+              display: 'flex',
+              flexDirection: 'column',
+              // iOS safe areas
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              overscrollBehavior: 'none',
+              WebkitOverflowScrolling: 'touch',
             }}
-          />
-        </div>
-
-        {/* ── Days ─────────────────────────────────────────────────────── */}
-        <SectionLabel>
-          Días de entrenamiento
-          <span style={{ fontSize: 10, color: 'rgba(245,239,230,0.28)', fontWeight: 500 }}>
-            {days.length}/7
-          </span>
-        </SectionLabel>
-
-        <div ref={dayDrag.listRef} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
-          {days.map((day, dayIndex) => (
-            <DayCard
-              key={day.id}
-              day={day}
-              dayIndex={dayIndex}
-              isExpanded={expandedDay === day.id}
-              isDragging={dayDrag.draggingIndex === dayIndex}
-              isOver={dayDrag.overIndex === dayIndex && dayDrag.draggingIndex !== null && dayDrag.draggingIndex !== dayIndex}
-              dayDragHandleProps={dayDrag.dragHandleProps(dayIndex)}
-              onToggle={() => setExpanded(expandedDay === day.id ? null : day.id)}
-              onRename={newName => renameDay(day.id, newName)}
-              onRemove={() => removeDay(day.id)}
-              onAddExercise={() => { setExpanded(day.id); setPickerId(day.id) }}
-              onRemoveExercise={i => removeExercise(day.id, i)}
-              onUpdateExercise={(i, field, val) => updateExerciseField(day.id, i, field, val)}
-              onReorderExercises={(from, to) => reorderExercises(day.id, from, to)}
-            />
-          ))}
-        </div>
-
-        {/* ── Add day ──────────────────────────────────────────────────── */}
-        {days.length < 7 && (
-          <button
-            onClick={addDay}
-            style={{
-              width: '100%', height: 48, marginTop: 12,
-              borderRadius: 14, background: 'rgba(255,235,200,0.04)',
-              border: '1px dashed rgba(255,235,200,0.14)',
-              color: 'rgba(232,146,74,0.72)', fontSize: 14, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              transition: 'all 0.15s ease', WebkitTapHighlightColor: 'transparent',
-            }}
-            onTouchStart={e => { e.currentTarget.style.background = 'rgba(232,146,74,0.07)' }}
-            onTouchEnd={e => { e.currentTarget.style.background = 'rgba(255,235,200,0.04)' }}
           >
-            <Plus size={15} color="rgba(232,146,74,0.72)" /> Añadir día
-          </button>
+            {/* ── Top navigation bar ─────────────────────────────────────── */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: 56,
+              paddingLeft: 4,
+              paddingRight: 16,
+              flexShrink: 0,
+              background: 'rgba(12,10,9,0.88)',
+              backdropFilter: 'blur(40px) saturate(220%) brightness(1.05)',
+              WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.05)',
+              borderBottom: '0.5px solid rgba(255,235,200,0.08)',
+              boxShadow: 'inset 0 -1px 0 rgba(255,235,200,0.04)',
+              zIndex: 1,
+            }}>
+              {/* Cancel button */}
+              <button
+                onClick={handleBack}
+                style={{
+                  minWidth: 44, minHeight: 44,
+                  display: 'flex', alignItems: 'center', gap: 2,
+                  background: 'none', border: 'none',
+                  color: 'rgba(245,239,230,0.55)',
+                  fontSize: 15, fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  paddingLeft: 12, paddingRight: 8,
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+                onTouchStart={e => { e.currentTarget.style.opacity = '0.6' }}
+                onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
+              >
+                <ChevronLeft size={18} strokeWidth={2.5} />
+                Cancelar
+              </button>
+
+              {/* Title */}
+              <div style={{
+                position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+                fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em',
+                color: '#F5EFE6', pointerEvents: 'none',
+              }}>
+                {isEditing ? 'Editar programa' : 'Nuevo programa'}
+              </div>
+
+              {/* Save button */}
+              <motion.button
+                onClick={handleSave}
+                disabled={!isValid}
+                animate={{ opacity: isValid ? 1 : 0.35, scale: isValid ? 1 : 0.97 }}
+                transition={{ duration: 0.18 }}
+                style={{
+                  height: 36, padding: '0 16px',
+                  borderRadius: 100,
+                  background: isValid
+                    ? 'linear-gradient(135deg, #E8924A, #C9712D)'
+                    : 'rgba(255,235,200,0.08)',
+                  border: 'none',
+                  color: isValid ? '#FFF8F2' : 'rgba(245,239,230,0.4)',
+                  fontSize: 14, fontWeight: 700,
+                  cursor: isValid ? 'pointer' : 'default',
+                  fontFamily: 'inherit',
+                  boxShadow: isValid ? '0 2px 12px rgba(232,146,74,0.35)' : 'none',
+                  transition: 'box-shadow 0.2s ease',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+                onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.8' }}
+                onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
+              >
+                Guardar
+              </motion.button>
+            </div>
+
+            {/* ── Scrollable body ────────────────────────────────────────── */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              WebkitOverflowScrolling: 'touch',
+              padding: '24px 16px',
+              paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
+            }}>
+              {/* Program name input */}
+              <div style={{ marginBottom: 28 }}>
+                <SectionLabel>Nombre del programa</SectionLabel>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => { setName(e.target.value); mark() }}
+                  placeholder="Ej: Mi PPL personalizado"
+                  maxLength={48}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'rgba(28,22,14,0.9)',
+                    border: `1.5px solid ${name.length >= 2 ? 'rgba(232,146,74,0.45)' : 'rgba(255,235,200,0.09)'}`,
+                    borderRadius: 16, padding: '15px 16px',
+                    fontSize: 16, fontWeight: 600, color: '#F5EFE6',
+                    outline: 'none', fontFamily: 'inherit',
+                    transition: 'border-color 0.22s ease',
+                    boxShadow: name.length >= 2 ? 'inset 0 0 0 0.5px rgba(232,146,74,0.1)' : 'none',
+                  }}
+                />
+              </div>
+
+              {/* Days section */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 12,
+              }}>
+                <SectionLabel>
+                  Días&nbsp;
+                  <span style={{ fontWeight: 500, color: 'rgba(245,239,230,0.22)' }}>
+                    {days.length}/7
+                  </span>
+                </SectionLabel>
+                {days.length > 1 && (
+                  <span style={{ fontSize: 11, color: 'rgba(245,239,230,0.22)', fontWeight: 500 }}>
+                    ⠿ Arrastra para ordenar
+                  </span>
+                )}
+              </div>
+
+              {/* Day list — drag container */}
+              <div ref={dayDrag.listRef} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {days.map((day, dayIndex) => (
+                  <DayCard
+                    key={day.id}
+                    day={day}
+                    dayIndex={dayIndex}
+                    isExpanded={expandedDay === day.id}
+                    isDragging={dayDrag.draggingIndex === dayIndex}
+                    isOver={
+                      dayDrag.overIndex === dayIndex &&
+                      dayDrag.draggingIndex !== null &&
+                      dayDrag.draggingIndex !== dayIndex
+                    }
+                    dayDragHandleProps={dayDrag.dragHandleProps(dayIndex)}
+                    onToggle={() => setExpanded(expandedDay === day.id ? null : day.id)}
+                    onRename={n => renameDay(day.id, n)}
+                    onRemove={() => removeDay(day.id)}
+                    onAddExercise={() => { setExpanded(day.id); setPickerId(day.id) }}
+                    onRemoveExercise={i => removeExercise(day.id, i)}
+                    onUpdateExercise={(i, f, v) => updateExerciseField(day.id, i, f, v)}
+                    onReorderExercises={(from, to) => reorderExercises(day.id, from, to)}
+                  />
+                ))}
+              </div>
+
+              {/* Add day */}
+              {days.length < 7 && (
+                <button
+                  onClick={addDay}
+                  style={{
+                    width: '100%', height: 50, marginTop: 12,
+                    borderRadius: 16,
+                    background: 'rgba(255,235,200,0.03)',
+                    border: '1.5px dashed rgba(232,146,74,0.2)',
+                    color: 'rgba(232,146,74,0.7)', fontSize: 14, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                    transition: 'all 0.16s ease', WebkitTapHighlightColor: 'transparent',
+                  }}
+                  onTouchStart={e => {
+                    e.currentTarget.style.background = 'rgba(232,146,74,0.07)'
+                    e.currentTarget.style.borderColor = 'rgba(232,146,74,0.35)'
+                  }}
+                  onTouchEnd={e => {
+                    e.currentTarget.style.background = 'rgba(255,235,200,0.03)'
+                    e.currentTarget.style.borderColor = 'rgba(232,146,74,0.2)'
+                  }}
+                >
+                  <Plus size={15} strokeWidth={2.5} /> Añadir día
+                </button>
+              )}
+
+              {/* Validation hint */}
+              <AnimatePresence>
+                {days.length > 0 && !isValid && name.trim().length >= 2 && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      fontSize: 12, textAlign: 'center',
+                      color: 'rgba(245,239,230,0.3)',
+                      marginTop: 14, lineHeight: 1.6,
+                    }}
+                  >
+                    Cada día necesita al menos un ejercicio
+                  </motion.p>
+                )}
+              </AnimatePresence>
+
+              {/* Save button — also in body for reachability on small screens */}
+              <motion.button
+                onClick={handleSave}
+                disabled={!isValid}
+                animate={{
+                  opacity: isValid ? 1 : 0.28,
+                  y: isValid ? 0 : 4,
+                }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                style={{
+                  width: '100%', height: 54, marginTop: 28,
+                  borderRadius: 16, border: 'none',
+                  background: 'linear-gradient(135deg, #E8924A 0%, #C9712D 100%)',
+                  color: '#FFF8F2',
+                  fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em',
+                  cursor: isValid ? 'pointer' : 'default',
+                  fontFamily: 'inherit',
+                  boxShadow: isValid
+                    ? '0 4px 24px rgba(232,146,74,0.30), inset 0 1px 0 rgba(255,255,255,0.12)'
+                    : 'none',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+                onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.82' }}
+                onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
+              >
+                {isEditing ? 'Guardar cambios' : 'Crear programa'}
+              </motion.button>
+            </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* ── Validation hint ───────────────────────────────────────────── */}
-        {days.length > 0 && !isValid && name.trim().length >= 2 && (
-          <p style={{
-            fontSize: 12, textAlign: 'center',
-            color: 'rgba(245,239,230,0.28)', marginTop: 12, lineHeight: 1.5,
-          }}>
-            Cada día necesita al menos un ejercicio
-          </p>
-        )}
-
-        {/* ── Save button ───────────────────────────────────────────────── */}
-        <button
-          onClick={handleSave}
-          disabled={!isValid}
-          style={{
-            width: '100%', height: 52, marginTop: 24, marginBottom: 8,
-            borderRadius: 14, border: 'none',
-            background: isValid
-              ? 'linear-gradient(135deg, #E8924A, #C9712D)'
-              : 'rgba(255,235,200,0.06)',
-            color: isValid ? 'rgba(255,245,235,0.96)' : 'rgba(245,239,230,0.2)',
-            fontSize: 16, fontWeight: 700,
-            cursor: isValid ? 'pointer' : 'default',
-            fontFamily: 'inherit',
-            transition: 'all 0.2s ease',
-            boxShadow: isValid ? '0 4px 20px rgba(232,146,74,0.25)' : 'none',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-          onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.85' }}
-          onTouchEnd={e => { e.currentTarget.style.opacity = '' }}
-        >
-          {isEditing ? 'Guardar cambios' : 'Crear programa'}
-        </button>
-      </Sheet>
-
-      {/* ── Exercise picker — PLANNING ONLY, no workout connection ──────── */}
+      {/* ── Exercise picker — rendered on top of editor ─────────────────────── */}
       <ExercisePickerSheet
         isOpen={!!pickerDayId}
         onClose={() => setPickerId(null)}
@@ -823,6 +996,18 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
           setPickerId(null)
         }}
       />
-    </>
+
+      {/* ── Discard changes dialog ──────────────────────────────────────────── */}
+      <ConfirmDialog
+        isOpen={confirmExit}
+        onClose={() => setConfirmExit(false)}
+        onConfirm={() => { setConfirmExit(false); onClose() }}
+        title="¿Descartar cambios?"
+        message="Los cambios que hiciste no se guardarán si sales ahora."
+        confirmLabel="Descartar"
+        confirmDestructive
+      />
+    </>,
+    document.body
   )
 }
