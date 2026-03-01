@@ -117,9 +117,18 @@ export function ProfileTab() {
 
   useEffect(() => { setNameValue(user?.name || '') }, [user?.name])
 
-  const memberSince = user?.startDate
-    ? new Date(user.startDate).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
-    : '—'
+  const memberSince = (() => {
+    const raw = user?.startDate || user?.createdAt
+    if (!raw) {
+      // No date stored — use today and persist it
+      const today = new Date().toISOString()
+      setTimeout(() => updateUser({ startDate: today }), 0)
+      return new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    }
+    const d = new Date(raw)
+    if (isNaN(d.getTime())) return 'Hoy'
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+  })()
 
   const activeProgram = programs.find(p => p.id === activeProgramId)
   const totalWeeks = activeProgram?.totalWeeks || 12
