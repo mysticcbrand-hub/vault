@@ -381,13 +381,14 @@ export default function Onboarding({ onComplete }) {
                 <motion.div variants={itemVariants} style={{ marginTop: 60 }}>
                   <div style={{
                     width: 56, height: 56, borderRadius: 16,
-                    background: 'rgba(232,146,74,0.12)',
-                    border: '1px solid rgba(232,146,74,0.28)',
+                    background: 'rgba(12,10,9,0.9)',
+                    border: '1px solid rgba(255,235,200,0.08)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     margin: '0 auto',
-                    boxShadow: '0 0 32px rgba(232,146,74,0.18)',
+                    boxShadow: '0 0 32px rgba(232,146,74,0.12)',
+                    overflow: 'hidden',
                   }}>
-                    <span style={{ fontSize: 28, fontWeight: 800, color: '#E8924A', letterSpacing: '-0.04em' }}>G</span>
+                    <img src="/icon-192.png" alt="GRAW" style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover' }} />
                   </div>
                 </motion.div>
                 <motion.p variants={itemVariants} style={{ marginTop: 24, fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: '#F5EFE6' }}>GRAW</motion.p>
