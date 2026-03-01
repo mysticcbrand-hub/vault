@@ -1,78 +1,99 @@
 import { useState, useRef, useCallback } from 'react'
 
 // ─── useDragToReorder ─────────────────────────────────────────────────────────
-// Apple home screen-style drag-to-reorder engine.
-// Long press (320ms) lifts a card. Drag over others to shift them.
-// Release snaps card to new position with spring physics.
-// Works on touch (iOS Safari) and mouse (desktop).
+// Y-position based engine. Works on iOS Safari.
+// Grip element fires longpress → card lifts.
+// onPointerMove on the CONTAINER reads clientY → computes slot from DOM rects.
+// No onPointerEnter — that breaks on touch.
 // ─────────────────────────────────────────────────────────────────────────────
-export function useDragToReorder({ items, onReorder }) {
-  const [dragIndex, setDragIndex] = useState(null)
-  const [overIndex, setOverIndex] = useState(null)
-  const [isDragging, setIsDragging] = useState(false)
+export function useDragToReorder({ onReorder }) {
+  const [dragIndex, setDragIndex]   = useState(null)
+  const [overIndex, setOverIndex]   = useState(null)
+  const [active, setActive]         = useState(false)
 
-  const longPressTimer = useRef(null)
-  const hasMoved       = useRef(false)
+  const containerRef  = useRef(null)
+  const timerRef      = useRef(null)
+  const stateRef      = useRef({ dragIndex: null, overIndex: null, active: false })
 
-  // Compute visual order during drag — item at dragIndex floats to overIndex slot
-  const getVisualOrder = useCallback(() => {
-    if (dragIndex === null || overIndex === null)
-      return items.map((_, i) => i)
-    const order = items.map((_, i) => i).filter(i => i !== dragIndex)
-    order.splice(overIndex, 0, dragIndex)
-    return order
-  }, [dragIndex, overIndex, items])
+  const sync = (di, oi, a) => {
+    stateRef.current = { dragIndex: di, overIndex: oi, active: a }
+    setDragIndex(di)
+    setOverIndex(oi)
+    setActive(a)
+  }
 
-  // Long press — fire after 320ms hold without movement
-  const startLongPress = useCallback((index) => {
-    hasMoved.current = false
-    longPressTimer.current = setTimeout(() => {
-      try { navigator.vibrate(40) } catch (_) {}
-      setDragIndex(index)
-      setOverIndex(index)
-      setIsDragging(true)
-    }, 320)
+  const slotFromY = (clientY) => {
+    if (!containerRef.current) return 0
+    const kids = Array.from(containerRef.current.children)
+    for (let i = 0; i < kids.length; i++) {
+      const r = kids[i].getBoundingClientRect()
+      if (clientY < r.top + r.height * 0.55) return i
+    }
+    return Math.max(0, kids.length - 1)
+  }
+
+  const cancel = useCallback(() => {
+    clearTimeout(timerRef.current)
+    timerRef.current = null
   }, [])
 
-  const cancelLongPress = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
+  // Grip pointerdown — start long press countdown
+  const gripDown = useCallback((index, e) => {
+    e.stopPropagation()
+    cancel()
+    timerRef.current = setTimeout(() => {
+      try { navigator.vibrate(45) } catch (_) {}
+      document.body.style.overflow = 'hidden'
+      sync(index, index, true)
+    }, 300)
+  }, [cancel])
+
+  // Grip pointerup before threshold — cancel
+  const gripUp = useCallback(() => {
+    cancel()
+    if (!stateRef.current.active) return
+    const { dragIndex: di, overIndex: oi } = stateRef.current
+    document.body.style.overflow = ''
+    sync(null, null, false)
+    if (di !== null && oi !== null && di !== oi) onReorder(di, oi)
+  }, [cancel, onReorder])
+
+  // Container pointermove — drives the over-slot detection
+  const containerMove = useCallback((e) => {
+    if (!stateRef.current.active) return
+    e.preventDefault()
+    const slot = slotFromY(e.clientY)
+    if (slot !== stateRef.current.overIndex) {
+      try { navigator.vibrate(6) } catch (_) {}
+      stateRef.current.overIndex = slot
+      setOverIndex(slot)
     }
   }, [])
 
-  // Called as pointer moves over other cards
-  const handleDragOver = useCallback((index) => {
-    if (!isDragging) return
-    if (index !== overIndex) {
-      try { navigator.vibrate(8) } catch (_) {} // micro haptic on each swap
-      setOverIndex(index)
-    }
-  }, [isDragging, overIndex])
-
-  // Drop — commit the reorder
-  const handleDrop = useCallback(() => {
-    cancelLongPress()
-    if (dragIndex !== null && overIndex !== null && dragIndex !== overIndex) {
-      const next = [...items]
-      const [moved] = next.splice(dragIndex, 1)
-      next.splice(overIndex, 0, moved)
-      onReorder(next)
-    }
-    setDragIndex(null)
-    setOverIndex(null)
-    setIsDragging(false)
-    hasMoved.current = false
-  }, [dragIndex, overIndex, items, onReorder, cancelLongPress])
+  // Container pointerup/cancel — commit drop
+  const containerUp = useCallback(() => {
+    if (!stateRef.current.active) return
+    const { dragIndex: di, overIndex: oi } = stateRef.current
+    document.body.style.overflow = ''
+    sync(null, null, false)
+    if (di !== null && oi !== null && di !== oi) onReorder(di, oi)
+  }, [onReorder])
 
   return {
+    containerRef,
     dragIndex,
     overIndex,
-    isDragging,
-    getVisualOrder,
-    startLongPress,
-    cancelLongPress,
-    handleDragOver,
-    handleDrop,
+    isDragging: active,
+    gripHandlers: (index) => ({
+      onPointerDown: (e) => gripDown(index, e),
+      onPointerUp:   gripUp,
+      onPointerCancel: gripUp,
+      style: { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' },
+    }),
+    containerHandlers: {
+      onPointerMove:   containerMove,
+      onPointerUp:     containerUp,
+      onPointerCancel: containerUp,
+    },
   }
 }

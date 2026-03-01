@@ -1,17 +1,16 @@
 // ─── ProgramEditor.jsx ───────────────────────────────────────────────────────
 // PLANNING TOOL ONLY. Zero connection to workout session/activeWorkout.
-// Reads/writes ONLY to the programs slice of the store.
+// Full-screen portal. Tab-based day navigation. Apple-quality UX.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, ChevronDown, Search, Check, ChevronLeft } from 'lucide-react'
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+import { Plus, X, Search, Check, ChevronLeft, GripVertical, Dumbbell, Clock, Trash2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { Sheet, ConfirmDialog } from '../ui/Sheet.jsx'
 import { EXERCISES, MUSCLE_NAMES } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
-import { SortableDayList } from './SortableDayList.jsx'
-import { SortableExerciseList } from './SortableExerciseList.jsx'
+import { useDragToReorder } from '../../hooks/useDragToReorder.js'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,6 +39,18 @@ const MUSCLE_HEX = {
 
 const getMHex = (m) => MUSCLE_HEX[m] ?? 'rgba(245,239,230,0.35)'
 
+// ─── REST OPTIONS ─────────────────────────────────────────────────────────────
+const REST_OPTIONS = [
+  { value: 30,  label: '0:30' },
+  { value: 45,  label: '0:45' },
+  { value: 60,  label: '1:00' },
+  { value: 90,  label: '1:30' },
+  { value: 120, label: '2:00' },
+  { value: 150, label: '2:30' },
+  { value: 180, label: '3:00' },
+  { value: 240, label: '4:00' },
+]
+
 // ─── SectionLabel ─────────────────────────────────────────────────────────────
 function SectionLabel({ children }) {
   return (
@@ -55,246 +66,425 @@ function SectionLabel({ children }) {
   )
 }
 
-// ─── InlineNumberInput — stepper ──────────────────────────────────────────────
-function InlineNumberInput({ value, min, max, onChange }) {
+// ─── DayTabStrip ──────────────────────────────────────────────────────────────
+// Horizontal scrollable tab strip. Each day is a pill tab.
+// Active day highlighted with amber. + button adds a new day.
+function DayTabStrip({ days, activeDayId, onSelect, onAdd, onDelete }) {
+  const scrollRef = useRef(null)
+
+  // Auto-scroll active tab into view
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const active = scrollRef.current.querySelector('[data-active="true"]')
+    if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [activeDayId])
+
   return (
     <div style={{
-      display: 'flex', alignItems: 'center',
-      background: 'rgba(255,235,200,0.05)',
-      border: '0.5px solid rgba(255,235,200,0.12)',
-      borderRadius: 8, overflow: 'hidden',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 0,
+      marginBottom: 16,
+      borderBottom: '0.5px solid rgba(255,235,200,0.07)',
+    }}>
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          display: 'flex',
+          gap: 4,
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 12,
+          paddingTop: 4,
+        }}
+      >
+        {days.map((day, i) => {
+          const isActive = day.id === activeDayId
+          const hasExercises = day.exercises.length > 0
+          return (
+            <div key={day.id} style={{ position: 'relative', flexShrink: 0 }}>
+              <motion.button
+                data-active={isActive}
+                onClick={() => onSelect(day.id)}
+                whileTap={{ scale: 0.94 }}
+                style={{
+                  height: 36,
+                  padding: '0 14px',
+                  borderRadius: 100,
+                  border: 'none',
+                  background: isActive
+                    ? 'rgba(232,146,74,0.18)'
+                    : 'rgba(255,235,200,0.05)',
+                  color: isActive ? '#E8924A' : 'rgba(245,239,230,0.45)',
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  transition: 'background 0.18s ease, color 0.18s ease',
+                  WebkitTapHighlightColor: 'transparent',
+                  position: 'relative',
+                  outline: isActive ? '1.5px solid rgba(232,146,74,0.35)' : 'none',
+                }}
+              >
+                <span style={{
+                  width: 16, height: 16, borderRadius: '50%',
+                  background: isActive ? 'rgba(232,146,74,0.22)' : 'rgba(255,235,200,0.06)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 9, fontWeight: 800,
+                  color: isActive ? '#E8924A' : 'rgba(245,239,230,0.35)',
+                  flexShrink: 0,
+                }}>
+                  {i + 1}
+                </span>
+                {day.name}
+                {/* Green dot if has exercises */}
+                {hasExercises && (
+                  <span style={{
+                    width: 5, height: 5, borderRadius: '50%',
+                    background: '#34C77B',
+                    flexShrink: 0,
+                    boxShadow: '0 0 4px rgba(52,199,123,0.6)',
+                  }} />
+                )}
+              </motion.button>
+              {/* Delete button — only show on hover/long-press, as a badge */}
+              {days.length > 1 && (
+                <button
+                  onClick={e => { e.stopPropagation(); onDelete(day.id) }}
+                  style={{
+                    position: 'absolute', top: -4, right: -4,
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: 'rgba(229,83,75,0.85)',
+                    border: '1.5px solid #0C0A09',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', zIndex: 10,
+                    opacity: isActive ? 1 : 0,
+                    transition: 'opacity 0.15s ease',
+                    pointerEvents: isActive ? 'auto' : 'none',
+                  }}
+                >
+                  <X size={8} color="white" strokeWidth={3} />
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Add day button */}
+      {days.length < 7 && (
+        <motion.button
+          onClick={onAdd}
+          whileTap={{ scale: 0.88 }}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none',
+            background: 'rgba(232,146,74,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0, marginLeft: 8, marginBottom: 12,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <Plus size={16} color="#E8924A" strokeWidth={2.5} />
+        </motion.button>
+      )}
+    </div>
+  )
+}
+
+// ─── ExerciseCard ─────────────────────────────────────────────────────────────
+// Premium exercise card for the day view. Much cleaner than the old row.
+// Shows: muscle dot + name + muscle label | sets stepper | × | reps stepper | rest | delete
+function ExerciseCard({ exercise, index, onRemove, onUpdate, dragHandlers, isDragging, isOver }) {
+  const accent = getMHex(exercise.muscle)
+  const muscleName = MUSCLE_NAMES[exercise.muscle] || exercise.muscle
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      animate={{
+        opacity: isDragging ? 0.45 : 1,
+        y: 0,
+        scale: isDragging ? 1.03 : 1,
+        boxShadow: isDragging
+          ? '0 16px 48px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,235,200,0.12)'
+          : isOver
+            ? '0 0 0 1.5px rgba(232,146,74,0.45), inset 0 1px 0 rgba(255,235,200,0.06)'
+            : '0 2px 8px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,235,200,0.05)',
+      }}
+      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 480, damping: 36, mass: 0.9 }}
+      style={{
+        borderRadius: 16,
+        background: 'rgba(22,18,12,0.82)',
+        border: `0.5px solid ${isOver ? 'rgba(232,146,74,0.3)' : 'rgba(255,235,200,0.08)'}`,
+        overflow: 'hidden',
+        position: 'relative',
+        touchAction: 'none',
+      }}
+    >
+      {/* Muscle color left bar */}
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
+        background: `linear-gradient(180deg, ${accent}, ${accent}80)`,
+        borderRadius: '16px 0 0 16px',
+      }} />
+
+      <div style={{ padding: '14px 14px 14px 18px' }}>
+        {/* Top row: grip + name + muscle chip + delete */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          {/* Grip handle */}
+          <div
+            {...dragHandlers}
+            style={{
+              width: 24, height: 24,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'grab', flexShrink: 0,
+              color: isDragging ? accent : 'rgba(245,239,230,0.22)',
+              transition: 'color 0.15s ease',
+              touchAction: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <GripVertical size={14} strokeWidth={1.8} />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 14, fontWeight: 700, color: '#F5EFE6',
+              lineHeight: 1.2,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {exercise.name}
+            </div>
+            <div style={{
+              fontSize: 11, color: 'rgba(245,239,230,0.38)',
+              marginTop: 2,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: accent,
+                display: 'inline-block', flexShrink: 0,
+              }} />
+              {muscleName}
+            </div>
+          </div>
+
+          <button
+            onClick={e => { e.stopPropagation(); onRemove() }}
+            style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: 'rgba(229,83,75,0.08)',
+              border: '0.5px solid rgba(229,83,75,0.15)',
+              color: 'rgba(229,83,75,0.55)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, transition: 'all 0.12s ease',
+            }}
+            onTouchStart={e => {
+              e.currentTarget.style.background = 'rgba(229,83,75,0.18)'
+              e.currentTarget.style.color = '#E5534B'
+            }}
+            onTouchEnd={e => {
+              e.currentTarget.style.background = 'rgba(229,83,75,0.08)'
+              e.currentTarget.style.color = 'rgba(229,83,75,0.55)'
+            }}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+
+        {/* Bottom row: sets × reps + rest */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'rgba(255,235,200,0.03)',
+          borderRadius: 10, padding: '8px 10px',
+          border: '0.5px solid rgba(255,235,200,0.06)',
+        }}>
+          {/* Sets */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)' }}>
+              Series
+            </span>
+            <StepperButton value={exercise.sets} min={1} max={10} onChange={v => onUpdate('sets', v)} />
+          </div>
+
+          <div style={{ fontSize: 16, color: 'rgba(245,239,230,0.15)', fontWeight: 300, flexShrink: 0 }}>×</div>
+
+          {/* Reps */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)' }}>
+              Reps
+            </span>
+            <StepperButton value={exercise.reps} min={1} max={50} onChange={v => onUpdate('reps', v)} />
+          </div>
+
+          <div style={{ width: 0.5, height: 32, background: 'rgba(255,235,200,0.08)', flexShrink: 0 }} />
+
+          {/* Rest */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1.2 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Clock size={8} /> Descanso
+            </span>
+            <select
+              value={exercise.restSeconds}
+              onChange={e => { e.stopPropagation(); onUpdate('restSeconds', parseInt(e.target.value)) }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: 'none', border: 'none',
+                color: '#F5EFE6', fontSize: 13, fontWeight: 700,
+                fontFamily: 'DM Mono, monospace',
+                outline: 'none', cursor: 'pointer',
+                appearance: 'none', WebkitAppearance: 'none',
+                textAlign: 'center', width: '100%',
+              }}
+            >
+              {REST_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── StepperButton ────────────────────────────────────────────────────────────
+function StepperButton({ value, min, max, onChange }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 0,
     }}>
       <button
         onClick={e => { e.stopPropagation(); onChange(Math.max(min, value - 1)) }}
         style={{
-          width: 24, height: 30, background: 'none', border: 'none',
-          color: 'rgba(245,239,230,0.45)', fontSize: 16, cursor: 'pointer',
+          width: 28, height: 28, borderRadius: '8px 0 0 8px',
+          background: 'rgba(255,235,200,0.06)',
+          border: '0.5px solid rgba(255,235,200,0.1)',
+          borderRight: 'none',
+          color: 'rgba(245,239,230,0.55)', fontSize: 15, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
+          flexShrink: 0, WebkitTapHighlightColor: 'transparent',
         }}
+        onTouchStart={e => { e.currentTarget.style.background = 'rgba(255,235,200,0.12)' }}
+        onTouchEnd={e => { e.currentTarget.style.background = 'rgba(255,235,200,0.06)' }}
       >−</button>
       <div style={{
-        minWidth: 24, textAlign: 'center',
-        fontSize: 12, fontWeight: 700,
-        color: '#F5EFE6', fontFamily: 'DM Mono, monospace',
-        userSelect: 'none',
+        width: 32, height: 28,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(255,235,200,0.04)',
+        border: '0.5px solid rgba(255,235,200,0.1)',
+        fontSize: 13, fontWeight: 800, color: '#F5EFE6',
+        fontFamily: 'DM Mono, monospace', userSelect: 'none',
       }}>
         {value}
       </div>
       <button
         onClick={e => { e.stopPropagation(); onChange(Math.min(max, value + 1)) }}
         style={{
-          width: 24, height: 30, background: 'none', border: 'none',
-          color: 'rgba(245,239,230,0.45)', fontSize: 16, cursor: 'pointer',
+          width: 28, height: 28, borderRadius: '0 8px 8px 0',
+          background: 'rgba(255,235,200,0.06)',
+          border: '0.5px solid rgba(255,235,200,0.1)',
+          borderLeft: 'none',
+          color: 'rgba(245,239,230,0.55)', fontSize: 15, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
+          flexShrink: 0, WebkitTapHighlightColor: 'transparent',
         }}
+        onTouchStart={e => { e.currentTarget.style.background = 'rgba(255,235,200,0.12)' }}
+        onTouchEnd={e => { e.currentTarget.style.background = 'rgba(255,235,200,0.06)' }}
       >+</button>
     </div>
   )
 }
 
-// ─── ExerciseRow ─────────────────────────────────────────────────────────────
-// Clean — drag handle is owned by DraggableCard wrapper, not here.
-function ExerciseRow({ exercise, isLast, onRemove, onUpdate }) {
-  const accentColor = getMHex(exercise.muscle)
+// ─── SortableExerciseList ─────────────────────────────────────────────────────
+// Uses useDragToReorder (Y-position based, works on iOS Safari).
+// Renders ExerciseCard items with grip handles.
+function SortableExerciseList({ exercises, onRemove, onUpdate, onReorder }) {
+  const { containerRef, dragIndex, overIndex, isDragging, gripHandlers, containerHandlers } = useDragToReorder({
+    onReorder: (from, to) => {
+      const next = [...exercises]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      onReorder(next)
+    },
+  })
+
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', padding: '9px 12px 9px 0', gap: 8,
-      borderBottom: isLast ? 'none' : '0.5px solid rgba(255,235,200,0.05)',
-    }}>
-      <div style={{
-        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-        background: accentColor, boxShadow: `0 0 5px ${accentColor}70`,
-      }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 13, fontWeight: 600, color: '#F5EFE6',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {exercise.name}
-        </div>
-        <div style={{ fontSize: 10, color: 'rgba(245,239,230,0.3)', marginTop: 1, textTransform: 'capitalize' }}>
-          {MUSCLE_NAMES[exercise.muscle] || exercise.muscle}
-        </div>
-      </div>
-      <InlineNumberInput value={exercise.sets} min={1} max={10} onChange={v => onUpdate('sets', v)} />
-      <span style={{ fontSize: 11, color: 'rgba(245,239,230,0.25)', fontFamily: 'DM Mono, monospace', flexShrink: 0 }}>×</span>
-      <InlineNumberInput value={exercise.reps} min={1} max={50} onChange={v => onUpdate('reps', v)} />
-      <select
-        value={exercise.restSeconds}
-        onChange={e => onUpdate('restSeconds', parseInt(e.target.value))}
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'rgba(255,235,200,0.05)', border: '0.5px solid rgba(255,235,200,0.1)',
-          borderRadius: 7, color: 'rgba(245,239,230,0.5)',
-          fontSize: 10, fontWeight: 600, padding: '3px 4px', cursor: 'pointer',
-          fontFamily: 'DM Mono, monospace', outline: 'none',
-          appearance: 'none', WebkitAppearance: 'none', flexShrink: 0,
-        }}
-      >
-        <option value={45}>0:45</option>
-        <option value={60}>1:00</option>
-        <option value={90}>1:30</option>
-        <option value={120}>2:00</option>
-        <option value={150}>2:30</option>
-        <option value={180}>3:00</option>
-        <option value={240}>4:00</option>
-      </select>
-      <button
-        onClick={e => { e.stopPropagation(); onRemove() }}
-        style={{
-          width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
-          color: 'rgba(229,83,75,0.45)', cursor: 'pointer', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-        onTouchStart={e => { e.currentTarget.style.color = '#E5534B' }}
-        onTouchEnd={e => { e.currentTarget.style.color = 'rgba(229,83,75,0.45)' }}
-      >
-        <X size={13} />
-      </button>
+    <div
+      ref={containerRef}
+      {...containerHandlers}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 8,
+        touchAction: isDragging ? 'none' : 'pan-y',
+      }}
+    >
+      <AnimatePresence initial={false}>
+        {exercises.map((ex, i) => (
+          <ExerciseCard
+            key={`${ex.exerciseId}-${i}`}
+            exercise={ex}
+            index={i}
+            isDragging={dragIndex === i}
+            isOver={overIndex === i && dragIndex !== null && dragIndex !== i}
+            dragHandlers={gripHandlers(i)}
+            onRemove={() => onRemove(i)}
+            onUpdate={(field, val) => onUpdate(i, field, val)}
+          />
+        ))}
+      </AnimatePresence>
     </div>
   )
 }
 
-// ─── DayCard ──────────────────────────────────────────────────────────────────
-// Clean — drag handle is owned by DraggableCard wrapper above this.
-// Exercise list uses SortableExerciseList for Apple-style sub-drag.
-function DayCard({
-  day, dayIndex, isExpanded, onToggle, onRename, onRemove,
-  onAddExercise, onRemoveExercise, onUpdateExercise, onReorderExercises,
-}) {
-  const [editingName, setEditingName] = useState(false)
+// ─── DayNameInput ─────────────────────────────────────────────────────────────
+function DayNameInput({ value, onChange }) {
+  const [editing, setEditing] = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.select()
+  }, [editing])
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        autoFocus
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditing(false) }}
+        style={{
+          background: 'transparent', border: 'none',
+          borderBottom: '1.5px solid rgba(232,146,74,0.5)',
+          color: '#F5EFE6', fontSize: 18, fontWeight: 800,
+          letterSpacing: '-0.02em',
+          outline: 'none', fontFamily: 'inherit',
+          padding: '1px 0', width: '100%',
+        }}
+      />
+    )
+  }
 
   return (
-    <div style={{
-      borderRadius: 18,
-      background: 'rgba(22,18,12,0.78)',
-      border: '0.5px solid rgba(255,235,200,0.09)',
-      boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.05)',
-      overflow: 'hidden',
-    }}>
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div
-        onClick={onToggle}
-        style={{
-          display: 'flex', alignItems: 'center',
-          padding: '13px 14px', cursor: 'pointer',
-          WebkitTapHighlightColor: 'transparent', userSelect: 'none',
-        }}
-      >
-        {/* Day number badge */}
-        <div style={{
-          width: 28, height: 28, borderRadius: 9, flexShrink: 0, marginRight: 10,
-          background: 'rgba(232,146,74,0.12)', border: '0.5px solid rgba(232,146,74,0.25)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 800, color: '#E8924A',
-        }}>
-          {dayIndex + 1}
-        </div>
-
-        {/* Day name — tappable to edit inline */}
-        {editingName ? (
-          <input
-            autoFocus
-            value={day.name}
-            onChange={e => onRename(e.target.value)}
-            onBlur={() => setEditingName(false)}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingName(false) }}
-            onClick={e => e.stopPropagation()}
-            style={{
-              flex: 1, background: 'transparent', border: 'none',
-              borderBottom: '1.5px solid rgba(232,146,74,0.5)',
-              color: '#F5EFE6', fontSize: 14, fontWeight: 700,
-              outline: 'none', fontFamily: 'inherit', padding: '1px 0',
-            }}
-          />
-        ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-            <span style={{
-              fontSize: 14, fontWeight: 700, color: '#F5EFE6',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {day.name}
-            </span>
-            <span
-              onClick={e => { e.stopPropagation(); setEditingName(true) }}
-              style={{ fontSize: 11, color: 'rgba(245,239,230,0.22)', cursor: 'text', flexShrink: 0 }}
-            >✎</span>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8, flexShrink: 0 }}>
-          {day.exercises.length > 0 && (
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,239,230,0.32)' }}>
-              {day.exercises.length} ej.
-            </span>
-          )}
-          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-            <ChevronDown size={16} color="rgba(245,239,230,0.28)" />
-          </motion.div>
-        </div>
-
-        <button
-          onClick={e => { e.stopPropagation(); onRemove() }}
-          style={{
-            width: 32, height: 32, borderRadius: 9, background: 'transparent', border: 'none',
-            color: 'rgba(229,83,75,0.5)', cursor: 'pointer', marginLeft: 6, flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          onTouchStart={e => { e.currentTarget.style.color = '#E5534B' }}
-          onTouchEnd={e => { e.currentTarget.style.color = 'rgba(229,83,75,0.5)' }}
-        >
-          <X size={14} />
-        </button>
-      </div>
-
-      {/* ── Expanded body ───────────────────────────────────────────────────── */}
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ borderTop: '0.5px solid rgba(255,235,200,0.07)' }}>
-              {day.exercises.length === 0 ? (
-                <div style={{
-                  padding: '20px 14px', textAlign: 'center',
-                  fontSize: 12, color: 'rgba(245,239,230,0.28)', lineHeight: 1.6,
-                }}>
-                  Sin ejercicios — añade uno abajo
-                </div>
-              ) : (
-                <SortableExerciseList
-                  exercises={day.exercises}
-                  onReorder={onReorderExercises}
-                  onRemove={onRemoveExercise}
-                  onUpdate={(i, field, val) => onUpdateExercise(i, field, val)}
-                  ExerciseRowComponent={ExerciseRow}
-                />
-              )}
-              <button
-                onClick={e => { e.stopPropagation(); onAddExercise() }}
-                style={{
-                  width: '100%', height: 46, background: 'rgba(232,146,74,0.05)', border: 'none',
-                  borderTop: day.exercises.length > 0 ? '0.5px solid rgba(255,235,200,0.06)' : 'none',
-                  color: 'rgba(232,146,74,0.78)', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  WebkitTapHighlightColor: 'transparent', transition: 'background 0.12s ease',
-                }}
-                onTouchStart={e => { e.currentTarget.style.background = 'rgba(232,146,74,0.1)' }}
-                onTouchEnd={e => { e.currentTarget.style.background = 'rgba(232,146,74,0.05)' }}
-              >
-                <Plus size={13} /> Añadir ejercicio
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div
+      onClick={() => setEditing(true)}
+      style={{
+        fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em',
+        color: '#F5EFE6', cursor: 'text',
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}
+    >
+      {value}
+      <span style={{ fontSize: 12, color: 'rgba(245,239,230,0.2)', fontWeight: 400 }}>✎</span>
     </div>
   )
 }
@@ -445,10 +635,9 @@ function ExercisePickerSheet({ isOpen, onClose, onSelect }) {
     </Sheet>
   )
 }
-// ─── ProgramEditor — full-screen native view ──────────────────────────────────
-// Rendered into a portal at document.body.
-// No bottom-sheet, no swipe-to-dismiss — clean push navigation like UINavigationController.
-// Drag-to-reorder works unobstructed because there is zero touch conflict.
+// ─── ProgramEditor — full-screen, tab-based ───────────────────────────────────
+// Rendered into portal. Apple-quality. Tab strip for day navigation.
+// No bottom sheet. No swipe-to-dismiss. Drag-to-reorder works perfectly.
 // ─────────────────────────────────────────────────────────────────────────────
 export function ProgramEditor({ open, onClose, program: existingProgram = null }) {
   const isEditing         = !!existingProgram
@@ -457,14 +646,12 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
   const addToast          = useStore(s => s.addToast)
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-  const makeDay = (name = 'Día 1', exercises = []) => ({
-    id: `day-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    name,
-    exercises,
-  })
+  const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+  const makeDay = (name = 'Día 1') => ({ id: `day-${uid()}`, name, exercises: [] })
 
   const hydrateDay = (d) => ({
-    id: d.id || `day-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: d.id || `day-${uid()}`,
     name: d.name || 'Día',
     exercises: (d.exercises || []).map(ex => ({
       exerciseId: ex.exerciseId,
@@ -477,148 +664,119 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
   })
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [name, setName]            = useState('')
-  const [days, setDays]            = useState([])
-  const [expandedDay, setExpanded] = useState(null)
-  const [pickerDayId, setPickerId] = useState(null)
-  const [dirty, setDirty]          = useState(false)
-  const [confirmExit, setConfirmExit] = useState(false)
-
-  // Track original snapshot to detect real changes
-  const originalRef = useRef(null)
+  const [progName, setProgName]        = useState('')
+  const [days, setDays]                = useState([])
+  const [activeDayId, setActiveDayId]  = useState(null)
+  const [pickerDayId, setPickerId]     = useState(null)
+  const [confirmExit, setConfirmExit]  = useState(false)
+  const originalRef                    = useRef(null)
+  const bodyRef                        = useRef(null)
 
   // ── Reset on open ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
     if (existingProgram) {
       const hydrated = (existingProgram.days ?? []).map(hydrateDay)
-      setName(existingProgram.name ?? '')
+      setProgName(existingProgram.name ?? '')
       setDays(hydrated)
-      setExpanded(hydrated[0]?.id ?? null)
+      setActiveDayId(hydrated[0]?.id ?? null)
       originalRef.current = JSON.stringify({ name: existingProgram.name, days: hydrated })
     } else {
-      const firstDay = makeDay('Día 1')
-      setName('')
-      setDays([firstDay])
-      setExpanded(firstDay.id)
-      originalRef.current = JSON.stringify({ name: '', days: [firstDay] })
+      const first = makeDay('Día 1')
+      setProgName('')
+      setDays([first])
+      setActiveDayId(first.id)
+      originalRef.current = JSON.stringify({ name: '', days: [first] })
     }
-    setDirty(false)
     setPickerId(null)
     setConfirmExit(false)
   }, [open, existingProgram?.id])
 
-  // ── Dirty tracking ─────────────────────────────────────────────────────────
-  const mark = () => setDirty(true)
+  // ── Dirty check ────────────────────────────────────────────────────────────
+  const isDirty = () => JSON.stringify({ name: progName, days }) !== originalRef.current
 
-  // ── Back / Cancel ──────────────────────────────────────────────────────────
   const handleBack = () => {
-    const current = JSON.stringify({ name, days })
-    const changed = current !== originalRef.current
-    if (changed) {
-      setConfirmExit(true)
-    } else {
-      onClose()
-    }
+    if (isDirty()) setConfirmExit(true)
+    else onClose()
   }
 
-  // ── Day operations ─────────────────────────────────────────────────────────
-  const addDay = useCallback(() => {
+  // ── Day CRUD ───────────────────────────────────────────────────────────────
+  const addDay = () => {
+    const d = makeDay(`Día ${days.length + 1}`)
+    setDays(prev => [...prev, d])
+    setActiveDayId(d.id)
+    // Scroll body to bottom after add
+    setTimeout(() => { if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight }, 100)
+  }
+
+  const deleteDay = (dayId) => {
     setDays(prev => {
-      const d = makeDay(`Día ${prev.length + 1}`)
-      setExpanded(d.id)
-      return [...prev, d]
+      const next = prev.filter(d => d.id !== dayId)
+      if (activeDayId === dayId) setActiveDayId(next[0]?.id ?? null)
+      return next
     })
-    mark()
-  }, [])
+  }
 
-  const removeDay = useCallback((dayId) => {
-    setDays(prev => prev.filter(d => d.id !== dayId))
-    setExpanded(prev => prev === dayId ? null : prev)
-    mark()
-  }, [])
+  const renameActiveDay = (newName) => {
+    setDays(prev => prev.map(d => d.id === activeDayId ? { ...d, name: newName } : d))
+  }
 
-  const renameDay = useCallback((dayId, newName) => {
-    setDays(prev => prev.map(d => d.id === dayId ? { ...d, name: newName } : d))
-    mark()
-  }, [])
-
-  // ── Reorder ────────────────────────────────────────────────────────────────
-  // SortableDayList / SortableExerciseList call these with the full new array.
-  const reorderDays = useCallback((newDays) => {
-    setDays(newDays)
-    mark()
-  }, [])
-
-  const reorderExercisesInDay = useCallback((dayId, newExercises) => {
+  // ── Exercise CRUD ──────────────────────────────────────────────────────────
+  const addExercise = (exercise) => {
     setDays(prev => prev.map(d =>
-      d.id !== dayId ? d : { ...d, exercises: newExercises }
-    ))
-    mark()
-  }, [])
-
-  // ── Exercise operations ────────────────────────────────────────────────────
-  const addExercise = useCallback((dayId, exercise) => {
-    setDays(prev => prev.map(d =>
-      d.id !== dayId ? d : {
+      d.id !== activeDayId ? d : {
         ...d,
         exercises: [...d.exercises, {
           exerciseId: exercise.id,
           name: exercise.name,
           muscle: exercise.muscle,
-          sets: 3,
-          reps: 10,
-          restSeconds: 120,
+          sets: 3, reps: 10, restSeconds: 120,
         }],
       }
     ))
-    mark()
-  }, [])
+  }
 
-  const removeExercise = useCallback((dayId, exIndex) => {
+  const removeExercise = (exIndex) => {
     setDays(prev => prev.map(d =>
-      d.id !== dayId ? d : { ...d, exercises: d.exercises.filter((_, i) => i !== exIndex) }
+      d.id !== activeDayId ? d : {
+        ...d, exercises: d.exercises.filter((_, i) => i !== exIndex),
+      }
     ))
-    mark()
-  }, [])
+  }
 
-  const updateExerciseField = useCallback((dayId, exIndex, field, value) => {
+  const updateExercise = (exIndex, field, value) => {
     setDays(prev => prev.map(d =>
-      d.id !== dayId ? d : {
+      d.id !== activeDayId ? d : {
         ...d,
         exercises: d.exercises.map((ex, i) => i !== exIndex ? ex : { ...ex, [field]: value }),
       }
     ))
-    mark()
-  }, [])
+  }
 
-  // ── Validation ─────────────────────────────────────────────────────────────
-  const isValid = name.trim().length >= 2
+  const reorderExercises = (newList) => {
+    setDays(prev => prev.map(d =>
+      d.id !== activeDayId ? d : { ...d, exercises: newList }
+    ))
+  }
+
+  // ── Validation & save ──────────────────────────────────────────────────────
+  const activeDay = days.find(d => d.id === activeDayId)
+  const isValid = progName.trim().length >= 2
     && days.length >= 1
     && days.every(d => d.exercises.length >= 1)
 
-  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = () => {
     if (!isValid) return
-    const payload = {
-      name: name.trim(),
-      days,
-      source: 'user',
-      daysPerWeek: days.length,
-    }
+    const payload = { name: progName.trim(), days, source: 'user', daysPerWeek: days.length }
     if (isEditing) {
       updateProgram(existingProgram.id, {
-        ...existingProgram,
-        ...payload,
-        updatedAt: new Date().toISOString(),
+        ...existingProgram, ...payload, updatedAt: new Date().toISOString(),
       })
       addToast({ message: 'Programa actualizado ✓', type: 'success' })
     } else {
       saveCustomProgram({
-        ...payload,
-        id: `user-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        ...payload, id: `user-${uid()}`,
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       })
       addToast({ message: 'Programa creado ✓', type: 'success' })
     }
@@ -630,254 +788,297 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
 
   return createPortal(
     <>
-      {/* ── Full-screen editor ──────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {!pickerDayId && (
-          <motion.div
-            key="editor-screen"
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 40, mass: 1 }}
+      {/* ══════════════════════════════════════════════════════════════════════
+          FULL SCREEN EDITOR
+      ══════════════════════════════════════════════════════════════════════ */}
+      <motion.div
+        key="pe-screen"
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 360, damping: 38, mass: 1 }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 500,
+          background: '#0C0A09',
+          display: 'flex', flexDirection: 'column',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          overscrollBehavior: 'none',
+        }}
+      >
+        {/* ── TOP NAV BAR ─────────────────────────────────────────────────── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          height: 56, paddingLeft: 4, paddingRight: 16, flexShrink: 0,
+          background: 'rgba(12,10,9,0.92)',
+          backdropFilter: 'blur(40px) saturate(220%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(220%)',
+          borderBottom: '0.5px solid rgba(255,235,200,0.07)',
+          position: 'relative', zIndex: 10,
+        }}>
+          <button
+            onClick={handleBack}
             style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 500,
-              background: 'var(--bg, #0C0A09)',
-              display: 'flex',
-              flexDirection: 'column',
-              // iOS safe areas
-              paddingTop: 'env(safe-area-inset-top, 0px)',
-              overscrollBehavior: 'none',
-              WebkitOverflowScrolling: 'touch',
+              minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', gap: 2,
+              background: 'none', border: 'none', color: 'rgba(245,239,230,0.55)',
+              fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+              paddingLeft: 12, WebkitTapHighlightColor: 'transparent',
             }}
+            onTouchStart={e => { e.currentTarget.style.opacity = '0.5' }}
+            onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
           >
-            {/* ── Top navigation bar ─────────────────────────────────────── */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              height: 56,
-              paddingLeft: 4,
-              paddingRight: 16,
-              flexShrink: 0,
-              background: 'rgba(12,10,9,0.88)',
-              backdropFilter: 'blur(40px) saturate(220%) brightness(1.05)',
-              WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.05)',
-              borderBottom: '0.5px solid rgba(255,235,200,0.08)',
-              boxShadow: 'inset 0 -1px 0 rgba(255,235,200,0.04)',
-              zIndex: 1,
-            }}>
-              {/* Cancel button */}
-              <button
-                onClick={handleBack}
-                style={{
-                  minWidth: 44, minHeight: 44,
-                  display: 'flex', alignItems: 'center', gap: 2,
-                  background: 'none', border: 'none',
-                  color: 'rgba(245,239,230,0.55)',
-                  fontSize: 15, fontWeight: 500,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  paddingLeft: 12, paddingRight: 8,
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-                onTouchStart={e => { e.currentTarget.style.opacity = '0.6' }}
-                onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
-              >
-                <ChevronLeft size={18} strokeWidth={2.5} />
-                Cancelar
-              </button>
+            <ChevronLeft size={18} strokeWidth={2.5} />
+            Cancelar
+          </button>
 
-              {/* Title */}
-              <div style={{
-                position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-                fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em',
-                color: '#F5EFE6', pointerEvents: 'none',
-              }}>
-                {isEditing ? 'Editar programa' : 'Nuevo programa'}
-              </div>
+          <div style={{
+            position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+            fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: '#F5EFE6',
+            pointerEvents: 'none', whiteSpace: 'nowrap',
+          }}>
+            {isEditing ? 'Editar programa' : 'Nuevo programa'}
+          </div>
 
-              {/* Save button */}
-              <motion.button
-                onClick={handleSave}
-                disabled={!isValid}
-                animate={{ opacity: isValid ? 1 : 0.35, scale: isValid ? 1 : 0.97 }}
-                transition={{ duration: 0.18 }}
-                style={{
-                  height: 36, padding: '0 16px',
-                  borderRadius: 100,
-                  background: isValid
-                    ? 'linear-gradient(135deg, #E8924A, #C9712D)'
-                    : 'rgba(255,235,200,0.08)',
-                  border: 'none',
-                  color: isValid ? '#FFF8F2' : 'rgba(245,239,230,0.4)',
-                  fontSize: 14, fontWeight: 700,
-                  cursor: isValid ? 'pointer' : 'default',
-                  fontFamily: 'inherit',
-                  boxShadow: isValid ? '0 2px 12px rgba(232,146,74,0.35)' : 'none',
-                  transition: 'box-shadow 0.2s ease',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-                onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.8' }}
-                onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
-              >
-                Guardar
-              </motion.button>
+          <motion.button
+            onClick={handleSave}
+            disabled={!isValid}
+            animate={{ opacity: isValid ? 1 : 0.3, scale: isValid ? 1 : 0.95 }}
+            transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+            style={{
+              height: 36, padding: '0 18px', borderRadius: 100, border: 'none',
+              background: 'linear-gradient(135deg, #E8924A, #C9712D)',
+              color: '#FFF8F2', fontSize: 14, fontWeight: 700,
+              cursor: isValid ? 'pointer' : 'default', fontFamily: 'inherit',
+              boxShadow: isValid ? '0 2px 14px rgba(232,146,74,0.38)' : 'none',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+            onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.78' }}
+            onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
+          >
+            Guardar
+          </motion.button>
+        </div>
+
+        {/* ── SCROLLABLE BODY ──────────────────────────────────────────────── */}
+        <div
+          ref={bodyRef}
+          style={{
+            flex: 1, overflowY: 'auto', overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+          {/* ── PROGRAM NAME ────────────────────────────────────────────── */}
+          <div style={{ padding: '20px 16px 0' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)', marginBottom: 8 }}>
+              Nombre del programa
             </div>
+            <input
+              type="text"
+              value={progName}
+              onChange={e => setProgName(e.target.value)}
+              placeholder="Ej: Mi PPL personalizado"
+              maxLength={48}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(28,22,14,0.9)',
+                border: `1.5px solid ${progName.length >= 2 ? 'rgba(232,146,74,0.45)' : 'rgba(255,235,200,0.08)'}`,
+                borderRadius: 16, padding: '14px 16px',
+                fontSize: 16, fontWeight: 600, color: '#F5EFE6',
+                outline: 'none', fontFamily: 'inherit',
+                transition: 'border-color 0.22s ease',
+              }}
+            />
+          </div>
 
-            {/* ── Scrollable body ────────────────────────────────────────── */}
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-              padding: '24px 16px',
-              paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
-            }}>
-              {/* Program name input */}
-              <div style={{ marginBottom: 28 }}>
-                <SectionLabel>Nombre del programa</SectionLabel>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => { setName(e.target.value); mark() }}
-                  placeholder="Ej: Mi PPL personalizado"
-                  maxLength={48}
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    background: 'rgba(28,22,14,0.9)',
-                    border: `1.5px solid ${name.length >= 2 ? 'rgba(232,146,74,0.45)' : 'rgba(255,235,200,0.09)'}`,
-                    borderRadius: 16, padding: '15px 16px',
-                    fontSize: 16, fontWeight: 600, color: '#F5EFE6',
-                    outline: 'none', fontFamily: 'inherit',
-                    transition: 'border-color 0.22s ease',
-                    boxShadow: name.length >= 2 ? 'inset 0 0 0 0.5px rgba(232,146,74,0.1)' : 'none',
-                  }}
-                />
-              </div>
+          {/* ── DAY TABS ────────────────────────────────────────────────── */}
+          <div style={{ padding: '20px 16px 0' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)', marginBottom: 12 }}>
+              Días de entrenamiento — {days.length}/7
+            </div>
+            <DayTabStrip
+              days={days}
+              activeDayId={activeDayId}
+              onSelect={setActiveDayId}
+              onAdd={addDay}
+              onDelete={deleteDay}
+            />
+          </div>
 
-              {/* Days section */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginBottom: 12,
-              }}>
-                <SectionLabel>
-                  Días&nbsp;
-                  <span style={{ fontWeight: 500, color: 'rgba(245,239,230,0.22)' }}>
-                    {days.length}/7
-                  </span>
-                </SectionLabel>
-                {days.length > 1 && (
-                  <span style={{ fontSize: 11, color: 'rgba(245,239,230,0.22)', fontWeight: 500 }}>
-                    ⠿ Arrastra para ordenar
-                  </span>
+          {/* ── ACTIVE DAY VIEW ─────────────────────────────────────────── */}
+          <AnimatePresence mode="wait">
+            {activeDay && (
+              <motion.div
+                key={activeDay.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                style={{ padding: '0 16px' }}
+              >
+                {/* Day name editable */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: 16,
+                }}>
+                  <DayNameInput
+                    value={activeDay.name}
+                    onChange={renameActiveDay}
+                  />
+                  <div style={{ fontSize: 12, color: 'rgba(245,239,230,0.25)', fontWeight: 500 }}>
+                    {activeDay.exercises.length} ejercicio{activeDay.exercises.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+
+                {/* Exercise list */}
+                {activeDay.exercises.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                      padding: '40px 20px',
+                      textAlign: 'center',
+                      borderRadius: 20,
+                      background: 'rgba(255,235,200,0.02)',
+                      border: '1.5px dashed rgba(255,235,200,0.08)',
+                      marginBottom: 16,
+                    }}
+                  >
+                    <div style={{ fontSize: 32, marginBottom: 12 }}>🏋️</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(245,239,230,0.45)', marginBottom: 6 }}>
+                      Sin ejercicios
+                    </div>
+                    <div style={{ fontSize: 13, color: 'rgba(245,239,230,0.25)', lineHeight: 1.5 }}>
+                      Añade ejercicios para diseñar este día
+                    </div>
+                  </motion.div>
+                ) : (
+                  <SortableExerciseList
+                    exercises={activeDay.exercises}
+                    onReorder={reorderExercises}
+                    onRemove={removeExercise}
+                    onUpdate={updateExercise}
+                  />
                 )}
-              </div>
 
-              {/* Day list — Apple-style drag-to-reorder */}
-              <SortableDayList
-                days={days}
-                onReorder={reorderDays}
-                DayCardComponent={DayCard}
-                expandedDay={expandedDay}
-                onToggle={(dayId) => setExpanded(expandedDay === dayId ? null : dayId)}
-                onRename={(dayId, n) => renameDay(dayId, n)}
-                onRemove={(dayId) => removeDay(dayId)}
-                onAddExercise={(dayId) => { setExpanded(dayId); setPickerId(dayId) }}
-                onRemoveExercise={(dayId, i) => removeExercise(dayId, i)}
-                onUpdateExercise={(dayId, i, f, v) => updateExerciseField(dayId, i, f, v)}
-                onReorderExercises={(dayId, newExs) => reorderExercisesInDay(dayId, newExs)}
-              />
-
-              {/* Add day */}
-              {days.length < 7 && (
-                <button
-                  onClick={addDay}
+                {/* Add exercise button */}
+                <motion.button
+                  onClick={() => setPickerId(activeDayId)}
+                  whileTap={{ scale: 0.97 }}
                   style={{
-                    width: '100%', height: 50, marginTop: 12,
+                    width: '100%', height: 52, marginTop: 12, marginBottom: 8,
                     borderRadius: 16,
-                    background: 'rgba(255,235,200,0.03)',
-                    border: '1.5px dashed rgba(232,146,74,0.2)',
-                    color: 'rgba(232,146,74,0.7)', fontSize: 14, fontWeight: 600,
+                    background: 'rgba(232,146,74,0.07)',
+                    border: '1px solid rgba(232,146,74,0.2)',
+                    color: '#E8924A', fontSize: 14, fontWeight: 700,
                     cursor: 'pointer', fontFamily: 'inherit',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                    transition: 'all 0.16s ease', WebkitTapHighlightColor: 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    WebkitTapHighlightColor: 'transparent',
+                    transition: 'background 0.15s ease, border-color 0.15s ease',
                   }}
                   onTouchStart={e => {
-                    e.currentTarget.style.background = 'rgba(232,146,74,0.07)'
-                    e.currentTarget.style.borderColor = 'rgba(232,146,74,0.35)'
+                    e.currentTarget.style.background = 'rgba(232,146,74,0.13)'
+                    e.currentTarget.style.borderColor = 'rgba(232,146,74,0.38)'
                   }}
                   onTouchEnd={e => {
-                    e.currentTarget.style.background = 'rgba(255,235,200,0.03)'
+                    e.currentTarget.style.background = 'rgba(232,146,74,0.07)'
                     e.currentTarget.style.borderColor = 'rgba(232,146,74,0.2)'
                   }}
                 >
-                  <Plus size={15} strokeWidth={2.5} /> Añadir día
-                </button>
-              )}
+                  <Dumbbell size={16} strokeWidth={2} />
+                  Añadir ejercicio
+                </motion.button>
 
-              {/* Validation hint */}
-              <AnimatePresence>
-                {days.length > 0 && !isValid && name.trim().length >= 2 && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.2 }}
-                    style={{
-                      fontSize: 12, textAlign: 'center',
-                      color: 'rgba(245,239,230,0.3)',
-                      marginTop: 14, lineHeight: 1.6,
-                    }}
-                  >
-                    Cada día necesita al menos un ejercicio
-                  </motion.p>
+                {/* Validation hint for this day */}
+                {activeDay.exercises.length === 0 && progName.trim().length >= 2 && (
+                  <p style={{
+                    fontSize: 11, textAlign: 'center',
+                    color: 'rgba(245,239,230,0.22)',
+                    marginTop: 4, lineHeight: 1.5,
+                  }}>
+                    Este día necesita al menos un ejercicio
+                  </p>
                 )}
-              </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-              {/* Save button — also in body for reachability on small screens */}
-              <motion.button
-                onClick={handleSave}
-                disabled={!isValid}
-                animate={{
-                  opacity: isValid ? 1 : 0.28,
-                  y: isValid ? 0 : 4,
-                }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-                style={{
-                  width: '100%', height: 54, marginTop: 28,
-                  borderRadius: 16, border: 'none',
-                  background: 'linear-gradient(135deg, #E8924A 0%, #C9712D 100%)',
-                  color: '#FFF8F2',
-                  fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em',
-                  cursor: isValid ? 'pointer' : 'default',
-                  fontFamily: 'inherit',
-                  boxShadow: isValid
-                    ? '0 4px 24px rgba(232,146,74,0.30), inset 0 1px 0 rgba(255,255,255,0.12)'
-                    : 'none',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-                onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.82' }}
-                onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
-              >
-                {isEditing ? 'Guardar cambios' : 'Crear programa'}
-              </motion.button>
+          {/* ── COMPLETION PROGRESS ─────────────────────────────────────── */}
+          {days.length > 0 && (
+            <div style={{ padding: '12px 16px 0' }}>
+              <div style={{
+                borderRadius: 14, padding: '12px 16px',
+                background: 'rgba(255,235,200,0.03)',
+                border: '0.5px solid rgba(255,235,200,0.07)',
+                display: 'flex', alignItems: 'center', gap: 12,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: 'rgba(245,239,230,0.35)', marginBottom: 6 }}>
+                    Progreso del programa
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {days.map(d => (
+                      <motion.div
+                        key={d.id}
+                        animate={{
+                          background: d.exercises.length > 0
+                            ? '#34C77B'
+                            : d.id === activeDayId
+                              ? 'rgba(232,146,74,0.5)'
+                              : 'rgba(255,235,200,0.1)',
+                        }}
+                        transition={{ duration: 0.3 }}
+                        style={{
+                          flex: 1, height: 4, borderRadius: 2,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(245,239,230,0.6)', fontFamily: 'DM Mono, monospace' }}>
+                  {days.filter(d => d.exercises.length > 0).length}/{days.length}
+                </div>
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
 
-      {/* ── Exercise picker — rendered on top of editor ─────────────────────── */}
+          {/* ── SAVE BUTTON ─────────────────────────────────────────────── */}
+          <div style={{ padding: '20px 16px 0' }}>
+            <motion.button
+              onClick={handleSave}
+              disabled={!isValid}
+              animate={{ opacity: isValid ? 1 : 0.3, y: isValid ? 0 : 3 }}
+              transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+              style={{
+                width: '100%', height: 56, borderRadius: 18, border: 'none',
+                background: 'linear-gradient(135deg, #E8924A 0%, #C9712D 100%)',
+                color: '#FFF8F2', fontSize: 16, fontWeight: 800,
+                letterSpacing: '-0.02em',
+                cursor: isValid ? 'pointer' : 'default', fontFamily: 'inherit',
+                boxShadow: isValid
+                  ? '0 4px 28px rgba(232,146,74,0.32), inset 0 1px 0 rgba(255,255,255,0.14)'
+                  : 'none',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+              onTouchStart={e => { if (isValid) e.currentTarget.style.opacity = '0.82' }}
+              onTouchEnd={e => { e.currentTarget.style.opacity = '1' }}
+            >
+              {isEditing ? 'Guardar cambios' : 'Crear programa'}
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── EXERCISE PICKER ───────────────────────────────────────────────── */}
       <ExercisePickerSheet
         isOpen={!!pickerDayId}
         onClose={() => setPickerId(null)}
         onSelect={exercise => {
-          if (pickerDayId) addExercise(pickerDayId, exercise)
+          addExercise(exercise)
           setPickerId(null)
         }}
       />
 
-      {/* ── Discard changes dialog ──────────────────────────────────────────── */}
+      {/* ── DISCARD CONFIRM ───────────────────────────────────────────────── */}
       <ConfirmDialog
         isOpen={confirmExit}
         onClose={() => setConfirmExit(false)}
