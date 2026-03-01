@@ -1,3 +1,24 @@
+/* ── NUCLEAR BACKGROUNDS ─────────────────────────────────── */
+html,
+html body,
+html body #root {
+  background-color: #0C0A09 !important;
+}
+
+body {
+  background-color: #0C0A09 !important;
+  color: #F5EFE6;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+body,
+body[style],
+body[style*="overflow"] {
+  background-color: #0C0A09 !important;
+}
+
 @import "tailwindcss";
 
 *, *::before, *::after {

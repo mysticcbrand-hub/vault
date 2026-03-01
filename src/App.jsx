@@ -156,10 +156,13 @@ export default function App() {
   const [prevTab, setPrevTab] = useState(null)
   const [isOnboarded, setIsOnboarded] = useState(() => {
     try {
-      const graw = JSON.parse(localStorage.getItem('graw_store') ?? '{}')
-      const lift = JSON.parse(localStorage.getItem('liftvault-storage') ?? '{}')
-      return !!(graw?.state?.user?.onboardingComplete || lift?.state?.user?.onboardingComplete)
-    } catch {
+      const raw = localStorage.getItem('graw_store')
+      if (!raw) return false
+      const parsed = JSON.parse(raw)
+      const user = parsed?.state?.user ?? parsed?.user ?? null
+      return !!(user?.onboardingComplete || (user?.name && user?.goal))
+    } catch (e) {
+      console.warn('Could not read onboarding state:', e)
       return false
     }
   })
@@ -187,7 +190,25 @@ export default function App() {
   // Only run badge detection after onboarding completes
   useBadgeDetection(isOnboarded)
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = (userData) => {
+    try {
+      const raw = localStorage.getItem('graw_store')
+      const current = raw ? JSON.parse(raw) : { state: {} }
+      if (!current.state) current.state = {}
+      current.state.user = { ...userData, onboardingComplete: true }
+      localStorage.setItem('graw_store', JSON.stringify(current))
+    } catch (e) {
+      console.error('Failed to write user to localStorage:', e)
+    }
+
+    try {
+      useStore.getState().updateUser({ ...userData, onboardingComplete: true })
+    } catch (e) {}
+
+    try {
+      personalizeFromOnboarding(userData.experience, userData.goal, useStore.getState())
+    } catch (e) {}
+
     setIsOnboarded(true)
   }
 

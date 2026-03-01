@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check } from 'lucide-react'
 import { ALL_BADGES } from '../data/badges.js'
@@ -234,6 +234,18 @@ function WeightInput({ label, value, onChange, unit }) {
 }
 
 export default function Onboarding({ onComplete }) {
+  useEffect(() => {
+    document.body.style.setProperty('overflow', 'auto', 'important')
+    document.body.style.setProperty('background-color', '#0C0A09', 'important')
+    document.documentElement.style.setProperty('overflow', 'auto', 'important')
+    return () => {
+      setTimeout(() => {
+        document.body.style.removeProperty('overflow')
+        document.documentElement.style.removeProperty('overflow')
+      }, 100)
+    }
+  }, [])
+
   const [step, setStep] = useState(1)
   const [direction, setDirection] = useState(1)
   const [completing, setCompleting] = useState(false)
