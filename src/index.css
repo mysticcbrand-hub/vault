@@ -464,6 +464,16 @@ input::placeholder {
 .settings-row:last-child { border-bottom: none; }
 .settings-row:active { background: var(--surface3); }
 
+/* ─── DRAG ACTIVE STATE ──────────────────────────────────────────────────── */
+.drag-active {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+.drag-active * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 /* ─── REDUCED MOTION ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -5,72 +5,13 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, ChevronDown, Search, Check, GripVertical, ChevronLeft } from 'lucide-react'
+import { Plus, X, ChevronDown, Search, Check, ChevronLeft } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { Sheet, ConfirmDialog } from '../ui/Sheet.jsx'
 import { EXERCISES, MUSCLE_NAMES } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
-
-// ─── useDragReorder ───────────────────────────────────────────────────────────
-// Pure pointer-event drag-to-reorder. Works on iOS Safari, no external deps.
-// Returns { listRef, dragHandleProps, draggingIndex, overIndex }
-// Call onReorder(fromIndex, toIndex) when drop completes.
-function useDragReorder({ onReorder, itemHeightEstimate = 52 }) {
-  const dragging   = useRef(null)   // { index, startY, currentY, el }
-  const listRef    = useRef(null)
-  const [dragState, setDragState] = useState({ active: null, over: null })
-
-  const getTargetIndex = (clientY) => {
-    if (!listRef.current) return dragging.current?.index ?? 0
-    const items = Array.from(listRef.current.children)
-    for (let i = 0; i < items.length; i++) {
-      const rect = items[i].getBoundingClientRect()
-      if (clientY < rect.top + rect.height / 2) return i
-    }
-    return items.length - 1
-  }
-
-  const onPointerDown = useCallback((index, e) => {
-    // Only single touch / left mouse
-    if (e.button !== undefined && e.button !== 0) return
-    e.currentTarget.setPointerCapture(e.pointerId)
-    dragging.current = { index, startY: e.clientY, currentY: e.clientY }
-    setDragState({ active: index, over: index })
-    // Prevent scroll while dragging
-    document.body.style.overflow = 'hidden'
-    try { navigator.vibrate(10) } catch (_) {}
-  }, [])
-
-  const onPointerMove = useCallback((e) => {
-    if (dragging.current === null) return
-    dragging.current.currentY = e.clientY
-    const over = getTargetIndex(e.clientY)
-    setDragState(s => s.over === over ? s : { ...s, over })
-  }, [])
-
-  const onPointerUp = useCallback((e) => {
-    if (dragging.current === null) return
-    const from = dragging.current.index
-    const to   = getTargetIndex(e.clientY)
-    dragging.current = null
-    document.body.style.overflow = ''
-    setDragState({ active: null, over: null })
-    if (from !== to) onReorder(from, to)
-  }, [onReorder])
-
-  const dragHandleProps = (index) => ({
-    onPointerDown: (e) => onPointerDown(index, e),
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel: () => {
-      dragging.current = null
-      document.body.style.overflow = ''
-      setDragState({ active: null, over: null })
-    },
-  })
-
-  return { listRef, dragHandleProps, draggingIndex: dragState.active, overIndex: dragState.over }
-}
+import { SortableDayList } from './SortableDayList.jsx'
+import { SortableExerciseList } from './SortableExerciseList.jsx'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -154,34 +95,14 @@ function InlineNumberInput({ value, min, max, onChange }) {
 }
 
 // ─── ExerciseRow ─────────────────────────────────────────────────────────────
-function ExerciseRow({ exercise, isLast, onRemove, onUpdate, isDragging, isOver, dragHandleProps }) {
+// Clean — drag handle is owned by DraggableCard wrapper, not here.
+function ExerciseRow({ exercise, isLast, onRemove, onUpdate }) {
   const accentColor = getMHex(exercise.muscle)
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', padding: '9px 12px', gap: 8,
+      display: 'flex', alignItems: 'center', padding: '9px 12px 9px 0', gap: 8,
       borderBottom: isLast ? 'none' : '0.5px solid rgba(255,235,200,0.05)',
-      background: isDragging
-        ? 'rgba(232,146,74,0.10)'
-        : isOver
-          ? 'rgba(232,146,74,0.04)'
-          : 'transparent',
-      opacity: isDragging ? 0.5 : 1,
-      transition: 'background 0.12s ease, opacity 0.12s ease',
-      touchAction: 'none',
     }}>
-      {/* Drag handle */}
-      <div
-        {...dragHandleProps}
-        style={{
-          width: 20, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, cursor: 'grab', touchAction: 'none',
-          color: 'rgba(245,239,230,0.2)',
-        }}
-        onTouchStart={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.5)' }}
-        onTouchEnd={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.2)' }}
-      >
-        <GripVertical size={14} />
-      </div>
       <div style={{
         width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
         background: accentColor, boxShadow: `0 0 5px ${accentColor}70`,
@@ -221,9 +142,9 @@ function ExerciseRow({ exercise, isLast, onRemove, onUpdate, isDragging, isOver,
         <option value={240}>4:00</option>
       </select>
       <button
-        onClick={onRemove}
+        onClick={e => { e.stopPropagation(); onRemove() }}
         style={{
-          width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none',
+          width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
           color: 'rgba(229,83,75,0.45)', cursor: 'pointer', flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
@@ -237,31 +158,23 @@ function ExerciseRow({ exercise, isLast, onRemove, onUpdate, isDragging, isOver,
 }
 
 // ─── DayCard ──────────────────────────────────────────────────────────────────
+// Clean — drag handle is owned by DraggableCard wrapper above this.
+// Exercise list uses SortableExerciseList for Apple-style sub-drag.
 function DayCard({
   day, dayIndex, isExpanded, onToggle, onRename, onRemove,
   onAddExercise, onRemoveExercise, onUpdateExercise, onReorderExercises,
-  isDragging, isOver, dayDragHandleProps,
 }) {
   const [editingName, setEditingName] = useState(false)
-
-  const exDrag = useDragReorder({
-    onReorder: onReorderExercises,
-    itemHeightEstimate: 48,
-  })
 
   return (
     <div style={{
       borderRadius: 18,
-      background: isDragging ? 'rgba(232,146,74,0.08)' : 'rgba(22,18,12,0.78)',
-      border: `0.5px solid ${isOver ? 'rgba(232,146,74,0.35)' : 'rgba(255,235,200,0.09)'}`,
-      boxShadow: isDragging
-        ? '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,235,200,0.08)'
-        : 'inset 0 1px 0 rgba(255,235,200,0.05)',
+      background: 'rgba(22,18,12,0.78)',
+      border: '0.5px solid rgba(255,235,200,0.09)',
+      boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.05)',
       overflow: 'hidden',
-      opacity: isDragging ? 0.55 : 1,
-      transition: 'border-color 0.15s ease, opacity 0.15s ease, background 0.15s ease',
     }}>
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div
         onClick={onToggle}
         style={{
@@ -270,22 +183,7 @@ function DayCard({
           WebkitTapHighlightColor: 'transparent', userSelect: 'none',
         }}
       >
-        {/* Day-level drag handle */}
-        <div
-          {...dayDragHandleProps}
-          onClick={e => e.stopPropagation()}
-          style={{
-            width: 24, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, marginRight: 6, cursor: 'grab', touchAction: 'none',
-            color: 'rgba(245,239,230,0.18)',
-          }}
-          onTouchStart={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.5)' }}
-          onTouchEnd={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.18)' }}
-        >
-          <GripVertical size={15} />
-        </div>
-
-        {/* Day number */}
+        {/* Day number badge */}
         <div style={{
           width: 28, height: 28, borderRadius: 9, flexShrink: 0, marginRight: 10,
           background: 'rgba(232,146,74,0.12)', border: '0.5px solid rgba(232,146,74,0.25)',
@@ -295,7 +193,7 @@ function DayCard({
           {dayIndex + 1}
         </div>
 
-        {/* Day name */}
+        {/* Day name — tappable to edit inline */}
         {editingName ? (
           <input
             autoFocus
@@ -312,11 +210,16 @@ function DayCard({
             }}
           />
         ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#F5EFE6' }}>{day.name}</span>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span style={{
+              fontSize: 14, fontWeight: 700, color: '#F5EFE6',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {day.name}
+            </span>
             <span
               onClick={e => { e.stopPropagation(); setEditingName(true) }}
-              style={{ fontSize: 11, color: 'rgba(245,239,230,0.22)', cursor: 'text' }}
+              style={{ fontSize: 11, color: 'rgba(245,239,230,0.22)', cursor: 'text', flexShrink: 0 }}
             >✎</span>
           </div>
         )}
@@ -335,7 +238,7 @@ function DayCard({
         <button
           onClick={e => { e.stopPropagation(); onRemove() }}
           style={{
-            width: 28, height: 28, borderRadius: 8, background: 'transparent', border: 'none',
+            width: 32, height: 32, borderRadius: 9, background: 'transparent', border: 'none',
             color: 'rgba(229,83,75,0.5)', cursor: 'pointer', marginLeft: 6, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
@@ -346,7 +249,7 @@ function DayCard({
         </button>
       </div>
 
-      {/* Expanded body */}
+      {/* ── Expanded body ───────────────────────────────────────────────────── */}
       <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
@@ -358,29 +261,25 @@ function DayCard({
           >
             <div style={{ borderTop: '0.5px solid rgba(255,235,200,0.07)' }}>
               {day.exercises.length === 0 ? (
-                <div style={{ padding: '18px 14px', textAlign: 'center', fontSize: 12, color: 'rgba(245,239,230,0.28)' }}>
+                <div style={{
+                  padding: '20px 14px', textAlign: 'center',
+                  fontSize: 12, color: 'rgba(245,239,230,0.28)', lineHeight: 1.6,
+                }}>
                   Sin ejercicios — añade uno abajo
                 </div>
               ) : (
-                <div ref={exDrag.listRef}>
-                  {day.exercises.map((ex, i) => (
-                    <ExerciseRow
-                      key={`${ex.exerciseId}-${i}`}
-                      exercise={ex}
-                      isLast={i === day.exercises.length - 1}
-                      isDragging={exDrag.draggingIndex === i}
-                      isOver={exDrag.overIndex === i && exDrag.draggingIndex !== null && exDrag.draggingIndex !== i}
-                      dragHandleProps={exDrag.dragHandleProps(i)}
-                      onRemove={() => onRemoveExercise(i)}
-                      onUpdate={(field, val) => onUpdateExercise(i, field, val)}
-                    />
-                  ))}
-                </div>
+                <SortableExerciseList
+                  exercises={day.exercises}
+                  onReorder={onReorderExercises}
+                  onRemove={onRemoveExercise}
+                  onUpdate={(i, field, val) => onUpdateExercise(i, field, val)}
+                  ExerciseRowComponent={ExerciseRow}
+                />
               )}
               <button
-                onClick={onAddExercise}
+                onClick={e => { e.stopPropagation(); onAddExercise() }}
                 style={{
-                  width: '100%', height: 44, background: 'rgba(232,146,74,0.05)', border: 'none',
+                  width: '100%', height: 46, background: 'rgba(232,146,74,0.05)', border: 'none',
                   borderTop: day.exercises.length > 0 ? '0.5px solid rgba(255,235,200,0.06)' : 'none',
                   color: 'rgba(232,146,74,0.78)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', fontFamily: 'inherit',
@@ -645,26 +544,18 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
   }, [])
 
   // ── Reorder ────────────────────────────────────────────────────────────────
-  const reorder = (arr, from, to) => {
-    const next = [...arr]
-    const [item] = next.splice(from, 1)
-    next.splice(to, 0, item)
-    return next
-  }
-
-  const reorderDays = useCallback((from, to) => {
-    setDays(prev => reorder(prev, from, to))
+  // SortableDayList / SortableExerciseList call these with the full new array.
+  const reorderDays = useCallback((newDays) => {
+    setDays(newDays)
     mark()
   }, [])
 
-  const reorderExercises = useCallback((dayId, from, to) => {
+  const reorderExercisesInDay = useCallback((dayId, newExercises) => {
     setDays(prev => prev.map(d =>
-      d.id !== dayId ? d : { ...d, exercises: reorder(d.exercises, from, to) }
+      d.id !== dayId ? d : { ...d, exercises: newExercises }
     ))
     mark()
   }, [])
-
-  const dayDrag = useDragReorder({ onReorder: reorderDays })
 
   // ── Exercise operations ────────────────────────────────────────────────────
   const addExercise = useCallback((dayId, exercise) => {
@@ -883,31 +774,20 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
                 )}
               </div>
 
-              {/* Day list — drag container */}
-              <div ref={dayDrag.listRef} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {days.map((day, dayIndex) => (
-                  <DayCard
-                    key={day.id}
-                    day={day}
-                    dayIndex={dayIndex}
-                    isExpanded={expandedDay === day.id}
-                    isDragging={dayDrag.draggingIndex === dayIndex}
-                    isOver={
-                      dayDrag.overIndex === dayIndex &&
-                      dayDrag.draggingIndex !== null &&
-                      dayDrag.draggingIndex !== dayIndex
-                    }
-                    dayDragHandleProps={dayDrag.dragHandleProps(dayIndex)}
-                    onToggle={() => setExpanded(expandedDay === day.id ? null : day.id)}
-                    onRename={n => renameDay(day.id, n)}
-                    onRemove={() => removeDay(day.id)}
-                    onAddExercise={() => { setExpanded(day.id); setPickerId(day.id) }}
-                    onRemoveExercise={i => removeExercise(day.id, i)}
-                    onUpdateExercise={(i, f, v) => updateExerciseField(day.id, i, f, v)}
-                    onReorderExercises={(from, to) => reorderExercises(day.id, from, to)}
-                  />
-                ))}
-              </div>
+              {/* Day list — Apple-style drag-to-reorder */}
+              <SortableDayList
+                days={days}
+                onReorder={reorderDays}
+                DayCardComponent={DayCard}
+                expandedDay={expandedDay}
+                onToggle={(dayId) => setExpanded(expandedDay === dayId ? null : dayId)}
+                onRename={(dayId, n) => renameDay(dayId, n)}
+                onRemove={(dayId) => removeDay(dayId)}
+                onAddExercise={(dayId) => { setExpanded(dayId); setPickerId(dayId) }}
+                onRemoveExercise={(dayId, i) => removeExercise(dayId, i)}
+                onUpdateExercise={(dayId, i, f, v) => updateExerciseField(dayId, i, f, v)}
+                onReorderExercises={(dayId, newExs) => reorderExercisesInDay(dayId, newExs)}
+              />
 
               {/* Add day */}
               {days.length < 7 && (
