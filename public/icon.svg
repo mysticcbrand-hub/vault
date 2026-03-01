@@ -1,22 +1,32 @@
 <svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
+  <defs>
+    <radialGradient id="mesh1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 140) rotate(45) scale(280)">
+      <stop offset="0" stop-color="#E8924A" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#0C0A09" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mesh2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(372 300) rotate(20) scale(280)">
+      <stop offset="0" stop-color="#A37FD4" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#0C0A09" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mesh3" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(280 420) rotate(0) scale(260)">
+      <stop offset="0" stop-color="#E8924A" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#0C0A09" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="120" y1="140" x2="392" y2="372" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0A55E"/>
+      <stop offset="1" stop-color="#C9712D"/>
+    </linearGradient>
+  </defs>
+
   <rect width="512" height="512" rx="115" fill="#0C0A09"/>
-  <!-- Subtle inner border -->
-  <rect x="6" y="6" width="500" height="500" rx="110" stroke="rgba(232,146,74,0.25)" stroke-width="6"/>
+  <rect width="512" height="512" rx="115" fill="url(#mesh1)"/>
+  <rect width="512" height="512" rx="115" fill="url(#mesh2)"/>
+  <rect width="512" height="512" rx="115" fill="url(#mesh3)"/>
 
-  <!-- GRAW wordmark — bold geometric, centered -->
-  <text
-    x="256"
-    y="308"
-    dominant-baseline="middle"
-    text-anchor="middle"
-    font-family="'DM Sans', -apple-system, 'Helvetica Neue', sans-serif"
-    font-weight="800"
-    font-size="218"
-    letter-spacing="-12"
-    fill="#E8924A"
-  >GRAW</text>
+  <!-- Soft inner ring glow -->
+  <circle cx="256" cy="256" r="82" stroke="#E8924A" stroke-opacity="0.15" stroke-width="12"/>
 
-  <!-- Underline accent bar -->
-  <rect x="156" y="348" width="200" height="8" rx="4" fill="rgba(232,146,74,0.4)"/>
+  <!-- Core mark: modern G (ring + cut) -->
+  <circle cx="256" cy="256" r="110" stroke="url(#ring)" stroke-width="34" stroke-linecap="round"/>
+  <rect x="304" y="240" width="76" height="24" rx="12" fill="url(#ring)"/>
 </svg>

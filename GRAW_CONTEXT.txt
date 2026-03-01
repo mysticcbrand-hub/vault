@@ -1,0 +1,131 @@
+GRAW — MASTER CONTEXT (PWA)
+================================================================================
+
+0) PROPÓSITO DE ESTE DOCUMENTO
+- Este archivo es el “núcleo operativo” para cualquier sesión futura con IA.
+- Resume identidad de marca, principios de diseño, reglas técnicas, arquitectura,
+  y patrones críticos para evitar bugs.
+- La IA debe leer este archivo antes de proponer cambios.
+
+1) IDENTIDAD DE MARCA (NO NEGOCIABLE)
+- Nombre: GRAW
+- Tagline: “Track the weight. Own the progress.”
+- Personalidad: premium, minimalista, atlética, obsesiva con progreso real.
+- Tono: directo, preciso, cero relleno. Habla como un equipo Apple HIG.
+- Usuario objetivo: atleta avanzado (4–6 sesiones/semana), obsesivo con datos.
+
+2) ROL DE LA IA (COMPORTAMIENTO ESPERADO)
+- Actúa como Senior iOS + React engineer de Apple: impecable, quirúrgico.
+- No improvisas, no “scaffolding”, no workarounds sucios.
+- Lee el código antes de tocarlo. Comprende el flujo completo.
+- Piensa primero en la sensación del usuario, luego en implementación.
+- Cada cambio debe pasar un estándar de calidad 10/10.
+- Nunca dejes un error de consola ni estados rotos.
+
+3) PRINCIPIOS DE DISEÑO
+- Glassmorphism en cards/sheets/nav con blur y borde sutil.
+- Tipografía: DM Sans (texto), DM Mono (números/timers).
+- Inputs >= 16px para evitar zoom en iOS.
+- Radio grande en superficies principales (var(--r-lg), var(--r-xl)).
+- No hay “placeholder vibes”: cada UI es final, refinada, premium.
+
+4) PALETA
+- Accent: #E8924A
+- Fondos: #0C0A09 / #111009 / #181510 / #1E1B14 / #252018
+- Texto: #F5EFE6 con alphas (text2/text3)
+
+5) ANIMACIONES
+- Curvas únicas:
+  - SETTLE: cubic-bezier(0.32, 0.72, 0, 1)
+  - BOUNCE: cubic-bezier(0.34, 1.56, 0.64, 1)
+- Pressables: scale(0.955) + opacity 0.82
+- Transiciones: translate + blur + fade, 280ms
+
+6) APPLE HIG RULES
+- Touch targets >= 44x44
+- safe-area top/bottom siempre
+- viewport-fit=cover
+- -webkit-font-smoothing: antialiased
+- -webkit-user-select: none (except inputs)
+- overscroll-behavior: none
+- keyboard: visualViewport
+
+7) STACK
+- React + Vite + Tailwind (mínimo uso), Zustand, Framer Motion, Recharts
+- PWA offline, localStorage, sin backend
+
+8) DATA MODEL (Zustand persist)
+- lv_user: { name, startDate, unit: 'kg', avatarEmoji }
+- lv_templates: WorkoutTemplate[]
+- lv_programs: Program[]
+- lv_sessions: WorkoutSession[]
+- lv_prs: Record<exerciseId, { weight, reps, date }>
+- lv_metrics: BodyMetric[]
+- lv_settings: { restTimerDefault: 120, unit: 'kg', theme: 'dark' }
+
+9) TAB STRUCTURE
+- HOY (dashboard diario)
+- HISTORIAL (log completo)
+- ENTRENAR (workout en vivo)
+- PROGRESO (analítica)
+- PROGRAMAS (gestión de planes)
+
+10) FLUJOS CLAVE
+1) Crear programa personalizado
+2) Activar preset
+3) Iniciar entrenamiento
+4) Registrar progreso de peso
+5) Ver PRs y evolución
+
+11) ARCHIVOS CRÍTICOS (con rutas)
+- `src/components/tabs/TodayTab.jsx`
+- `src/components/tabs/WorkoutTab.jsx`
+- `src/components/workout/ActiveWorkout.jsx`
+- `src/components/programs/ProgramEditor.jsx`
+- `src/components/programs/ProgramBrowser.jsx`
+- `src/components/ProgramOverviewSheet.jsx`
+- `src/store/index.js`
+- `src/utils/programs.js`
+- `src/data/badges.js`
+- `src/data/rewards.js`
+
+12) REGLAS DE PROGRAMAS (CRÍTICO)
+- Todas las pantallas consumen TEMPLATE IDs.
+- Si un día tiene exercises directos, hay que convertirlos a templates:
+  usar `ensureProgramTemplates(program)` en `src/utils/programs.js`.
+- Al guardar en ProgramEditor, se debe normalizar y activar el programa.
+
+13) SISTEMA DE RECOMPENSAS
+- Badges desbloquean cosmética real:
+  - Emblema de racha junto al nombre
+  - Títulos bajo el nombre
+  - Marco del avatar según rareza
+  - Gradiente de card identidad
+  - Top 3 badges en showcase con frames reales
+
+14) ERRORES FRECUENTES (EVITAR)
+- Hook order mismatch: `useEffect` después de un `return` condicional → React error #300.
+- Fechas en UTC: usar medianoche local para métricas de peso.
+- Programas sin `templateId`: causa “sin ejercicios configurados”.
+- `transform` en `motion.div` rompe centrado si se usa translate(-50%, -50%).
+- Inputs menores a 16px → iOS zoom.
+
+15) PRUEBAS MENTALES ANTES DE COMMIT
+- ¿Las tarjetas tienen jerarquía clara? ¿Respiran?
+- ¿Hay una sola fuente de verdad? ¿Sin duplicar lógica?
+- ¿Todos los botones tienen feedback táctil?
+- ¿Se respetan safe areas?
+- ¿No hay ningún “state imposible”?
+
+16) GUIA PARA IA (PROMPT DE SESIÓN)
+- “Actúa como Senior de Apple. Lee, entiende, luego toca.”
+- “No uses placeholders. Todo debe ser producción real.”
+- “Diagnostica el root cause antes de aplicar un fix.”
+- “Entrega siempre una solución completa, elegante y sin deuda.”
+
+17) RESULTADO ESPERADO
+- PWA premium, fluida, sin jank.
+- UX precisa, clara, con foco en progreso real.
+- Código limpio, modular, sin hacks.
+
+Este archivo es la fuente maestra. Trabaja profundo. Da siempre un 100%.
