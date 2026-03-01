@@ -44,7 +44,10 @@ function MusclePill({ muscle, small }) {
 function DayCard({ day, dayIndex, programDayIndex, isNext, isToday, sessions, onStart }) {
   const [expanded, setExpanded] = useState(isNext)
   const template = day._template
-  const muscles = template?.muscles || day.muscles || []
+  const exercises = template?.exercises || day.exercises || []
+  const muscles = template?.muscles
+    || day.muscles
+    || [...new Set(exercises.map(ex => getExerciseById(ex.exerciseId)?.muscle).filter(Boolean))]
   const primaryMuscle = muscles[0]
   const mv = getMuscleVars(primaryMuscle)
 
@@ -61,7 +64,6 @@ function DayCard({ day, dayIndex, programDayIndex, isNext, isToday, sessions, on
     return sd >= weekStart && s.templateId === day.templateId
   })
 
-  const exercises = template?.exercises || []
   const totalSets = exercises.reduce((t, e) => t + (Number(e.sets) || 3), 0)
   const estMin = Math.round(exercises.length * 8 + totalSets * 1.5)
 

@@ -7,6 +7,7 @@ import { calculateStreak, isSameDayAs, getGreeting, formatDateHeader } from '../
 import useStore from '../../store/index.js'
 import { useWeeklyStats } from '../../hooks/useWeeklyStats.js'
 import { GOAL_CONFIG } from '../../data/presetPrograms.js'
+import { ensureProgramTemplates } from '../../utils/programs.js'
 import { WeeklySummaryCard, calculateWeeklySummaryStats, shouldShowWeeklySummary } from '../WeeklySummaryCard.jsx'
 import { ProgramOverviewSheet } from '../ProgramOverviewSheet.jsx'
 
@@ -373,6 +374,9 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
   const programs = useStore(s => s.programs)
   const templates = useStore(s => s.templates)
   const activeProgram = useStore(s => s.activeProgram)
+  const updateProgram = useStore(s => s.updateProgram)
+  const createTemplate = useStore(s => s.createTemplate)
+  const updateTemplate = useStore(s => s.updateTemplate)
   const prs = useStore(s => s.prs)
   const { thisWeekVolume, sessionCount } = useWeeklyStats()
 
@@ -381,6 +385,15 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
   const weekStrip = useMemo(() => getWeekStrip(sessions), [sessions])
 
   const program = programs.find(p => p.id === activeProgram)
+
+  useEffect(() => {
+    if (!program?.days?.length) return
+    const needsTemplates = program.days.some(d => !d.templateId && (d.exercises || []).length > 0)
+    if (!needsTemplates) return
+    const normalized = ensureProgramTemplates(program, { createTemplate, updateTemplate })
+    updateProgram(program.id, normalized)
+  }, [program?.id, program?.days, createTemplate, updateTemplate, updateProgram])
+
   const next = useMemo(() => deriveNextWorkout(program, templates, sessions), [program, templates, sessions])
   const topPR = useMemo(() => deriveTopRecentPR(prs, sessions), [prs, sessions])
 

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, ChevronDown, ChevronUp, Play, Sparkles } from 'lucide-react'
 import { PRESET_PROGRAMS, getRecommendedPreset } from '../../data/presetPrograms.js'
 import { getExerciseById } from '../../data/exercises.js'
+import { ensureProgramTemplates } from '../../utils/programs.js'
 import useStore from '../../store/index.js'
 
 const GOAL_LABELS = { fuerza: 'Fuerza', volumen: 'Volumen', definicion: 'Definición' }
@@ -198,6 +199,8 @@ export function ProgramBrowser({ open, onClose, onProgramActivated }) {
   const user = useStore(s => s.user)
   const addProgram = useStore(s => s.addProgram)
   const setActiveProgram = useStore(s => s.setActiveProgram)
+  const createTemplate = useStore(s => s.createTemplate)
+  const updateTemplate = useStore(s => s.updateTemplate)
   const addToast = useStore(s => s.addToast)
 
   const [filterGoal, setFilterGoal] = useState(null)
@@ -217,8 +220,9 @@ export function ProgramBrowser({ open, onClose, onProgramActivated }) {
 
   const handleActivate = (preset) => {
     const userCopy = { ...preset, id: `user-${Date.now()}`, isPreset: false, presetId: preset.id, createdAt: new Date().toISOString() }
-    addProgram(userCopy)
-    setActiveProgram(userCopy.id)
+    const normalized = ensureProgramTemplates(userCopy, { createTemplate, updateTemplate })
+    addProgram(normalized)
+    setActiveProgram(normalized.id)
     addToast(`¡${preset.name} activado!`, 'success')
     onClose()
     onProgramActivated?.()

@@ -7,6 +7,7 @@ import { Sheet, ConfirmDialog } from '../ui/Sheet.jsx'
 import { getMuscleVars } from '../../utils/format.js'
 import { MUSCLE_NAMES, getExerciseById, EXERCISES } from '../../data/exercises.js'
 import { PRESET_PROGRAMS, getRecommendedPreset } from '../../data/presetPrograms.js'
+import { ensureProgramTemplates } from '../../utils/programs.js'
 import useStore from '../../store/index.js'
 
 const GOAL_LABELS = { fuerza: 'Fuerza', volumen: 'Volumen', definicion: 'Definición' }
@@ -306,6 +307,9 @@ export function ProgramsTab({ onSwitchTab }) {
   const setActiveProgram = useStore(s => s.setActiveProgram)
   const deleteProgram = useStore(s => s.deleteProgram)
   const deleteTemplate = useStore(s => s.deleteTemplate)
+  const updateProgram = useStore(s => s.updateProgram)
+  const createTemplate = useStore(s => s.createTemplate)
+  const updateTemplate = useStore(s => s.updateTemplate)
   const addToast = useStore(s => s.addToast)
 
   const [templateEditorOpen, setTemplateEditorOpen] = useState(false)
@@ -339,8 +343,9 @@ export function ProgramsTab({ onSwitchTab }) {
       presetId: preset.id,
       createdAt: new Date().toISOString(),
     }
-    addProgram(userCopy)
-    setActiveProgram(userCopy.id)
+    const normalized = ensureProgramTemplates(userCopy, { createTemplate, updateTemplate })
+    addProgram(normalized)
+    setActiveProgram(normalized.id)
     addToast({ message: `¡${preset.name} activado! ✓`, type: 'success' })
     setExploreOpen(false)
     onSwitchTab?.('today')

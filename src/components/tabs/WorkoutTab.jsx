@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronRight, Zap, FileText } from 'lucide-react'
 import { ActiveWorkout } from '../workout/ActiveWorkout.jsx'
 import { getMuscleVars } from '../../utils/format.js'
 import { formatKg, relativeDate } from '../../utils/format.js'
 import { MUSCLE_NAMES } from '../../data/exercises.js'
 import { ExercisePicker } from '../workout/ExercisePicker.jsx'
+import { ensureProgramTemplates } from '../../utils/programs.js'
 import useStore from '../../store/index.js'
 
 export function WorkoutTab({ onSwitchTab }) {
@@ -13,6 +14,9 @@ export function WorkoutTab({ onSwitchTab }) {
   const templates = useStore(s => s.templates)
   const programs = useStore(s => s.programs)
   const activeProgram = useStore(s => s.activeProgram)
+  const updateProgram = useStore(s => s.updateProgram)
+  const createTemplate = useStore(s => s.createTemplate)
+  const updateTemplate = useStore(s => s.updateTemplate)
   const startWorkout = useStore(s => s.startWorkout)
   const startEmptyWorkout = useStore(s => s.startEmptyWorkout)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -20,6 +24,15 @@ export function WorkoutTab({ onSwitchTab }) {
   if (activeWorkout) return <ActiveWorkout />
 
   const program = programs.find(p => p.id === activeProgram)
+
+  // Ensure custom programs have templates wired
+  useEffect(() => {
+    if (!program?.days?.length) return
+    const needsTemplates = program.days.some(d => !d.templateId && (d.exercises || []).length > 0)
+    if (!needsTemplates) return
+    const normalized = ensureProgramTemplates(program, { createTemplate, updateTemplate })
+    updateProgram(program.id, normalized)
+  }, [program?.id, program?.days, createTemplate, updateTemplate, updateProgram])
 
   // Determine the next day in the active program
   const getNextDay = () => {
