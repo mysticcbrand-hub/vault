@@ -208,12 +208,9 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
               WebkitBackdropFilter: 'blur(8px)',
             }}
           />
-          <motion.div
-            key="dialog-panel"
-            initial={{ opacity: 0, scale: 0.88, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 10 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+          {/* Centering wrapper — Framer Motion must NOT own the translate(-50%,-50%)
+              because it overwrites transform. We isolate centering here. */}
+          <div
             style={{
               position: 'fixed',
               top: '50%', left: '50%',
@@ -221,6 +218,17 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
               zIndex: 1001,
               width: 'calc(100vw - 48px)',
               maxWidth: 340,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+          <motion.div
+            key="dialog-panel"
+            initial={{ opacity: 0, scale: 0.88, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 10 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+            style={{
+              width: '100%',
               borderRadius: 24,
               background: 'rgba(22,18,12,0.97)',
               backdropFilter: 'blur(56px) saturate(200%)',
@@ -228,7 +236,6 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
               boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.10), 0 24px 80px rgba(0,0,0,0.70)',
               overflow: 'hidden',
             }}
-            onClick={e => e.stopPropagation()}
           >
             <div style={{ padding: '24px 24px 0' }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: '#F5EFE6', marginBottom: 8 }}>
@@ -264,6 +271,7 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
               >{confirmLabel}</button>
             </div>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>,
