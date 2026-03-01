@@ -36,8 +36,17 @@ export function formatRest(seconds) {
 export function relativeDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  const now = new Date()
-  const diff = Math.floor((now - d) / 86400000)
+  if (isNaN(d.getTime())) return ''
+
+  // Compare calendar dates (midnight), not raw timestamps.
+  // This ensures "hoy" means same calendar day, not "within last 24h".
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dDay = new Date(d)
+  dDay.setHours(0, 0, 0, 0)
+
+  const diff = Math.round((today.getTime() - dDay.getTime()) / 86400000)
+
   if (diff === 0) return 'hoy'
   if (diff === 1) return 'ayer'
   if (diff < 7) return `hace ${diff} días`

@@ -373,11 +373,31 @@ const useStore = create(
       // ── BODY METRICS ──────────────────────────────────────────────────────
       addBodyMetric: (data) => set(s => {
         const isManual = data.source !== 'onboarding'
+
+        // Use start-of-calendar-day in LOCAL time so the date on the chart
+        // always matches what the user sees on their clock — no timezone drift.
+        // If caller passes an explicit date, respect it; otherwise use today.
+        const resolveDate = () => {
+          if (data.date) {
+            const d = new Date(data.date)
+            if (!isNaN(d.getTime())) return d.toISOString()
+          }
+          const now = new Date()
+          // Midnight local time → toISOString gives UTC offset but date is correct
+          now.setHours(0, 0, 0, 0)
+          return now.toISOString()
+        }
+
+        const metric = {
+          id: uid(),
+          date: resolveDate(),
+          ...data,
+          // Ensure weight is always a clean float, not a string
+          weight: typeof data.weight === 'string' ? parseFloat(data.weight) : data.weight,
+        }
+
         return {
-          bodyMetrics: [
-            { id: uid(), date: new Date().toISOString(), ...data },
-            ...s.bodyMetrics,
-          ],
+          bodyMetrics: [metric, ...s.bodyMetrics],
           manualWeightLogs: isManual ? s.manualWeightLogs + 1 : s.manualWeightLogs,
         }
       }),

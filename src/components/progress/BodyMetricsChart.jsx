@@ -86,17 +86,20 @@ function BodyWeightChart({ metrics = [], goalWeight = null, unit = 'kg' }) {
 
   const domainStart = useMemo(() => {
     if (filtered.length === 0) return subDays(domainEnd, 30)
-    const cutoff = {
-      '2w': subDays(domainEnd, 13),
-      '1m': subDays(domainEnd, 29),
-      '3m': subDays(domainEnd, 89),
-      '6m': subDays(domainEnd, 179),
-      'all': filtered[0].date,
-    }[activeRange]
+    const cutoffs = {
+      '2w':  subDays(domainEnd, 14),
+      '1m':  subDays(domainEnd, 30),
+      '3m':  subDays(domainEnd, 90),
+      '6m':  subDays(domainEnd, 180),
+      'all': subDays(filtered[0].date, 1), // 1 day before earliest so first point isn't at edge
+    }
+    const cutoff = cutoffs[activeRange] || subDays(domainEnd, 30)
+    // Ensure domainStart is always at least 1 day before the first data point
     return cutoff
   }, [filtered, activeRange, domainEnd])
 
-  const totalDays = Math.max(differenceInDays(domainEnd, domainStart), 1)
+  // Minimum span of 7 days so a single point doesn't sit on top of the Y axis
+  const totalDays = Math.max(differenceInDays(domainEnd, domainStart), 7)
 
   const W = 320
   const H = 160
