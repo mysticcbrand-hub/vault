@@ -3,12 +3,73 @@
 // Reads/writes ONLY to the programs slice of the store.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, ChevronDown, Search, Check } from 'lucide-react'
+import { Plus, X, ChevronDown, Search, Check, GripVertical } from 'lucide-react'
 import { Sheet } from '../ui/Sheet.jsx'
 import { EXERCISES, MUSCLE_NAMES } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
+
+// ─── useDragReorder ───────────────────────────────────────────────────────────
+// Pure pointer-event drag-to-reorder. Works on iOS Safari, no external deps.
+// Returns { listRef, dragHandleProps, draggingIndex, overIndex }
+// Call onReorder(fromIndex, toIndex) when drop completes.
+function useDragReorder({ onReorder, itemHeightEstimate = 52 }) {
+  const dragging   = useRef(null)   // { index, startY, currentY, el }
+  const listRef    = useRef(null)
+  const [dragState, setDragState] = useState({ active: null, over: null })
+
+  const getTargetIndex = (clientY) => {
+    if (!listRef.current) return dragging.current?.index ?? 0
+    const items = Array.from(listRef.current.children)
+    for (let i = 0; i < items.length; i++) {
+      const rect = items[i].getBoundingClientRect()
+      if (clientY < rect.top + rect.height / 2) return i
+    }
+    return items.length - 1
+  }
+
+  const onPointerDown = useCallback((index, e) => {
+    // Only single touch / left mouse
+    if (e.button !== undefined && e.button !== 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragging.current = { index, startY: e.clientY, currentY: e.clientY }
+    setDragState({ active: index, over: index })
+    // Prevent scroll while dragging
+    document.body.style.overflow = 'hidden'
+    try { navigator.vibrate(10) } catch (_) {}
+  }, [])
+
+  const onPointerMove = useCallback((e) => {
+    if (dragging.current === null) return
+    dragging.current.currentY = e.clientY
+    const over = getTargetIndex(e.clientY)
+    setDragState(s => s.over === over ? s : { ...s, over })
+  }, [])
+
+  const onPointerUp = useCallback((e) => {
+    if (dragging.current === null) return
+    const from = dragging.current.index
+    const to   = getTargetIndex(e.clientY)
+    dragging.current = null
+    document.body.style.overflow = ''
+    setDragState({ active: null, over: null })
+    if (from !== to) onReorder(from, to)
+  }, [onReorder])
+
+  const dragHandleProps = (index) => ({
+    onPointerDown: (e) => onPointerDown(index, e),
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: () => {
+      dragging.current = null
+      document.body.style.overflow = ''
+      setDragState({ active: null, over: null })
+    },
+  })
+
+  return { listRef, dragHandleProps, draggingIndex: dragState.active, overIndex: dragState.over }
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -92,13 +153,34 @@ function InlineNumberInput({ value, min, max, onChange }) {
 }
 
 // ─── ExerciseRow ─────────────────────────────────────────────────────────────
-function ExerciseRow({ exercise, isLast, onRemove, onUpdate }) {
+function ExerciseRow({ exercise, isLast, onRemove, onUpdate, isDragging, isOver, dragHandleProps }) {
   const accentColor = getMHex(exercise.muscle)
   return (
     <div style={{
       display: 'flex', alignItems: 'center', padding: '9px 12px', gap: 8,
       borderBottom: isLast ? 'none' : '0.5px solid rgba(255,235,200,0.05)',
+      background: isDragging
+        ? 'rgba(232,146,74,0.10)'
+        : isOver
+          ? 'rgba(232,146,74,0.04)'
+          : 'transparent',
+      opacity: isDragging ? 0.5 : 1,
+      transition: 'background 0.12s ease, opacity 0.12s ease',
+      touchAction: 'none',
     }}>
+      {/* Drag handle */}
+      <div
+        {...dragHandleProps}
+        style={{
+          width: 20, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, cursor: 'grab', touchAction: 'none',
+          color: 'rgba(245,239,230,0.2)',
+        }}
+        onTouchStart={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.5)' }}
+        onTouchEnd={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.2)' }}
+      >
+        <GripVertical size={14} />
+      </div>
       <div style={{
         width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
         background: accentColor, boxShadow: `0 0 5px ${accentColor}70`,
@@ -154,16 +236,29 @@ function ExerciseRow({ exercise, isLast, onRemove, onUpdate }) {
 }
 
 // ─── DayCard ──────────────────────────────────────────────────────────────────
-function DayCard({ day, dayIndex, isExpanded, onToggle, onRename, onRemove, onAddExercise, onRemoveExercise, onUpdateExercise }) {
+function DayCard({
+  day, dayIndex, isExpanded, onToggle, onRename, onRemove,
+  onAddExercise, onRemoveExercise, onUpdateExercise, onReorderExercises,
+  isDragging, isOver, dayDragHandleProps,
+}) {
   const [editingName, setEditingName] = useState(false)
+
+  const exDrag = useDragReorder({
+    onReorder: onReorderExercises,
+    itemHeightEstimate: 48,
+  })
 
   return (
     <div style={{
       borderRadius: 18,
-      background: 'rgba(22,18,12,0.78)',
-      border: '0.5px solid rgba(255,235,200,0.09)',
-      boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.05)',
+      background: isDragging ? 'rgba(232,146,74,0.08)' : 'rgba(22,18,12,0.78)',
+      border: `0.5px solid ${isOver ? 'rgba(232,146,74,0.35)' : 'rgba(255,235,200,0.09)'}`,
+      boxShadow: isDragging
+        ? '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,235,200,0.08)'
+        : 'inset 0 1px 0 rgba(255,235,200,0.05)',
       overflow: 'hidden',
+      opacity: isDragging ? 0.55 : 1,
+      transition: 'border-color 0.15s ease, opacity 0.15s ease, background 0.15s ease',
     }}>
       {/* Header */}
       <div
@@ -174,6 +269,21 @@ function DayCard({ day, dayIndex, isExpanded, onToggle, onRename, onRemove, onAd
           WebkitTapHighlightColor: 'transparent', userSelect: 'none',
         }}
       >
+        {/* Day-level drag handle */}
+        <div
+          {...dayDragHandleProps}
+          onClick={e => e.stopPropagation()}
+          style={{
+            width: 24, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, marginRight: 6, cursor: 'grab', touchAction: 'none',
+            color: 'rgba(245,239,230,0.18)',
+          }}
+          onTouchStart={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.5)' }}
+          onTouchEnd={e => { e.currentTarget.style.color = 'rgba(245,239,230,0.18)' }}
+        >
+          <GripVertical size={15} />
+        </div>
+
         {/* Day number */}
         <div style={{
           width: 28, height: 28, borderRadius: 9, flexShrink: 0, marginRight: 10,
@@ -251,15 +361,20 @@ function DayCard({ day, dayIndex, isExpanded, onToggle, onRename, onRemove, onAd
                   Sin ejercicios — añade uno abajo
                 </div>
               ) : (
-                day.exercises.map((ex, i) => (
-                  <ExerciseRow
-                    key={`${ex.exerciseId}-${i}`}
-                    exercise={ex}
-                    isLast={i === day.exercises.length - 1}
-                    onRemove={() => onRemoveExercise(i)}
-                    onUpdate={(field, val) => onUpdateExercise(i, field, val)}
-                  />
-                ))
+                <div ref={exDrag.listRef}>
+                  {day.exercises.map((ex, i) => (
+                    <ExerciseRow
+                      key={`${ex.exerciseId}-${i}`}
+                      exercise={ex}
+                      isLast={i === day.exercises.length - 1}
+                      isDragging={exDrag.draggingIndex === i}
+                      isOver={exDrag.overIndex === i && exDrag.draggingIndex !== null && exDrag.draggingIndex !== i}
+                      dragHandleProps={exDrag.dragHandleProps(i)}
+                      onRemove={() => onRemoveExercise(i)}
+                      onUpdate={(field, val) => onUpdateExercise(i, field, val)}
+                    />
+                  ))}
+                </div>
               )}
               <button
                 onClick={onAddExercise}
@@ -497,6 +612,27 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
     setDays(prev => prev.map(d => d.id === dayId ? { ...d, name: newName } : d))
   }, [])
 
+  // ── Reorder helpers ───────────────────────────────────────────────────────
+  const reorder = (arr, from, to) => {
+    const next = [...arr]
+    const [item] = next.splice(from, 1)
+    next.splice(to, 0, item)
+    return next
+  }
+
+  const reorderDays = useCallback((from, to) => {
+    setDays(prev => reorder(prev, from, to))
+  }, [])
+
+  const reorderExercises = useCallback((dayId, from, to) => {
+    setDays(prev => prev.map(d =>
+      d.id !== dayId ? d : { ...d, exercises: reorder(d.exercises, from, to) }
+    ))
+  }, [])
+
+  // ── Day drag (initialized after reorderDays is defined) ───────────────────
+  const dayDrag = useDragReorder({ onReorder: reorderDays })
+
   // ── Exercise operations ───────────────────────────────────────────────────
   const addExercise = useCallback((dayId, exercise) => {
     setDays(prev => prev.map(d =>
@@ -602,31 +738,25 @@ export function ProgramEditor({ open, onClose, program: existingProgram = null }
           </span>
         </SectionLabel>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
-          <AnimatePresence initial={false}>
-            {days.map((day, dayIndex) => (
-              <motion.div
-                key={day.id}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-                style={{ overflow: 'hidden' }}
-              >
-                <DayCard
-                  day={day}
-                  dayIndex={dayIndex}
-                  isExpanded={expandedDay === day.id}
-                  onToggle={() => setExpanded(expandedDay === day.id ? null : day.id)}
-                  onRename={newName => renameDay(day.id, newName)}
-                  onRemove={() => removeDay(day.id)}
-                  onAddExercise={() => { setExpanded(day.id); setPickerId(day.id) }}
-                  onRemoveExercise={i => removeExercise(day.id, i)}
-                  onUpdateExercise={(i, field, val) => updateExerciseField(day.id, i, field, val)}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+        <div ref={dayDrag.listRef} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+          {days.map((day, dayIndex) => (
+            <DayCard
+              key={day.id}
+              day={day}
+              dayIndex={dayIndex}
+              isExpanded={expandedDay === day.id}
+              isDragging={dayDrag.draggingIndex === dayIndex}
+              isOver={dayDrag.overIndex === dayIndex && dayDrag.draggingIndex !== null && dayDrag.draggingIndex !== dayIndex}
+              dayDragHandleProps={dayDrag.dragHandleProps(dayIndex)}
+              onToggle={() => setExpanded(expandedDay === day.id ? null : day.id)}
+              onRename={newName => renameDay(day.id, newName)}
+              onRemove={() => removeDay(day.id)}
+              onAddExercise={() => { setExpanded(day.id); setPickerId(day.id) }}
+              onRemoveExercise={i => removeExercise(day.id, i)}
+              onUpdateExercise={(i, field, val) => updateExerciseField(day.id, i, field, val)}
+              onReorderExercises={(from, to) => reorderExercises(day.id, from, to)}
+            />
+          ))}
         </div>
 
         {/* ── Add day ──────────────────────────────────────────────────── */}
