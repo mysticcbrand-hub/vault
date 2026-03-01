@@ -1,11 +1,64 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
-import { ChevronRight, Edit3, Download, Upload, Trash2, Medal } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronRight, Edit3, Download, Upload, Trash2 } from 'lucide-react'
 import useStore from '../../store/index.js'
-import { ALL_BADGES } from '../../data/badges.js'
+import { ALL_BADGES, RARITY_STYLES } from '../../data/badges.js'
 import { calculateUserStats } from '../../utils/userStats.js'
+import { computeRewards } from '../../data/rewards.js'
 import { AchievementsModal } from '../profile/AchievementsModal.jsx'
 import { Sheet, OptionPicker, ConfirmDialog } from '../ui/Sheet.jsx'
+
+// ─── BadgeShowcaseItem ────────────────────────────────────────────────────────
+// Renders a single badge with its full rarity frame in the profile showcase.
+function BadgeShowcaseItem({ badge }) {
+  if (!badge) return null
+  const style = RARITY_STYLES[badge.rarity] || RARITY_STYLES.common
+  const ICONS = {
+    Sparkles: '✨', Play: '▶', Star: '★', Scale: '⚖', Zap: '⚡',
+    Shield: '🛡', ShieldCheck: '✅', Flame: '🔥', Crown: '👑',
+    Dumbbell: '🏋', Activity: '📈', BarChart2: '📊', Trophy: '🏆',
+    Medal: '🎖', Weight: '⚖', Package: '📦', Layers: '📚', Mountain: '⛰',
+    TrendingUp: '📈', ArrowDown: '↓', ArrowUp: '↑', User: '👤',
+    Grid: '⊞', PenLine: '✏', Plus: '+', Calendar: '📅',
+    CalendarDays: '🗓', Globe: '🌍', Target: '🎯', Sunrise: '🌅',
+    Moon: '🌙', ClipboardList: '📋', CheckCircle: '✓', Award: '🏅',
+  }
+  const iconEmoji = ICONS[badge.icon] || '★'
+
+  return (
+    <div style={{
+      flex: 1, minHeight: 72,
+      borderRadius: 16,
+      background: style.frameGradient,
+      border: `1px solid ${style.borderColor1}`,
+      boxShadow: `0 0 16px ${style.glowColor}, inset 0 1px 0 ${style.borderColor1}`,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      gap: 4, padding: '10px 6px',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Shimmer overlay for rare+ */}
+      {style.shimmer && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `linear-gradient(105deg, transparent 40%, ${style.glowColor} 50%, transparent 60%)`,
+          backgroundSize: '200% 100%',
+          animation: 'title-shimmer 2.5s linear infinite',
+          pointerEvents: 'none',
+          borderRadius: 'inherit',
+        }} />
+      )}
+      <div style={{ fontSize: 22, lineHeight: 1, position: 'relative', zIndex: 1 }}>{iconEmoji}</div>
+      <div style={{
+        fontSize: 8, fontWeight: 700, letterSpacing: '0.06em',
+        textTransform: 'uppercase', color: style.labelColor,
+        position: 'relative', zIndex: 1,
+      }}>
+        {style.label}
+      </div>
+    </div>
+  )
+}
 
 const EMOJI_OPTIONS = ['💪','🔥','⚡','🏋️','🎯','🦁','🐺','🦅','⚔️','🛡️','🌊','🏔️','🌙','☄️','🧬','💎','🔱','⚙️','🎖️','🏆']
 const REST_PRESETS = [45, 60, 90, 120, 180, 300]
@@ -108,6 +161,12 @@ export function ProfileTab() {
 
   const stats = useMemo(() => calculateUserStats(sessions, bodyMetrics, user, programs, prs), [sessions, bodyMetrics, user, programs, prs])
 
+  // ── Rewards — computed from unlocked badges + current streak ──────────────
+  const rewards = useMemo(
+    () => computeRewards(unlockedBadges, stats.currentStreak),
+    [unlockedBadges, stats.currentStreak]
+  )
+
   useEffect(() => {
     if (!statsRef.current) return
     const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setStatsVisible(true) }, { threshold: 0.3 })
@@ -196,33 +255,95 @@ export function ProfileTab() {
       overscrollBehavior: 'contain',
       paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 24px)',
     }}>
-      {/* Section 1 — Identity */}
+      {/* Section 1 — Identity (gamified) */}
       <div style={{ padding: '20px 20px 0' }}>
-        <div className="identity-card" style={{
-          background: 'linear-gradient(155deg, rgba(32,26,16,0.88) 0%, rgba(14,11,8,0.96) 100%)',
-          backdropFilter: 'blur(32px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
-          borderRadius: 'var(--r-lg)',
-          padding: '24px 20px',
-          boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 8px 40px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,235,200,0.08)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
-          <div style={{ position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(232,146,74,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <motion.div
+          className="identity-card"
+          layout
+          style={{
+            background: rewards.cardGradient,
+            backdropFilter: 'blur(32px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+            borderRadius: 'var(--r-lg)',
+            padding: '24px 20px',
+            boxShadow: rewards.maxRarity === 'legendary'
+              ? 'inset 0 1.5px 0 rgba(232,146,74,0.2), 0 8px 48px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(232,146,74,0.2)'
+              : rewards.maxRarity === 'epic'
+                ? 'inset 0 1.5px 0 rgba(163,127,212,0.15), 0 8px 40px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(163,127,212,0.15)'
+                : 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 8px 40px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,235,200,0.08)',
+            position: 'relative',
+            overflow: 'hidden',
+            transition: 'background 0.6s ease, box-shadow 0.6s ease',
+          }}
+        >
+          {/* Ambient glow orb — color changes with rarity */}
+          <div style={{
+            position: 'absolute', top: -60, right: -40, width: 220, height: 220, borderRadius: '50%',
+            background: rewards.maxRarity === 'legendary'
+              ? 'radial-gradient(ellipse, rgba(232,146,74,0.13) 0%, transparent 70%)'
+              : rewards.maxRarity === 'epic'
+                ? 'radial-gradient(ellipse, rgba(163,127,212,0.1) 0%, transparent 70%)'
+                : rewards.maxRarity === 'rare'
+                  ? 'radial-gradient(ellipse, rgba(91,156,246,0.08) 0%, transparent 70%)'
+                  : 'radial-gradient(ellipse, rgba(232,146,74,0.06) 0%, transparent 70%)',
+            pointerEvents: 'none',
+            transition: 'background 0.6s ease',
+          }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button onClick={() => setEmojiOpen(true)} className="profile-avatar pressable" style={{
-              width: 72, height: 72, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--accent-dim), rgba(232,146,74,0.08))',
-              border: '2px solid var(--accent-border)',
-              boxShadow: '0 0 0 4px rgba(232,146,74,0.08), inset 0 1px 0 rgba(255,235,200,0.1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.02em', flexShrink: 0,
-            }}>
-              {user?.avatarEmoji || user?.name?.[0]?.toUpperCase() || '?'}
-            </button>
+          {/* ── Avatar + Name row ─────────────────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
 
-            <div style={{ flex: 1 }}>
+            {/* Avatar with dynamic frame */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                onClick={() => setEmojiOpen(true)}
+                className={`profile-avatar pressable ${rewards.maxRarity === 'legendary' ? 'avatar-legendary' : rewards.maxRarity === 'epic' ? 'avatar-pulse' : ''}`}
+                style={{
+                  width: 72, height: 72, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(232,146,74,0.12), rgba(232,146,74,0.05))',
+                  border: rewards.avatarFrame.border,
+                  boxShadow: rewards.avatarFrame.boxShadow,
+                  '--pulse-shadow-a': rewards.avatarFrame.boxShadow,
+                  '--pulse-shadow-b': `0 0 0 6px ${rewards.avatarFrame.glow}, 0 0 36px ${rewards.avatarFrame.glow}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 28, fontWeight: 800, color: 'var(--accent)',
+                  letterSpacing: '-0.02em', cursor: 'pointer',
+                  transition: 'border 0.4s ease, box-shadow 0.4s ease',
+                }}
+              >
+                {user?.avatarEmoji || user?.name?.[0]?.toUpperCase() || '?'}
+              </button>
+
+              {/* Streak emblem — badge bottom-right of avatar */}
+              <AnimatePresence>
+                {rewards.streakEmblem && (
+                  <motion.div
+                    key={rewards.streakEmblem.emoji}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    style={{
+                      position: 'absolute', bottom: -2, right: -4,
+                      width: 26, height: 26, borderRadius: '50%',
+                      background: 'rgba(12,10,9,0.95)',
+                      border: `1.5px solid ${rewards.streakEmblem.color}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 13,
+                      boxShadow: `0 0 10px ${rewards.streakEmblem.color}60`,
+                    }}
+                    title={rewards.streakEmblem.label}
+                  >
+                    <span className="streak-emblem-animate">
+                      {rewards.streakEmblem.emoji}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Name + title + pills */}
+            <div style={{ flex: 1, minWidth: 0 }}>
               {editingName ? (
                 <input
                   autoFocus
@@ -230,45 +351,125 @@ export function ProfileTab() {
                   onChange={e => setNameValue(e.target.value)}
                   onBlur={() => { updateUser({ name: nameValue.trim() || user?.name }); setEditingName(false) }}
                   onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
-                  style={{ background: 'transparent', border: 'none', borderBottom: '1px solid var(--accent)', fontSize: 22, fontWeight: 800, color: 'var(--text)', padding: '2px 0', outline: 'none', width: '100%', fontFamily: 'DM Sans, sans-serif' }}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    borderBottom: '1px solid var(--accent)',
+                    fontSize: 22, fontWeight: 800, color: 'var(--text)',
+                    padding: '2px 0', outline: 'none', width: '100%',
+                    fontFamily: 'DM Sans, sans-serif',
+                  }}
                 />
               ) : (
-                <h2 onClick={() => setEditingName(true)} style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                  {user?.name || 'Atleta'} <Edit3 size={14} color="var(--text3)" />
+                <h2
+                  onClick={() => setEditingName(true)}
+                  style={{
+                    fontSize: 21, fontWeight: 800, color: 'var(--text)',
+                    letterSpacing: '-0.02em',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    cursor: 'pointer', flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                    {user?.name || 'Atleta'}
+                  </span>
+                  <Edit3 size={13} color="var(--text3)" style={{ flexShrink: 0 }} />
                 </h2>
               )}
-              <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>Miembro desde {memberSince}</p>
-              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+
+              {/* Earned title — unlocked cosmetic */}
+              <AnimatePresence mode="wait">
+                {rewards.activeTitle ? (
+                  <motion.div
+                    key={rewards.activeTitle.title}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.25 }}
+                    style={{ marginTop: 2, marginBottom: 4 }}
+                  >
+                    <span
+                      className={rewards.maxRarity === 'legendary' ? 'title-shimmer' : ''}
+                      style={{
+                        fontSize: 11, fontWeight: 700,
+                        letterSpacing: '0.07em', textTransform: 'uppercase',
+                        color: rewards.maxRarity === 'legendary' ? rewards.activeTitle.color : rewards.activeTitle.color,
+                      }}
+                    >
+                      {rewards.activeTitle.title}
+                    </span>
+                  </motion.div>
+                ) : (
+                  <motion.p
+                    key="since"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}
+                  >
+                    Miembro desde {memberSince}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+
+              {/* Member since — shown below title when title is present */}
+              {rewards.activeTitle && (
+                <p style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 5 }}>
+                  Desde {memberSince}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                 <span className="identity-pill">{user?.level || 'Intermedio'}</span>
                 <span className="identity-pill">{user?.goal || 'Volumen'}</span>
+                {/* Streak pill — shows current streak count */}
+                {stats.currentStreak >= 3 && (
+                  <span className="identity-pill" style={{
+                    background: `${rewards.streakEmblem?.color || '#E8924A'}18`,
+                    border: `1px solid ${rewards.streakEmblem?.color || '#E8924A'}40`,
+                    color: rewards.streakEmblem?.color || '#E8924A',
+                  }}>
+                    {rewards.streakEmblem?.emoji || '⚡'} {stats.currentStreak}d
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           <div style={{ height: 1, background: 'var(--border)', margin: '16px 0 12px' }} />
 
+          {/* Active program */}
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 6 }}>Programa activo</p>
             <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{activeProgram?.name || 'Sin programa'} · Semana {weeksSince} de {totalWeeks}</p>
             <div style={{ height: 3, borderRadius: 2, background: 'var(--surface3)', marginTop: 8, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.round((weeksSince / totalWeeks) * 100)}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-bright))' }} />
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.round((weeksSince / totalWeeks) * 100)}%` }}
+                transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+                style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent), var(--accent-bright))' }}
+              />
             </div>
           </div>
 
+          {/* Goal */}
           <div>
             <p style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 6 }}>Objetivo de peso</p>
             {goalWeight && currentWeight ? (
               <>
                 <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{currentWeight} kg → {goalWeight} kg · Faltan {goalRemaining?.toFixed(1)} kg{goalWeeks ? ` · ~${goalWeeks} semanas` : ''}</p>
                 <div style={{ height: 3, borderRadius: 2, background: 'var(--surface3)', marginTop: 8, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.round((1 - Math.min(1, goalRemaining / Math.max(1, Math.abs(goalWeight - currentWeight) || 1))) * 100)}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-bright))' }} />
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.round((1 - Math.min(1, goalRemaining / Math.max(1, Math.abs(goalWeight - currentWeight) || 1))) * 100)}%` }}
+                    transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+                    style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent), var(--accent-bright))' }}
+                  />
                 </div>
               </>
             ) : (
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>Sin objetivo · Tap para añadir →</p>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Section 2 — Lifetime stats */}
@@ -313,15 +514,25 @@ export function ProfileTab() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          {recentBadges.length > 0 ? recentBadges.map(b => (
-            <div key={b.id} style={{ flex: 1, minHeight: 64, borderRadius: 16, background: 'rgba(20,17,12,0.65)', border: '0.5px solid var(--border2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Medal size={24} color="var(--accent)" />
-            </div>
-          )) : (
-            <div style={{ flex: 1, padding: '16px 14px', borderRadius: 16, border: '0.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text3)', fontSize: 12 }}>
-              Aún no hay logros. Empieza tu próxima sesión.
-            </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {rewards.showcaseBadges.length > 0 ? (
+            rewards.showcaseBadges.map(b => (
+              <BadgeShowcaseItem key={b.id} badge={b} />
+            ))
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
+                flex: 1, padding: '18px 14px', borderRadius: 16,
+                border: '1px dashed rgba(255,235,200,0.1)',
+                background: 'rgba(255,235,200,0.02)',
+                color: 'rgba(245,239,230,0.3)', fontSize: 12,
+                textAlign: 'center', lineHeight: 1.5,
+              }}
+            >
+              Completa tu primera sesión para desbloquear logros
+            </motion.div>
           )}
         </div>
 
