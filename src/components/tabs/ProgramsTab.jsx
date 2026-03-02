@@ -364,7 +364,7 @@ export function ProgramsTab({ onSwitchTab }) {
   }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)' }}>
+    <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', paddingTop: 'var(--header-h)', paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)' }}>
     <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div className="stagger-item">
         <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text)', marginBottom: 4 }}>Programas</h1>

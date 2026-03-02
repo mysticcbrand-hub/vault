@@ -29,7 +29,7 @@ export function HistoryTab() {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ padding: '24px 20px 14px', flexShrink: 0 }}>
+      <div style={{ padding: 'calc(var(--header-h) + 24px) 20px 14px', flexShrink: 0 }}>
         <div className="si" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
           <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text)' }}>Historial</h1>
           <span style={{ fontSize: 13, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums' }}>{sessions.length} sesiones</span>

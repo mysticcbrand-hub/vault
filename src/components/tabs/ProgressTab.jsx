@@ -35,6 +35,7 @@ export function ProgressTab() {
       overflowY: 'auto', overflowX: 'hidden',
       WebkitOverflowScrolling: 'touch',
       overscrollBehavior: 'contain',
+      paddingTop: 'var(--header-h)',
       paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)',
     }}>
       {/* Page header */}

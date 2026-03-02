@@ -266,7 +266,8 @@ export default function App() {
         display: 'flex', flexDirection: 'column',
         height: '100dvh', overflow: 'hidden',
         background: 'var(--bg)',
-        // Sin paddingTop — el header fixed maneja la safe-area él solo
+        // Shared header height for all tabs
+        '--header-h': 'calc(52px + env(safe-area-inset-top, 0px))',
       }}>
         {/* Ambient background glow */}
         <div style={{
@@ -295,48 +296,48 @@ export default function App() {
         <ToastContainer />
         <BadgeUnlockToast />
 
-        {/* ══ App header — Glass surface premium ══
-            El backdrop-filter sobre fondo negro puro no es visible.
-            Usamos una surface real (#181510) + borde de luz + sombra
-            para crear el look glass sin depender del blur sobre negro.
-        ══════════════════════════════════════════════════════════ */}
+        {/* ══ App header — TRUE Frosted Glass ══
+            - blur fuerte + transparencia real
+            - noise sutil
+            - borde luminoso
+            - siempre visible, con identidad GRAW
+        ═════════════════════════════════════════════════════ */}
         <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0,
-          zIndex: 80,
+          position: 'fixed', top: 0, left: 0, right: 0,
+          zIndex: 120,
+          height: 'var(--header-h)',
           paddingTop: 'env(safe-area-inset-top, 0px)',
-          // Surface base — ligeramente por encima del bg #0C0A09
-          background: 'linear-gradient(180deg, #1C1812 0%, #161310 100%)',
-          // Blur actúa sobre el contenido claro de las tabs cuando scrollean
-          backdropFilter: 'blur(24px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+          background: 'rgba(24,20,16,0.55)',
+          backdropFilter: 'blur(40px) saturate(220%) brightness(1.1)',
+          WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.1)',
+          borderBottom: '0.5px solid rgba(255,235,200,0.18)',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
           isolation: 'isolate',
+          overflow: 'hidden',
         }}>
-          {/* Ambient amber tint — identidad de marca */}
+          {/* Noise layer */}
           <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: 'linear-gradient(160deg, rgba(232,146,74,0.08) 0%, rgba(232,146,74,0.02) 60%, transparent 100%)',
+            position: 'absolute', inset: 0,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")`,
+            backgroundSize: '160px 160px',
+            mixBlendMode: 'soft-light',
+            opacity: 0.22,
+            pointerEvents: 'none',
           }}/>
 
-          {/* Top highlight — borde de luz superior del cristal */}
+          {/* Light sheen */}
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0,
-            height: '1px', pointerEvents: 'none',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,235,200,0.22) 20%, rgba(255,240,215,0.32) 50%, rgba(255,235,200,0.22) 80%, transparent 100%)',
+            height: 2,
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,245,225,0.50) 50%, transparent 100%)',
+            pointerEvents: 'none',
           }}/>
 
-          {/* Bottom separator — línea de luz sutil */}
+          {/* Amber tint */}
           <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            height: '0.5px', pointerEvents: 'none',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,235,200,0.10) 30%, rgba(255,235,200,0.14) 50%, rgba(255,235,200,0.10) 70%, transparent 100%)',
-          }}/>
-
-          {/* Drop shadow suave */}
-          <div style={{
-            position: 'absolute', bottom: -20, left: 0, right: 0,
-            height: 20, pointerEvents: 'none',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 100%)',
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(180deg, rgba(232,146,74,0.10) 0%, rgba(232,146,74,0.02) 65%, transparent 100%)',
+            pointerEvents: 'none',
           }}/>
 
           {/* Content */}
@@ -346,7 +347,6 @@ export default function App() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '0 16px',
           }}>
-            {/* Logo + wordmark */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <GrawMark size={28} />
               <span style={{
@@ -357,28 +357,23 @@ export default function App() {
                 lineHeight: 1,
               }}>GRAW</span>
             </div>
-
-            {/* Avatar pill */}
             <button
               onClick={() => handleTabChange('profile')}
               className="pressable"
               style={{
                 width: 32, height: 32, borderRadius: 16,
-                background: 'rgba(232,146,74,0.12)',
-                border: '0.5px solid rgba(232,146,74,0.32)',
+                background: 'rgba(232,146,74,0.18)',
+                border: '0.5px solid rgba(232,146,74,0.40)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 14, fontWeight: 700, color: '#E8924A',
-                boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.12), 0 0 0 3px rgba(232,146,74,0.06)',
+                boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.18)',
               }}
             >
               {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}
             </button>
           </div>
         </div>
-
-        {/* Spacer — altura exacta del header */}
-        <div style={{ flexShrink: 0, height: 'calc(52px + env(safe-area-inset-top, 0px))' }}/>
 
         {/* Tab content */}
         <div style={{ flex: 1, position: 'relative', paddingBottom: 'var(--nav-h)' }}>

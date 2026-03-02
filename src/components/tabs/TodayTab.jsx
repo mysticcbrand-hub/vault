@@ -431,7 +431,7 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
       WebkitOverflowScrolling: 'touch',
       overscrollBehavior: 'contain',
       padding: '0 20px',
-      paddingTop: 16,
+      paddingTop: 'calc(var(--header-h) + 16px)',
       paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom), 16px) + 20px)',
       boxSizing: 'border-box',
     }}>
