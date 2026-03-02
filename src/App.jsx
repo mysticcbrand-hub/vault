@@ -295,40 +295,59 @@ export default function App() {
         <ToastContainer />
         <BadgeUnlockToast />
 
-        {/* ══ App header — Frosted Glass ══ */}
+        {/* ══ App header — Glass surface premium ══
+            El backdrop-filter sobre fondo negro puro no es visible.
+            Usamos una surface real (#181510) + borde de luz + sombra
+            para crear el look glass sin depender del blur sobre negro.
+        ══════════════════════════════════════════════════════════ */}
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0,
           zIndex: 80,
           paddingTop: 'env(safe-area-inset-top, 0px)',
-          // Glass: fondo muy transparente para que el blur tenga material
-          background: 'rgba(18, 14, 10, 0.72)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          // Surface base — ligeramente por encima del bg #0C0A09
+          background: 'linear-gradient(180deg, #1C1812 0%, #161310 100%)',
+          // Blur actúa sobre el contenido claro de las tabs cuando scrollean
+          backdropFilter: 'blur(24px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
           isolation: 'isolate',
-          // Separador inferior sutil
-          boxShadow: '0 1px 0 rgba(255,235,200,0.08), 0 4px 20px rgba(0,0,0,0.3)',
         }}>
-          {/* Tint amber — capa de color sin bloquear el blur */}
+          {/* Ambient amber tint — identidad de marca */}
           <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-            background: 'linear-gradient(180deg, rgba(232,146,74,0.06) 0%, transparent 100%)',
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            background: 'linear-gradient(160deg, rgba(232,146,74,0.08) 0%, rgba(232,146,74,0.02) 60%, transparent 100%)',
           }}/>
-          {/* Top edge highlight — borde de luz del cristal */}
+
+          {/* Top highlight — borde de luz superior del cristal */}
           <div style={{
-            position: 'absolute', top: 0, left: '10%', right: '10%',
-            height: '0.5px', pointerEvents: 'none', zIndex: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(255,240,210,0.35) 40%, rgba(255,240,210,0.35) 60%, transparent)',
-            borderRadius: 1,
+            position: 'absolute', top: 0, left: 0, right: 0,
+            height: '1px', pointerEvents: 'none',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,235,200,0.22) 20%, rgba(255,240,215,0.32) 50%, rgba(255,235,200,0.22) 80%, transparent 100%)',
           }}/>
+
+          {/* Bottom separator — línea de luz sutil */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: '0.5px', pointerEvents: 'none',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,235,200,0.10) 30%, rgba(255,235,200,0.14) 50%, rgba(255,235,200,0.10) 70%, transparent 100%)',
+          }}/>
+
+          {/* Drop shadow suave */}
+          <div style={{
+            position: 'absolute', bottom: -20, left: 0, right: 0,
+            height: 20, pointerEvents: 'none',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 100%)',
+          }}/>
+
           {/* Content */}
           <div style={{
-            position: 'relative', zIndex: 2,
+            position: 'relative',
             height: 52,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '0 16px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Logo + wordmark */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <GrawMark size={28} />
               <span style={{
                 fontSize: 18, fontWeight: 800,
@@ -338,17 +357,19 @@ export default function App() {
                 lineHeight: 1,
               }}>GRAW</span>
             </div>
+
+            {/* Avatar pill */}
             <button
               onClick={() => handleTabChange('profile')}
               className="pressable"
               style={{
                 width: 32, height: 32, borderRadius: 16,
-                background: 'rgba(232,146,74,0.13)',
-                border: '0.5px solid rgba(232,146,74,0.30)',
+                background: 'rgba(232,146,74,0.12)',
+                border: '0.5px solid rgba(232,146,74,0.32)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 14, fontWeight: 700, color: '#E8924A',
-                boxShadow: 'inset 0 0.5px 0 rgba(255,235,200,0.15)',
+                boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.12), 0 0 0 3px rgba(232,146,74,0.06)',
               }}
             >
               {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}

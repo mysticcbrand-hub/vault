@@ -132,11 +132,47 @@ function ShockRing({ color, active }) {
 const CATEGORIES = ['all', 'milestones', 'consistency', 'sessions', 'volume', 'strength', 'exploration', 'mastery']
 const CAT_LABELS = { all: 'Todos', ...CATEGORY_LABELS }
 
-// ─── Badge detail sheet ───────────────────────────────────────────────────────
+// ─── Badge detail sheet — con flip animation al entrar ───────────────────────
 function BadgeDetail({ badge, unlocked, unlockedAt, stats, onClose }) {
-  const style = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
-  const prog = badge.progress?.(stats)
-  const pct = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
+  const style    = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
+  const cfg      = FLIP_CONFIG[badge.rarity]   ?? FLIP_CONFIG.common
+  const prog     = badge.progress?.(stats)
+  const pct      = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
+  const flipCtrl  = useAnimation()
+  const scaleCtrl = useAnimation()
+  const [bursting, setBursting] = useState(false)
+
+  // Dispara el flip cuando el sheet termina de entrar
+  useEffect(() => {
+    if (!unlocked) return
+    // Pequeño delay para que el sheet esté completamente visible
+    const t = setTimeout(async () => {
+      if (cfg.burst) {
+        const burstDelay = cfg.degrees === 720 ? 280 : 160
+        setTimeout(() => {
+          setBursting(true)
+          setTimeout(() => setBursting(false), 700)
+        }, burstDelay)
+      }
+      await Promise.all([
+        flipCtrl.start({
+          rotateY: cfg.degrees,
+          transition: { type: 'spring', ...cfg.spring, restDelta: 0.5, restSpeed: 0.5 },
+        }),
+        scaleCtrl.start({
+          scale: [1, cfg.scalePeak, 1],
+          transition: {
+            duration: cfg.degrees === 720 ? 1.1 : 0.65,
+            ease: [0.34, 1.2, 0.64, 1],
+            times: [0, 0.45, 1],
+          },
+        }),
+      ])
+      flipCtrl.set({ rotateY: 0 })
+      scaleCtrl.set({ scale: 1 })
+    }, 320)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line
 
   return createPortal(
     <>
@@ -167,17 +203,38 @@ function BadgeDetail({ badge, unlocked, unlockedAt, stats, onClose }) {
 
         {/* Content */}
         <div style={{ padding: '24px 24px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-          {/* Badge visual */}
-          <div style={{ marginBottom: 20, position: 'relative' }}>
-            <BadgeFrame badge={badge} size={96} locked={!unlocked} animated={unlocked} />
-            {/* Ambient glow for unlocked */}
+          {/* Badge visual con flip */}
+          <div style={{ marginBottom: 20, position: 'relative', perspective: 600, WebkitPerspective: 600 }}>
+            {/* Glow ambient */}
             {unlocked && (
               <div style={{
-                position: 'absolute', inset: -20, borderRadius: '50%',
+                position: 'absolute', inset: -24, borderRadius: '50%',
                 background: `radial-gradient(ellipse, ${style.glowColor} 0%, transparent 65%)`,
                 pointerEvents: 'none', zIndex: -1,
               }}/>
             )}
+            {/* Shock ring legendary */}
+            {unlocked && badge.rarity === 'legendary' && (
+              <ShockRing color={style.iconColor} active={bursting} />
+            )}
+            {/* Sparks legendary */}
+            {unlocked && badge.rarity === 'legendary' && (
+              <LegendaryBurst color={style.iconColor} active={bursting} />
+            )}
+            {/* Badge con flip */}
+            <motion.div animate={scaleCtrl} style={{ display: 'inline-block' }}>
+              <motion.div
+                animate={flipCtrl}
+                style={{
+                  transformStyle: 'preserve-3d',
+                  WebkitTransformStyle: 'preserve-3d',
+                  willChange: 'transform',
+                  display: 'block',
+                }}
+              >
+                <BadgeFrame badge={badge} size={96} locked={!unlocked} animated={unlocked} />
+              </motion.div>
+            </motion.div>
           </div>
 
           {/* Rarity label */}
@@ -272,73 +329,16 @@ function BadgeDetail({ badge, unlocked, unlockedAt, stats, onClose }) {
   )
 }
 
-// ─── Badge grid item ──────────────────────────────────────────────────────────
+// ─── Badge grid item — press feedback limpio, flip en el sheet ───────────────
 function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
-  const style      = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
-  const cfg        = FLIP_CONFIG[badge.rarity]   ?? FLIP_CONFIG.common
-  const prog       = badge.progress?.(stats)
-  const pct        = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
-  const flipCtrl   = useAnimation()
-  const scaleCtrl  = useAnimation()
-  const isFlipping = useRef(false)
-  const [bursting, setBursting] = useState(false)
-  const [glowing,  setGlowing]  = useState(false)
-
-  const handleTap = useCallback(async () => {
-    if (isFlipping.current) return
-    isFlipping.current = true
-
-    // Abre el sheet INMEDIATAMENTE — el flip es decorativo, no bloquea UX
-    onTap(badge, unlockedAt)
-
-    // Glow: aparece rápido al inicio
-    if (cfg.glowOpacity > 0) {
-      setGlowing(true)
-      setTimeout(() => setGlowing(false), 600)
-    }
-
-    // Burst legendary: dispara cuando el flip llega a la mitad (~primera vuelta)
-    if (cfg.burst && unlocked) {
-      const burstDelay = cfg.degrees === 720 ? 320 : 200
-      setTimeout(() => {
-        setBursting(true)
-        setTimeout(() => setBursting(false), 650)
-      }, burstDelay)
-    }
-
-    // Spring física para el flip — orgánico, no mecánico
-    // El scale se anima por separado con su propio spring más suave
-    await Promise.all([
-      flipCtrl.start({
-        rotateY: cfg.degrees,
-        transition: {
-          type: 'spring',
-          ...cfg.spring,
-          restDelta: 0.5,
-          restSpeed: 0.5,
-        },
-      }),
-      scaleCtrl.start({
-        scale: [1, cfg.scalePeak, 1],
-        transition: {
-          duration: cfg.degrees === 720 ? 1.1 : 0.65,
-          ease: [0.34, 1.2, 0.64, 1],
-          times: [0, 0.45, 1],
-        },
-      }),
-    ])
-
-    // Reset silencioso para el próximo tap
-    flipCtrl.set({ rotateY: 0 })
-    scaleCtrl.set({ scale: 1 })
-    isFlipping.current = false
-  }, [flipCtrl, scaleCtrl, cfg, badge, unlockedAt, unlocked, onTap])
+  const style = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
+  const prog  = badge.progress?.(stats)
+  const pct   = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
 
   return (
     <motion.div
-      onTap={handleTap}
-      // Press feedback sutil — solo el card, no el badge
-      whileTap={{ scale: unlocked ? 0.97 : 0.95, transition: { duration: 0.1 } }}
+      onTap={() => onTap(badge, unlockedAt)}
+      whileTap={{ scale: 0.94, transition: { duration: 0.1, ease: [0.32, 0.72, 0, 1] } }}
       style={{
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', gap: 8,
@@ -349,59 +349,10 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
         cursor: 'pointer',
         position: 'relative',
         boxShadow: unlocked ? 'inset 0 1px 0 rgba(255,235,200,0.06)' : 'none',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        // Perspective aquí para profundidad 3D real del flip
-        perspective: 600,
-        WebkitPerspective: 600,
+        userSelect: 'none', WebkitUserSelect: 'none',
       }}
     >
-      {/* Glow radial — bloom suave que aparece y desvanece */}
-      <AnimatePresence>
-        {glowing && cfg.glowOpacity > 0 && (
-          <motion.div
-            style={{
-              position: 'absolute',
-              inset: -12,
-              borderRadius: 'calc(var(--r) + 4px)',
-              background: `radial-gradient(ellipse at center, ${style.glowColor} 0%, transparent 65%)`,
-              pointerEvents: 'none',
-              zIndex: 0,
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: cfg.glowOpacity * 0.7 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Shock ring — legendary únicamente */}
-      {unlocked && badge.rarity === 'legendary' && (
-        <ShockRing color={style.iconColor} active={bursting} />
-      )}
-
-      {/* Sparks — legendary únicamente */}
-      {unlocked && badge.rarity === 'legendary' && (
-        <LegendaryBurst color={style.iconColor} active={bursting} />
-      )}
-
-      {/* Badge — flip en rotateY, scale separado */}
-      <motion.div
-        animate={scaleCtrl}
-        style={{ position: 'relative', zIndex: 10 }}
-      >
-        <motion.div
-          animate={flipCtrl}
-          style={{
-            transformStyle: 'preserve-3d',
-            WebkitTransformStyle: 'preserve-3d',
-            willChange: 'transform',
-          }}
-        >
-          <BadgeFrame badge={badge} size={52} locked={!unlocked} animated={unlocked} />
-        </motion.div>
-      </motion.div>
+      <BadgeFrame badge={badge} size={52} locked={!unlocked} animated={unlocked} />
 
       <span style={{
         fontSize: 10.5, fontWeight: 600,
@@ -409,14 +360,13 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
         textAlign: 'center', lineHeight: 1.3,
         maxWidth: '100%', overflow: 'hidden',
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-        position: 'relative', zIndex: 10,
       }}>
         {badge.name}
       </span>
 
       {/* Progress bar */}
       {!unlocked && pct !== null && pct > 0 && (
-        <div style={{ width: '85%', height: 2, borderRadius: 1, background: 'var(--surface3)', position: 'relative', zIndex: 10 }}>
+        <div style={{ width: '85%', height: 2, borderRadius: 1, background: 'var(--surface3)' }}>
           <div style={{ height: '100%', borderRadius: 1, width: `${pct}%`, background: 'var(--accent)', transition: 'width 0.8s ease' }}/>
         </div>
       )}
@@ -424,7 +374,7 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
       {/* Rarity dot */}
       {unlocked && (
         <div style={{
-          position: 'absolute', top: 8, right: 8, zIndex: 10,
+          position: 'absolute', top: 8, right: 8,
           width: 6, height: 6, borderRadius: '50%',
           background: style.iconColor,
           boxShadow: `0 0 5px ${style.iconColor}`,
@@ -433,7 +383,7 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
 
       {/* Lock */}
       {!unlocked && pct === null && (
-        <Lock size={9} color="var(--text3)" style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }} />
+        <Lock size={9} color="var(--text3)" style={{ position: 'absolute', top: 8, right: 8 }} />
       )}
     </motion.div>
   )
