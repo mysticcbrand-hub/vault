@@ -1,11 +1,109 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { X, ChevronRight, Lock } from 'lucide-react'
 import { BadgeFrame } from '../ui/BadgeFrame.jsx'
 import { ALL_BADGES, RARITY_STYLES, CATEGORY_LABELS } from '../../data/badges.js'
 import useStore from '../../store/index.js'
 import { calculateUserStats } from '../../utils/userStats.js'
+
+// ─── Flip animation config por rareza ────────────────────────────────────────
+const FLIP_CONFIG = {
+  common: {
+    rotations: 1,         // 1 vuelta
+    duration: 0.55,
+    ease: [0.32, 0.72, 0, 1],
+    scalePeak: 1.08,
+    glowOpacity: 0,
+    burst: false,
+  },
+  rare: {
+    rotations: 1,
+    duration: 0.62,
+    ease: [0.16, 1, 0.3, 1],
+    scalePeak: 1.12,
+    glowOpacity: 0.35,
+    burst: false,
+  },
+  epic: {
+    rotations: 1,
+    duration: 0.68,
+    ease: [0.16, 1, 0.3, 1],
+    scalePeak: 1.16,
+    glowOpacity: 0.55,
+    burst: false,
+  },
+  legendary: {
+    rotations: 2,          // Doble vuelta completa
+    duration: 0.85,
+    ease: [0.16, 1, 0.3, 1],
+    scalePeak: 1.22,
+    glowOpacity: 1,
+    burst: true,           // Burst de partículas
+  },
+}
+
+// Burst de partículas para legendarios
+function LegendaryBurst({ color, active }) {
+  const SPARKS = 8
+  return (
+    <AnimatePresence>
+      {active && Array.from({ length: SPARKS }).map((_, i) => {
+        const angle = (360 / SPARKS) * i
+        const rad = (angle * Math.PI) / 180
+        const dist = 38
+        const tx = Math.cos(rad) * dist
+        const ty = Math.sin(rad) * dist
+        return (
+          <motion.div
+            key={i}
+            style={{
+              position: 'absolute',
+              top: '50%', left: '50%',
+              width: 4, height: 4,
+              borderRadius: '50%',
+              background: color,
+              marginTop: -2, marginLeft: -2,
+              pointerEvents: 'none',
+              zIndex: 20,
+              boxShadow: `0 0 6px ${color}`,
+            }}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+            animate={{ x: tx, y: ty, opacity: 0, scale: 0 }}
+            exit={{}}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: i * 0.015 }}
+          />
+        )
+      })}
+    </AnimatePresence>
+  )
+}
+
+// Ring de onda expansiva para legendarios
+function ShockRing({ color, active }) {
+  return (
+    <AnimatePresence>
+      {active && (
+        <motion.div
+          style={{
+            position: 'absolute',
+            top: '50%', left: '50%',
+            width: 52, height: 52,
+            marginTop: -26, marginLeft: -26,
+            borderRadius: '50%',
+            border: `1.5px solid ${color}`,
+            pointerEvents: 'none',
+            zIndex: 15,
+          }}
+          initial={{ scale: 0.6, opacity: 0.9 }}
+          animate={{ scale: 2.2, opacity: 0 }}
+          exit={{}}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        />
+      )}
+    </AnimatePresence>
+  )
+}
 
 const CATEGORIES = ['all', 'milestones', 'consistency', 'sessions', 'volume', 'strength', 'exploration', 'mastery']
 const CAT_LABELS = { all: 'Todos', ...CATEGORY_LABELS }
@@ -150,16 +248,56 @@ function BadgeDetail({ badge, unlocked, unlockedAt, stats, onClose }) {
   )
 }
 
-// ─── Badge grid item ──────────────────────────────────────────────────────────
+// ─── Badge grid item con flip animation ──────────────────────────────────────
 function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
-  const style = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
-  const prog = badge.progress?.(stats)
-  const pct = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
+  const style    = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
+  const cfg      = FLIP_CONFIG[badge.rarity]   ?? FLIP_CONFIG.common
+  const prog     = badge.progress?.(stats)
+  const pct      = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
+  const controls = useAnimation()
+  const isFlipping = useRef(false)
+  const [bursting, setBursting] = useState(false)
+  const [glowing,  setGlowing]  = useState(false)
+
+  const handleTap = useCallback(async () => {
+    // Si ya está girando, ignora — no stack animaciones
+    if (isFlipping.current) return
+    isFlipping.current = true
+
+    // Glow flash al inicio
+    if (cfg.glowOpacity > 0) setGlowing(true)
+
+    // Burst de partículas en legendario — dispara al inicio del flip
+    if (cfg.burst) {
+      setBursting(true)
+      setTimeout(() => setBursting(false), 600)
+    }
+
+    // El flip: rotateY va de 0 → 360° × rotations
+    // scale sube al punto medio y vuelve
+    const totalDeg = 360 * cfg.rotations
+    await controls.start({
+      rotateY: [0, totalDeg / 2, totalDeg],
+      scale:   [1, cfg.scalePeak, 1],
+      transition: {
+        duration: cfg.duration,
+        ease: cfg.ease,
+        times: [0, 0.5, 1],
+      },
+    })
+
+    // Reset rotateY a 0 sin animación para que el próximo tap funcione
+    controls.set({ rotateY: 0 })
+    if (cfg.glowOpacity > 0) setGlowing(false)
+    isFlipping.current = false
+
+    // Abre el detail sheet después del flip
+    onTap(badge, unlockedAt)
+  }, [controls, cfg, badge, unlockedAt, onTap])
 
   return (
-    <motion.div
-      whileTap={{ scale: 0.92 }}
-      onClick={() => onTap(badge, unlockedAt)}
+    <div
+      onClick={handleTap}
       style={{
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', gap: 8,
@@ -170,9 +308,55 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
         cursor: 'pointer',
         position: 'relative',
         boxShadow: unlocked ? 'inset 0 1px 0 rgba(255,235,200,0.06)' : 'none',
+        // Perspective en el padre para que el rotateY tenga profundidad real
+        perspective: 400,
+        WebkitPerspective: 400,
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
       }}
     >
-      <BadgeFrame badge={badge} size={52} locked={!unlocked} animated={unlocked} />
+      {/* Glow flash — se expande y desaparece */}
+      <AnimatePresence>
+        {glowing && (
+          <motion.div
+            style={{
+              position: 'absolute',
+              inset: -8,
+              borderRadius: 'var(--r)',
+              background: `radial-gradient(ellipse, ${style.glowColor} 0%, transparent 70%)`,
+              pointerEvents: 'none',
+              zIndex: 5,
+            }}
+            initial={{ opacity: 0, scale: 0.7 }}
+            animate={{ opacity: cfg.glowOpacity, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.3 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Shock ring — solo legendary */}
+      {unlocked && badge.rarity === 'legendary' && (
+        <ShockRing color={style.iconColor} active={bursting} />
+      )}
+
+      {/* Burst de partículas — solo legendary */}
+      {unlocked && badge.rarity === 'legendary' && (
+        <LegendaryBurst color={style.iconColor} active={bursting} />
+      )}
+
+      {/* El badge con el flip */}
+      <motion.div
+        animate={controls}
+        style={{
+          transformStyle: 'preserve-3d',
+          WebkitTransformStyle: 'preserve-3d',
+          position: 'relative',
+          zIndex: 10,
+        }}
+      >
+        <BadgeFrame badge={badge} size={52} locked={!unlocked} animated={unlocked} />
+      </motion.div>
 
       <span style={{
         fontSize: 10.5, fontWeight: 600,
@@ -180,13 +364,14 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
         textAlign: 'center', lineHeight: 1.3,
         maxWidth: '100%', overflow: 'hidden',
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        position: 'relative', zIndex: 10,
       }}>
         {badge.name}
       </span>
 
-      {/* Progress bar for locked badges */}
+      {/* Progress bar */}
       {!unlocked && pct !== null && pct > 0 && (
-        <div style={{ width: '85%', height: 2, borderRadius: 1, background: 'var(--surface3)' }}>
+        <div style={{ width: '85%', height: 2, borderRadius: 1, background: 'var(--surface3)', position: 'relative', zIndex: 10 }}>
           <div style={{
             height: '100%', borderRadius: 1,
             width: `${pct}%`,
@@ -203,14 +388,15 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
           width: 6, height: 6, borderRadius: '50%',
           background: style.iconColor,
           boxShadow: `0 0 4px ${style.iconColor}`,
+          zIndex: 10,
         }}/>
       )}
 
-      {/* Lock icon for completely unknown badges */}
+      {/* Lock */}
       {!unlocked && pct === null && (
-        <Lock size={9} color="var(--text3)" style={{ position: 'absolute', top: 8, right: 8 }} />
+        <Lock size={9} color="var(--text3)" style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }} />
       )}
-    </motion.div>
+    </div>
   )
 }
 

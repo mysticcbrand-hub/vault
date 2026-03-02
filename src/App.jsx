@@ -29,22 +29,27 @@ const TAB_GLOWS = {
 }
 const DUR = 260
 
-// GRAW SVG mark — inline for zero network dependency
-function GrawMark({ size = 24 }) {
+// GRAW mark — canonical ring mark, idéntico al SplashScreen
+function GrawMark({ size = 28 }) {
+  const id = 'hdr'
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="40" height="40" rx="12" fill="rgba(232,146,74,0.12)" />
-      <rect x="0.5" y="0.5" width="39" height="39" rx="11.5" stroke="rgba(232,146,74,0.3)" strokeWidth="1" />
-      <text
-        x="50%" y="54%"
-        dominantBaseline="middle"
-        textAnchor="middle"
-        fontFamily="DM Sans, -apple-system, sans-serif"
-        fontWeight="800"
-        fontSize="22"
-        fill="#E8924A"
-        letterSpacing="-1"
-      >G</text>
+    <svg width={size} height={size} viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', flexShrink: 0 }}>
+      <defs>
+        <linearGradient id={`${id}_ring`} x1="120" y1="140" x2="392" y2="372" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#F5A76A"/>
+          <stop offset="1" stopColor="#C9712D"/>
+        </linearGradient>
+        <radialGradient id={`${id}_bg`} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#E8924A" stopOpacity="0.10"/>
+          <stop offset="1" stopColor="#E8924A" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="512" height="512" rx="115" fill="#181510"/>
+      <rect width="512" height="512" rx="115" fill={`url(#${id}_bg)`}/>
+      <rect width="512" height="512" rx="115" stroke="rgba(232,146,74,0.22)" strokeWidth="14"/>
+      <circle cx="256" cy="256" r="82" stroke="rgba(232,146,74,0.16)" strokeWidth="10"/>
+      <circle cx="256" cy="256" r="110" stroke={`url(#${id}_ring)`} strokeWidth="32" strokeLinecap="round"/>
+      <rect x="306" y="241" width="74" height="22" rx="11" fill={`url(#${id}_ring)`}/>
     </svg>
   )
 }
