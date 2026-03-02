@@ -97,22 +97,21 @@ export function SplashScreen({ onComplete }) {
           marginBottom: 60,
         }}
       >
-        {/* GRAW icon mark */}
+        {/* GRAW icon mark — canonical G ring mark */}
         <div style={{
-          width: 64, height: 64,
-          borderRadius: 20,
-          background: 'linear-gradient(145deg, rgba(232,146,74,0.18), rgba(201,113,45,0.08))',
-          border: '0.5px solid rgba(232,146,74,0.28)',
-          boxShadow: '0 0 40px rgba(232,146,74,0.12), inset 0 1px 0 rgba(255,235,200,0.12)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          width: 72, height: 72,
+          borderRadius: 22,
+          boxShadow: '0 0 48px rgba(232,146,74,0.18), 0 8px 32px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          flexShrink: 0,
         }}>
-          <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-            <rect x="4" y="14" width="26" height="6" rx="3" fill="#E8924A" opacity="0.9"/>
-            <rect x="1" y="11" width="7" height="12" rx="3" fill="#E8924A" opacity="0.7"/>
-            <rect x="26" y="11" width="7" height="12" rx="3" fill="#E8924A" opacity="0.7"/>
-          </svg>
+          <img
+            src="/icon.svg"
+            alt="GRAW"
+            width={72}
+            height={72}
+            style={{ display: 'block', width: 72, height: 72 }}
+          />
         </div>
 
         {/* Wordmark */}
