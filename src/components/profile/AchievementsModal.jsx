@@ -1,108 +1,101 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
-import { X, ChevronRight, Lock } from 'lucide-react'
+import { X, Lock } from 'lucide-react'
 import { BadgeFrame } from '../ui/BadgeFrame.jsx'
 import { ALL_BADGES, RARITY_STYLES, CATEGORY_LABELS } from '../../data/badges.js'
 import useStore from '../../store/index.js'
 import { calculateUserStats } from '../../utils/userStats.js'
 
-// ─── Flip animation config por rareza ────────────────────────────────────────
-// Filosofía: el flip debe sentirse como una moneda/chapa de metal real.
-// Aceleración rápida, deceleración larga y suave. Nunca mecánico.
+// ─── Flip config por rareza ───────────────────────────────────────────────────
+// Filosofía Apple: spring física real, no easing por keyframes.
+// El spring hace que la moneda acelere orgánicamente y frene por inercia.
+// Cada rareza tiene su propia "masa" y "rigidez" — se siente diferente.
 const FLIP_CONFIG = {
   common: {
-    // Flip limpio, directo. Como girar una moneda de cobre.
-    keyframes: [
-      { ry: 0,   scale: 1,    z: 0  },
-      { ry: 90,  scale: 0.92, z: 8  }, // punto muerto — se aplana
-      { ry: 180, scale: 1.06, z: 16 }, // emerge al otro lado — leve overshoot
-      { ry: 270, scale: 0.96, z: 8  }, // vuelta al centro
-      { ry: 360, scale: 1,    z: 0  }, // reposo
-    ],
-    duration: 0.78,
-    ease: [0.25, 0.1, 0.15, 1],
+    // Moneda ligera — flip ágil y limpio
+    spring: { stiffness: 200, damping: 22, mass: 0.8 },
+    degrees: 360,
+    scalePeak: 1.06,
     glowOpacity: 0,
     burst: false,
+    glowColor: null,
   },
   rare: {
-    // Algo más vivo. Como una chapa de acero bruñido.
-    keyframes: [
-      { ry: 0,   scale: 1,    z: 0  },
-      { ry: 90,  scale: 0.88, z: 12 },
-      { ry: 180, scale: 1.10, z: 20 },
-      { ry: 270, scale: 0.94, z: 12 },
-      { ry: 360, scale: 1,    z: 0  },
-    ],
-    duration: 0.88,
-    ease: [0.22, 1, 0.2, 1],
-    glowOpacity: 0.4,
+    // Chapa de acero — un poco más de inercia
+    spring: { stiffness: 180, damping: 20, mass: 1.0 },
+    degrees: 360,
+    scalePeak: 1.10,
+    glowOpacity: 0.5,
     burst: false,
+    glowColor: null,
   },
   epic: {
-    // Pesado y poderoso. Como una medalla de campeonato.
-    keyframes: [
-      { ry: 0,   scale: 1,    z: 0  },
-      { ry: 90,  scale: 0.84, z: 16 },
-      { ry: 180, scale: 1.14, z: 24 },
-      { ry: 270, scale: 0.92, z: 16 },
-      { ry: 360, scale: 1,    z: 0  },
-    ],
-    duration: 0.96,
-    ease: [0.22, 1, 0.18, 1],
-    glowOpacity: 0.65,
+    // Medalla pesada — arranca fuerte, frena despacio
+    spring: { stiffness: 160, damping: 18, mass: 1.2 },
+    degrees: 360,
+    scalePeak: 1.14,
+    glowOpacity: 0.7,
     burst: false,
+    glowColor: null,
   },
   legendary: {
-    // Doble flip. Primera vuelta rápida, segunda más lenta y solemne.
-    // Como una moneda de oro que gira dos veces antes de caer perfecta.
-    keyframes: [
-      { ry: 0,   scale: 1,    z: 0  },
-      { ry: 90,  scale: 0.82, z: 14 },
-      { ry: 180, scale: 1.18, z: 28 }, // primer peak
-      { ry: 270, scale: 0.88, z: 14 },
-      { ry: 360, scale: 1.04, z: 0  }, // micro-rebote entre vueltas
-      { ry: 450, scale: 0.90, z: 10 },
-      { ry: 540, scale: 1.22, z: 26 }, // segundo peak — más alto
-      { ry: 630, scale: 0.96, z: 10 },
-      { ry: 720, scale: 1,    z: 0  }, // reposo solemne
-    ],
-    duration: 1.4,
-    ease: [0.22, 1, 0.15, 1],
+    // Moneda de oro — doble vuelta completa, muy suave al frenar
+    spring: { stiffness: 130, damping: 16, mass: 1.5 },
+    degrees: 720,
+    scalePeak: 1.18,
     glowOpacity: 1,
     burst: true,
+    glowColor: null,
   },
 }
 
-// Burst de partículas para legendarios
+// ─── Partículas burst — solo legendary ───────────────────────────────────────
+// 6 sparks de diferentes tamaños y distancias para variedad orgánica
+const SPARKS = [
+  { angle: 0,   dist: 36, size: 3.5, delay: 0    },
+  { angle: 60,  dist: 32, size: 2.5, delay: 0.02 },
+  { angle: 120, dist: 38, size: 3,   delay: 0.01 },
+  { angle: 180, dist: 34, size: 2.5, delay: 0.03 },
+  { angle: 240, dist: 37, size: 3,   delay: 0.01 },
+  { angle: 300, dist: 31, size: 2,   delay: 0.02 },
+  { angle: 30,  dist: 28, size: 2,   delay: 0.04 },
+  { angle: 150, dist: 30, size: 2.5, delay: 0.02 },
+]
+
 function LegendaryBurst({ color, active }) {
-  const SPARKS = 8
   return (
     <AnimatePresence>
-      {active && Array.from({ length: SPARKS }).map((_, i) => {
-        const angle = (360 / SPARKS) * i
-        const rad = (angle * Math.PI) / 180
-        const dist = 38
-        const tx = Math.cos(rad) * dist
-        const ty = Math.sin(rad) * dist
+      {active && SPARKS.map((s, i) => {
+        const rad = (s.angle * Math.PI) / 180
         return (
           <motion.div
             key={i}
             style={{
               position: 'absolute',
               top: '50%', left: '50%',
-              width: 4, height: 4,
+              width: s.size, height: s.size,
               borderRadius: '50%',
               background: color,
-              marginTop: -2, marginLeft: -2,
+              marginTop: -s.size / 2,
+              marginLeft: -s.size / 2,
               pointerEvents: 'none',
               zIndex: 20,
-              boxShadow: `0 0 6px ${color}`,
+              boxShadow: `0 0 ${s.size * 2}px ${color}`,
             }}
-            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-            animate={{ x: tx, y: ty, opacity: 0, scale: 0 }}
+            initial={{ x: 0, y: 0, opacity: 0.95, scale: 1 }}
+            animate={{
+              x: Math.cos(rad) * s.dist,
+              y: Math.sin(rad) * s.dist,
+              opacity: 0,
+              scale: 0,
+            }}
             exit={{}}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: i * 0.015 }}
+            transition={{
+              duration: 0.52,
+              ease: [0.2, 0, 0.2, 1],
+              delay: s.delay,
+            }}
           />
         )
       })}
@@ -110,7 +103,7 @@ function LegendaryBurst({ color, active }) {
   )
 }
 
-// Ring de onda expansiva para legendarios
+// Ring expansiva — aparece y se disuelve
 function ShockRing({ color, active }) {
   return (
     <AnimatePresence>
@@ -119,17 +112,17 @@ function ShockRing({ color, active }) {
           style={{
             position: 'absolute',
             top: '50%', left: '50%',
-            width: 52, height: 52,
-            marginTop: -26, marginLeft: -26,
+            width: 54, height: 54,
+            marginTop: -27, marginLeft: -27,
             borderRadius: '50%',
-            border: `1.5px solid ${color}`,
+            border: `1px solid ${color}`,
             pointerEvents: 'none',
             zIndex: 15,
           }}
-          initial={{ scale: 0.6, opacity: 0.9 }}
-          animate={{ scale: 2.2, opacity: 0 }}
+          initial={{ scale: 0.5, opacity: 0.8 }}
+          animate={{ scale: 2.4, opacity: 0 }}
           exit={{}}
-          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         />
       )}
     </AnimatePresence>
@@ -279,13 +272,14 @@ function BadgeDetail({ badge, unlocked, unlockedAt, stats, onClose }) {
   )
 }
 
-// ─── Badge grid item con flip animation ──────────────────────────────────────
+// ─── Badge grid item ──────────────────────────────────────────────────────────
 function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
-  const style    = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
-  const cfg      = FLIP_CONFIG[badge.rarity]   ?? FLIP_CONFIG.common
-  const prog     = badge.progress?.(stats)
-  const pct      = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
-  const controls = useAnimation()
+  const style      = RARITY_STYLES[badge.rarity] ?? RARITY_STYLES.common
+  const cfg        = FLIP_CONFIG[badge.rarity]   ?? FLIP_CONFIG.common
+  const prog       = badge.progress?.(stats)
+  const pct        = prog ? Math.min(100, Math.round((prog.current / prog.total) * 100)) : null
+  const flipCtrl   = useAnimation()
+  const scaleCtrl  = useAnimation()
   const isFlipping = useRef(false)
   const [bursting, setBursting] = useState(false)
   const [glowing,  setGlowing]  = useState(false)
@@ -294,42 +288,57 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
     if (isFlipping.current) return
     isFlipping.current = true
 
-    if (cfg.glowOpacity > 0) setGlowing(true)
+    // Abre el sheet INMEDIATAMENTE — el flip es decorativo, no bloquea UX
+    onTap(badge, unlockedAt)
 
-    if (cfg.burst) {
-      // Burst al punto medio de la primera vuelta
-      setTimeout(() => {
-        setBursting(true)
-        setTimeout(() => setBursting(false), 700)
-      }, cfg.duration * 1000 * 0.3)
+    // Glow: aparece rápido al inicio
+    if (cfg.glowOpacity > 0) {
+      setGlowing(true)
+      setTimeout(() => setGlowing(false), 600)
     }
 
-    // Extraer keyframes tipados
-    const kf = cfg.keyframes
-    const n  = kf.length
-    const times = kf.map((_, i) => i / (n - 1))
+    // Burst legendary: dispara cuando el flip llega a la mitad (~primera vuelta)
+    if (cfg.burst && unlocked) {
+      const burstDelay = cfg.degrees === 720 ? 320 : 200
+      setTimeout(() => {
+        setBursting(true)
+        setTimeout(() => setBursting(false), 650)
+      }, burstDelay)
+    }
 
-    await controls.start({
-      rotateY:    kf.map(k => k.ry),
-      scale:      kf.map(k => k.scale),
-      translateZ: kf.map(k => k.z),
-      transition: {
-        duration: cfg.duration,
-        ease: cfg.ease,
-        times,
-      },
-    })
+    // Spring física para el flip — orgánico, no mecánico
+    // El scale se anima por separado con su propio spring más suave
+    await Promise.all([
+      flipCtrl.start({
+        rotateY: cfg.degrees,
+        transition: {
+          type: 'spring',
+          ...cfg.spring,
+          restDelta: 0.5,
+          restSpeed: 0.5,
+        },
+      }),
+      scaleCtrl.start({
+        scale: [1, cfg.scalePeak, 1],
+        transition: {
+          duration: cfg.degrees === 720 ? 1.1 : 0.65,
+          ease: [0.34, 1.2, 0.64, 1],
+          times: [0, 0.45, 1],
+        },
+      }),
+    ])
 
-    controls.set({ rotateY: 0, scale: 1, translateZ: 0 })
-    if (cfg.glowOpacity > 0) setGlowing(false)
+    // Reset silencioso para el próximo tap
+    flipCtrl.set({ rotateY: 0 })
+    scaleCtrl.set({ scale: 1 })
     isFlipping.current = false
-
-    onTap(badge, unlockedAt)
-  }, [controls, cfg, badge, unlockedAt, onTap])
+  }, [flipCtrl, scaleCtrl, cfg, badge, unlockedAt, unlocked, onTap])
 
   return (
-    <div
-      onClick={handleTap}
+    <motion.div
+      onTap={handleTap}
+      // Press feedback sutil — solo el card, no el badge
+      whileTap={{ scale: unlocked ? 0.97 : 0.95, transition: { duration: 0.1 } }}
       style={{
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', gap: 8,
@@ -340,54 +349,58 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
         cursor: 'pointer',
         position: 'relative',
         boxShadow: unlocked ? 'inset 0 1px 0 rgba(255,235,200,0.06)' : 'none',
-        // Perspective en el padre para que el rotateY tenga profundidad real
-        perspective: 400,
-        WebkitPerspective: 400,
         userSelect: 'none',
         WebkitUserSelect: 'none',
+        // Perspective aquí para profundidad 3D real del flip
+        perspective: 600,
+        WebkitPerspective: 600,
       }}
     >
-      {/* Glow flash — se expande y desaparece */}
+      {/* Glow radial — bloom suave que aparece y desvanece */}
       <AnimatePresence>
-        {glowing && (
+        {glowing && cfg.glowOpacity > 0 && (
           <motion.div
             style={{
               position: 'absolute',
-              inset: -8,
-              borderRadius: 'var(--r)',
-              background: `radial-gradient(ellipse, ${style.glowColor} 0%, transparent 70%)`,
+              inset: -12,
+              borderRadius: 'calc(var(--r) + 4px)',
+              background: `radial-gradient(ellipse at center, ${style.glowColor} 0%, transparent 65%)`,
               pointerEvents: 'none',
-              zIndex: 5,
+              zIndex: 0,
             }}
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: cfg.glowOpacity, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.3 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: cfg.glowOpacity * 0.7 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           />
         )}
       </AnimatePresence>
 
-      {/* Shock ring — solo legendary */}
+      {/* Shock ring — legendary únicamente */}
       {unlocked && badge.rarity === 'legendary' && (
         <ShockRing color={style.iconColor} active={bursting} />
       )}
 
-      {/* Burst de partículas — solo legendary */}
+      {/* Sparks — legendary únicamente */}
       {unlocked && badge.rarity === 'legendary' && (
         <LegendaryBurst color={style.iconColor} active={bursting} />
       )}
 
-      {/* El badge con el flip */}
+      {/* Badge — flip en rotateY, scale separado */}
       <motion.div
-        animate={controls}
-        style={{
-          transformStyle: 'preserve-3d',
-          WebkitTransformStyle: 'preserve-3d',
-          position: 'relative',
-          zIndex: 10,
-        }}
+        animate={scaleCtrl}
+        style={{ position: 'relative', zIndex: 10 }}
       >
-        <BadgeFrame badge={badge} size={52} locked={!unlocked} animated={unlocked} />
+        <motion.div
+          animate={flipCtrl}
+          style={{
+            transformStyle: 'preserve-3d',
+            WebkitTransformStyle: 'preserve-3d',
+            willChange: 'transform',
+          }}
+        >
+          <BadgeFrame badge={badge} size={52} locked={!unlocked} animated={unlocked} />
+        </motion.div>
       </motion.div>
 
       <span style={{
@@ -404,23 +417,17 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
       {/* Progress bar */}
       {!unlocked && pct !== null && pct > 0 && (
         <div style={{ width: '85%', height: 2, borderRadius: 1, background: 'var(--surface3)', position: 'relative', zIndex: 10 }}>
-          <div style={{
-            height: '100%', borderRadius: 1,
-            width: `${pct}%`,
-            background: 'var(--accent)',
-            transition: 'width 0.8s ease',
-          }}/>
+          <div style={{ height: '100%', borderRadius: 1, width: `${pct}%`, background: 'var(--accent)', transition: 'width 0.8s ease' }}/>
         </div>
       )}
 
       {/* Rarity dot */}
       {unlocked && (
         <div style={{
-          position: 'absolute', top: 8, right: 8,
+          position: 'absolute', top: 8, right: 8, zIndex: 10,
           width: 6, height: 6, borderRadius: '50%',
           background: style.iconColor,
-          boxShadow: `0 0 4px ${style.iconColor}`,
-          zIndex: 10,
+          boxShadow: `0 0 5px ${style.iconColor}`,
         }}/>
       )}
 
@@ -428,7 +435,7 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
       {!unlocked && pct === null && (
         <Lock size={9} color="var(--text3)" style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }} />
       )}
-    </div>
+    </motion.div>
   )
 }
 
