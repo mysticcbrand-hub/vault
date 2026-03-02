@@ -188,28 +188,21 @@ export function SplashScreen({ onComplete }) {
         transition={{ duration: 0.9, delay: 0.1, ease: EASE_OUT }}
       >
 
-        {/* ── Shimmer fino: una sola pasada, suave, angosto ── */}
+        {/* ── Shimmer: pasada única, dispersa, fade natural en extremos ── */}
         <motion.div
           style={{
             position: 'absolute',
-            top: 0,
-            bottom: 0,
-            width: '38%',
-            background: [
-              'linear-gradient(',
-              '108deg,',
-              'transparent 0%,',
-              'rgba(255,225,170,0.055) 45%,',
-              'rgba(255,225,170,0.085) 50%,',
-              'rgba(255,225,170,0.055) 55%,',
-              'transparent 100%)',
-            ].join(' '),
+            top: '-20%',
+            bottom: '-20%',
+            left: 0,
+            width: '65%',
+            background: 'linear-gradient(108deg, transparent 0%, transparent 15%, rgba(255,225,170,0.04) 35%, rgba(255,225,170,0.07) 50%, rgba(255,225,170,0.04) 65%, transparent 85%, transparent 100%)',
             pointerEvents: 'none',
             zIndex: 10,
           }}
-          initial={{ x: '-120%', opacity: 1 }}
-          animate={{ x: '280%',  opacity: 1 }}
-          transition={{ duration: 1.6, delay: 0.55, ease: [0.25, 0.1, 0.25, 1] }}
+          initial={{ x: '-100%', opacity: 0 }}
+          animate={{ x: '220%',  opacity: [0, 1, 1, 0] }}
+          transition={{ duration: 2.2, delay: 0.7, ease: [0.16, 1, 0.3, 1], times: [0, 0.08, 0.92, 1] }}
         />
 
         {/* ── G Mark — entra con fade + escala suave, sin rotate ── */}
