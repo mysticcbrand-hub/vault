@@ -295,31 +295,46 @@ export default function App() {
         <ToastContainer />
         <BadgeUnlockToast />
 
-        {/* ══ App header — Frosted Glass premium ══ */}
+        {/* ══ App header — Fixed Frosted Glass ══
+            CRÍTICO: fixed + z alto para que el backdrop-filter
+            vea el contenido de las tabs desplazándose detrás.
+            overflow:hidden en el padre mata sticky+backdrop-filter.
+        ══════════════════════════════════════════════════════ */}
         <div style={{
-          flexShrink: 0,
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
+          left: 0,
+          right: 0,
           zIndex: 80,
-          // Frosted glass base
-          background: 'rgba(12, 10, 9, 0.62)',
-          backdropFilter: 'blur(28px) saturate(180%) brightness(0.96)',
-          WebkitBackdropFilter: 'blur(28px) saturate(180%) brightness(0.96)',
-          // Bottom border refinado — línea de luz, no de separación
-          borderBottom: '0.5px solid rgba(255, 230, 180, 0.08)',
-          boxShadow: '0 1px 0 rgba(255,230,180,0.05), 0 4px 24px rgba(0,0,0,0.18)',
+          // Safe area top — iPhone notch/Dynamic Island
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          // Frosted glass — el blur actúa sobre el contenido que pasa detrás
+          background: 'rgba(12, 10, 9, 0.55)',
+          backdropFilter: 'blur(32px) saturate(200%) brightness(0.94)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%) brightness(0.94)',
+          // Borde inferior: línea de luz, no separador duro
+          borderBottom: '0.5px solid rgba(255,230,180,0.09)',
+          // Sombra: difusa y profunda para separar del contenido
+          boxShadow: '0 0.5px 0 rgba(255,230,180,0.07), 0 8px 32px rgba(0,0,0,0.28)',
         }}>
-          {/* Tint amber muy sutil — da personalidad sin dominar */}
+          {/* Tint amber — personalidad GRAW, máximo 5% para no tapar el blur */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: 'linear-gradient(180deg, rgba(232,146,74,0.04) 0%, rgba(232,146,74,0.01) 100%)',
+            background: 'linear-gradient(180deg, rgba(232,146,74,0.055) 0%, rgba(232,146,74,0.015) 100%)',
           }}/>
 
-          {/* Inner highlight en el top edge — efecto glass real */}
+          {/* Top edge highlight — simula el borde superior del cristal */}
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0,
-            height: 1, pointerEvents: 'none',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,230,180,0.18) 30%, rgba(255,230,180,0.22) 50%, rgba(255,230,180,0.18) 70%, transparent 100%)',
+            height: '1px', pointerEvents: 'none',
+            background: 'linear-gradient(90deg, transparent 5%, rgba(255,235,200,0.20) 25%, rgba(255,240,210,0.28) 50%, rgba(255,235,200,0.20) 75%, transparent 95%)',
+          }}/>
+
+          {/* Bottom edge — línea de separación muy sutil */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: '0.5px', pointerEvents: 'none',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,230,180,0.12) 20%, rgba(255,230,180,0.16) 50%, rgba(255,230,180,0.12) 80%, transparent 100%)',
           }}/>
 
           {/* Content row */}
@@ -341,24 +356,20 @@ export default function App() {
               }}>GRAW</span>
             </div>
 
-            {/* Right: avatar pill — glass tinted */}
+            {/* Right: avatar pill */}
             <button
               onClick={() => handleTabChange('profile')}
               className="pressable"
               style={{
                 height: 34, minWidth: 34,
                 borderRadius: 17,
-                background: 'rgba(232,146,74,0.10)',
-                border: '1px solid rgba(232,146,74,0.24)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-                boxShadow: '0 0 0 3px rgba(232,146,74,0.06), inset 0 1px 0 rgba(255,230,180,0.12)',
+                background: 'rgba(232,146,74,0.11)',
+                border: '0.5px solid rgba(232,146,74,0.28)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 15, fontWeight: 700, color: '#E8924A',
                 flexShrink: 0,
-                padding: '0 2px',
-                transition: 'box-shadow 0.2s ease, background 0.2s ease',
+                boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.10), 0 0 0 2.5px rgba(232,146,74,0.07)',
               }}
             >
               <span style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -367,6 +378,12 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        {/* Spacer que empuja el contenido debajo del header fixed */}
+        <div style={{
+          flexShrink: 0,
+          height: 'calc(54px + env(safe-area-inset-top, 0px))',
+        }}/>
 
         {/* Tab content */}
         <div style={{ flex: 1, position: 'relative', paddingBottom: 'var(--nav-h)' }}>
