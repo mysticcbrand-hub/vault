@@ -2,49 +2,46 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const DAILY_QUOTES = [
-  { text: "La consistencia vence al talento cuando el talento no es consistente." },
-  { text: "No cuentes los días. Haz que los días cuenten." },
-  { text: "El dolor que sientes hoy es la fuerza que sentirás mañana." },
-  { text: "Un rep más. Siempre hay un rep más." },
-  { text: "Los campeones se construyen cuando nadie está mirando." },
-  { text: "No entrenes para verte bien en el espejo. Entrena para ser irrompible." },
-  { text: "La diferencia entre quien eres y quien quieres ser está en lo que haces." },
-  { text: "El cuerpo logra lo que la mente cree." },
-  { text: "Cada vez que levantaste cuando no querías — eso te define." },
-  { text: "No busques el día perfecto. Haz el día perfecto." },
-  { text: "La disciplina es elegir entre lo que quieres ahora y lo que quieres más." },
-  { text: "La fuerza no viene de ganar. Viene de las veces que no te rendiste." },
-  { text: "Sé el atleta que tu yo de hace un año no podría creer que serías." },
-  { text: "El esfuerzo que nadie ve produce los resultados que todos quieren." },
-  { text: "Pequeño progreso cada día suma grandes resultados." },
-  { text: "No te rindas. El comienzo siempre es lo más difícil." },
-  { text: "Tu único competidor eres tú ayer." },
-  { text: "La motivación te arranca. El hábito te mantiene." },
-  { text: "Haz hoy lo que otros no harán. Vive mañana como otros no podrán." },
-  { text: "No hay atajos hacia ningún lugar que valga la pena." },
-  { text: "Carga el peso. Afronta el día." },
-  { text: "Cada serie es una promesa que te haces a ti mismo." },
-  { text: "El gym no te cambia el cuerpo. Te cambia la mente." },
-  { text: "Entrena duro, recupera bien, repite siempre." },
-  { text: "Lo que hagas en los momentos difíciles define lo que serás." },
-  { text: "La única mala sesión es la que no existe." },
-  { text: "Más fuerte que ayer. Más sabio que siempre." },
-  { text: "El hierro no miente. Solo revela." },
-  { text: "Cada día es otra oportunidad de ser mejor." },
-  { text: "Construye el cuerpo. Forja el carácter." },
-  { text: "La grandeza no se ruega. Se trabaja." },
+  "El hierro no miente. Tú sí puedes.",
+  "Nadie recuerda el día que descansaron de más.",
+  "Duele ahora. Pesa menos después.",
+  "El que para, oxida.",
+  "Hoy no. Mañana tampoco. Siempre.",
+  "Lo que no te mata, te hace más grande.",
+  "Cada kilo levantado es una deuda saldada contigo mismo.",
+  "No viniste aquí a sobrevivir.",
+  "El cuerpo sigue. La cabeza se rinde primero.",
+  "Entrenas cuando quieres. Mejoras cuando no quieres.",
+  "La barra no negocia.",
+  "Un día más. Un rep más. Sin excusas.",
+  "La consistencia es la única trampa que funciona.",
+  "El progreso no avisa. Aparece.",
+  "Nadie te regaló el físico que tienes. Ni el que quieres.",
+  "Pesa el esfuerzo, no la opinión.",
+  "Los que paran siempre tienen una razón. Los que siguen, también.",
+  "Tu récord de ayer es tu mínimo de hoy.",
+  "El gym perdona todo menos la ausencia.",
+  "Primero el hábito. Luego la identidad.",
+  "No es motivación. Es obligación contigo mismo.",
+  "Cada sesión es un voto por quien quieres ser.",
+  "Más peso. Menos ruido.",
+  "El músculo se construye en el límite, no en la comodidad.",
+  "Hay días que no apetece. Son los que más cuentan.",
+  "La fuerza no se hereda. Se fabrica.",
+  "Sal mejor de lo que entraste.",
+  "El dolor de hoy es el orgullo de mañana.",
+  "Tres series más y ya eres otro.",
+  "Trabaja en silencio. Los resultados hacen ruido solos.",
 ]
 
 function getDailyQuote() {
   const now = new Date()
-  const dayOfYear = Math.floor(
-    (now - new Date(now.getFullYear(), 0, 0)) / 86400000
-  )
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000)
   return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length]
 }
 
-// Inline canonical G mark — always crisp, no img/network dependency
-function GrawMark({ size = 88 }) {
+// G mark inline — sin fondo opaco, solo el mark puro sobre glass
+function GrawMark({ size = 96 }) {
   return (
     <svg
       width={size}
@@ -52,38 +49,25 @@ function GrawMark({ size = 88 }) {
       viewBox="0 0 512 512"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ display: 'block', flexShrink: 0 }}
+      style={{ display: 'block' }}
     >
       <defs>
-        <radialGradient id="sp_mesh1" cx="0" cy="0" r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="translate(150 140) rotate(45) scale(280)">
-          <stop offset="0" stopColor="#E8924A" stopOpacity="0.22"/>
-          <stop offset="1" stopColor="#0C0A09" stopOpacity="0"/>
-        </radialGradient>
-        <radialGradient id="sp_mesh2" cx="0" cy="0" r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="translate(372 300) rotate(20) scale(280)">
-          <stop offset="0" stopColor="#A37FD4" stopOpacity="0.18"/>
-          <stop offset="1" stopColor="#0C0A09" stopOpacity="0"/>
-        </radialGradient>
-        <radialGradient id="sp_mesh3" cx="0" cy="0" r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="translate(280 420) rotate(0) scale(260)">
-          <stop offset="0" stopColor="#E8924A" stopOpacity="0.14"/>
-          <stop offset="1" stopColor="#0C0A09" stopOpacity="0"/>
-        </radialGradient>
         <linearGradient id="sp_ring" x1="120" y1="140" x2="392" y2="372" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor="#F0A55E"/>
           <stop offset="1" stopColor="#C9712D"/>
         </linearGradient>
+        <radialGradient id="sp_glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#E8924A" stopOpacity="0.18"/>
+          <stop offset="1" stopColor="#E8924A" stopOpacity="0"/>
+        </radialGradient>
       </defs>
-      <rect width="512" height="512" rx="115" fill="#0C0A09"/>
-      <rect width="512" height="512" rx="115" fill="url(#sp_mesh1)"/>
-      <rect width="512" height="512" rx="115" fill="url(#sp_mesh2)"/>
-      <rect width="512" height="512" rx="115" fill="url(#sp_mesh3)"/>
-      <circle cx="256" cy="256" r="82" stroke="#E8924A" strokeOpacity="0.15" strokeWidth="12"/>
+      {/* Soft background glow inside the mark */}
+      <circle cx="256" cy="256" r="200" fill="url(#sp_glow)"/>
+      {/* Inner subtle ring */}
+      <circle cx="256" cy="256" r="82" stroke="#E8924A" strokeOpacity="0.2" strokeWidth="10"/>
+      {/* Main G ring */}
       <circle cx="256" cy="256" r="110" stroke="url(#sp_ring)" strokeWidth="34" strokeLinecap="round"/>
+      {/* G cut bar */}
       <rect x="304" y="240" width="76" height="24" rx="12" fill="url(#sp_ring)"/>
     </svg>
   )
@@ -92,17 +76,17 @@ function GrawMark({ size = 88 }) {
 const SETTLE = [0.32, 0.72, 0, 1]
 const BOUNCE = [0.34, 1.56, 0.64, 1]
 
-const MIN_DISPLAY_MS = 2600
-const QUOTE_APPEAR_DELAY = 700
+const MIN_DISPLAY_MS = 2800
+const QUOTE_APPEAR_DELAY = 900
 
 export function SplashScreen({ onComplete }) {
-  const [phase, setPhase] = useState('enter') // 'enter' → 'quote' → 'exit'
+  const [phase, setPhase] = useState('enter')
   const quote = getDailyQuote()
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase('quote'), QUOTE_APPEAR_DELAY)
     const t2 = setTimeout(() => setPhase('exit'), MIN_DISPLAY_MS)
-    const t3 = setTimeout(onComplete, MIN_DISPLAY_MS + 620)
+    const t3 = setTimeout(onComplete, MIN_DISPLAY_MS + 650)
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [onComplete])
 
@@ -111,8 +95,11 @@ export function SplashScreen({ onComplete }) {
   return (
     <motion.div
       initial={{ opacity: 1 }}
-      animate={{ opacity: isExiting ? 0 : 1, filter: isExiting ? 'blur(12px)' : 'blur(0px)' }}
-      transition={{ duration: 0.6, ease: SETTLE }}
+      animate={{
+        opacity: isExiting ? 0 : 1,
+        filter: isExiting ? 'blur(10px)' : 'blur(0px)',
+      }}
+      transition={{ duration: 0.65, ease: SETTLE }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -125,130 +112,135 @@ export function SplashScreen({ onComplete }) {
         overflow: 'hidden',
       }}
     >
-      {/* ── Background ambient glow ── */}
+      {/* ── Ambient orb principal — amber ── */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.6 }}
+        initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.4, ease: SETTLE }}
+        transition={{ duration: 1.6, ease: SETTLE }}
         style={{
           position: 'absolute',
-          width: 480,
-          height: 480,
+          width: 520,
+          height: 520,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(232,146,74,0.13) 0%, transparent 68%)',
+          background: 'radial-gradient(circle, rgba(232,146,74,0.14) 0%, rgba(232,146,74,0.04) 50%, transparent 70%)',
           top: '50%',
           left: '50%',
-          transform: 'translate(-50%, -58%)',
+          transform: 'translate(-50%, -54%)',
           pointerEvents: 'none',
         }}
       />
-      {/* Secondary purple ambient */}
+      {/* ── Orb secundario — violeta frio ── */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1.8, delay: 0.3, ease: SETTLE }}
+        transition={{ duration: 2.2, delay: 0.4, ease: SETTLE }}
         style={{
           position: 'absolute',
-          width: 320,
-          height: 320,
+          width: 340,
+          height: 340,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(163,127,212,0.08) 0%, transparent 70%)',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-20%, -30%)',
+          background: 'radial-gradient(circle, rgba(163,127,212,0.09) 0%, transparent 70%)',
+          bottom: '20%',
+          right: '-5%',
           pointerEvents: 'none',
         }}
       />
 
-      {/* ── Glass card ── */}
+      {/* ══ GLASS CARD ══ */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.78, y: 24 }}
+        initial={{ opacity: 0, scale: 0.80, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.62, delay: 0.08, ease: BOUNCE }}
+        transition={{ duration: 0.58, delay: 0.06, ease: BOUNCE }}
         style={{
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 20,
-          padding: '36px 40px 32px',
-          borderRadius: 32,
-          // Glassmorphism
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.065) 0%, rgba(255,255,255,0.022) 100%)',
-          backdropFilter: 'blur(28px) saturate(1.4)',
-          WebkitBackdropFilter: 'blur(28px) saturate(1.4)',
-          border: '1px solid rgba(232,146,74,0.18)',
-          boxShadow: `
-            0 0 0 1px rgba(255,235,200,0.06) inset,
-            0 1px 0 0 rgba(255,235,200,0.10) inset,
-            0 32px 64px rgba(0,0,0,0.55),
-            0 0 80px rgba(232,146,74,0.08)
-          `,
-          marginBottom: 48,
+          gap: 22,
+          padding: '40px 44px 34px',
+          borderRadius: 36,
+          /* Glassmorphism real */
+          background: 'linear-gradient(160deg, rgba(255,255,255,0.072) 0%, rgba(255,255,255,0.018) 100%)',
+          backdropFilter: 'blur(32px) saturate(1.5)',
+          WebkitBackdropFilter: 'blur(32px) saturate(1.5)',
+          border: '1px solid rgba(232,146,74,0.22)',
+          boxShadow: [
+            '0 0 0 1px rgba(255,230,180,0.07) inset',
+            '0 1.5px 0 0 rgba(255,230,180,0.12) inset',
+            '0 28px 56px rgba(0,0,0,0.6)',
+            '0 0 100px rgba(232,146,74,0.07)',
+          ].join(', '),
+          marginBottom: 44,
+          /* Shimmer via mask — no overflow issues */
+          overflow: 'hidden',
         }}
       >
-        {/* Shimmer sweep on enter */}
+        {/* ── Shimmer sweep — contenido dentro del overflow:hidden de la card ── */}
         <motion.div
-          initial={{ x: '-110%', opacity: 0.7 }}
-          animate={{ x: '110%', opacity: 0 }}
-          transition={{ duration: 0.9, delay: 0.35, ease: [0.4, 0, 0.2, 1] }}
+          initial={{ x: '-180%' }}
+          animate={{ x: '180%' }}
+          transition={{ duration: 1.1, delay: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
           style={{
             position: 'absolute',
-            inset: 0,
-            borderRadius: 32,
-            background: 'linear-gradient(105deg, transparent 30%, rgba(255,235,200,0.10) 50%, transparent 70%)',
+            top: 0,
+            bottom: 0,
+            width: '55%',
+            background: 'linear-gradient(105deg, transparent 0%, rgba(255,230,180,0.11) 50%, transparent 100%)',
             pointerEvents: 'none',
-            overflow: 'hidden',
+            zIndex: 10,
           }}
         />
 
-        {/* G mark — pulsing glow ring */}
-        <div style={{ position: 'relative' }}>
-          {/* Outer glow pulse */}
+        {/* ── G Mark con pulsing glow ── */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Glow respirando — capa exterior */}
           <motion.div
-            animate={{ opacity: [0.35, 0.65, 0.35], scale: [1, 1.08, 1] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+            animate={{ opacity: [0.4, 0.75, 0.4], scale: [1, 1.12, 1] }}
+            transition={{ duration: 3.0, repeat: Infinity, ease: 'easeInOut', repeatType: 'mirror' }}
             style={{
               position: 'absolute',
-              inset: -14,
+              width: 140,
+              height: 140,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(232,146,74,0.22) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(232,146,74,0.28) 0%, transparent 68%)',
               pointerEvents: 'none',
             }}
           />
-          {/* Inner crisp glow ring */}
+          {/* Glow interior más nítido */}
           <motion.div
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+            animate={{ opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 3.0, repeat: Infinity, ease: 'easeInOut', delay: 0.5, repeatType: 'mirror' }}
             style={{
               position: 'absolute',
-              inset: -4,
+              width: 108,
+              height: 108,
               borderRadius: '50%',
-              boxShadow: '0 0 24px rgba(232,146,74,0.28)',
+              boxShadow: '0 0 32px rgba(232,146,74,0.32)',
               pointerEvents: 'none',
             }}
           />
-          {/* The mark itself */}
+          {/* El mark mismo */}
           <motion.div
-            initial={{ scale: 0.72, opacity: 0, rotate: -8 }}
+            initial={{ scale: 0.65, opacity: 0, rotate: -12 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 0.58, delay: 0.18, ease: BOUNCE }}
+            transition={{ duration: 0.62, delay: 0.14, ease: BOUNCE }}
           >
-            <GrawMark size={96} />
+            <GrawMark size={100} />
           </motion.div>
         </div>
 
-        {/* Wordmark */}
+        {/* ── Wordmark + tagline ── */}
         <motion.div
-          initial={{ opacity: 0, y: 10, filter: 'blur(6px)' }}
+          initial={{ opacity: 0, y: 12, filter: 'blur(8px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          transition={{ duration: 0.46, delay: 0.44, ease: SETTLE }}
+          transition={{ duration: 0.5, delay: 0.42, ease: SETTLE }}
           style={{ textAlign: 'center' }}
         >
+          {/* GRAW */}
           <div style={{
-            fontSize: 26,
+            fontSize: 28,
             fontWeight: 800,
-            letterSpacing: '0.2em',
+            letterSpacing: '0.22em',
             color: '#F5EFE6',
             textTransform: 'uppercase',
             fontFamily: 'DM Sans, sans-serif',
@@ -256,72 +248,81 @@ export function SplashScreen({ onComplete }) {
           }}>
             GRAW
           </div>
+
+          {/* Separador amber */}
           <motion.div
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ duration: 0.38, delay: 0.62, ease: SETTLE }}
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.60, ease: SETTLE }}
             style={{
-              marginTop: 8,
-              fontSize: 10.5,
-              fontWeight: 500,
-              letterSpacing: '0.28em',
-              color: 'rgba(232,146,74,0.7)',
+              height: 1,
+              width: 28,
+              background: 'linear-gradient(90deg, transparent, rgba(232,146,74,0.6), transparent)',
+              margin: '10px auto 9px',
+              borderRadius: 1,
+            }}
+          />
+
+          {/* Tagline en castellano — bold, directo */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.38, delay: 0.68, ease: SETTLE }}
+            style={{
+              fontSize: 9.5,
+              fontWeight: 600,
+              letterSpacing: '0.32em',
+              color: 'rgba(232,146,74,0.72)',
               textTransform: 'uppercase',
               fontFamily: 'DM Mono, monospace',
             }}
           >
-            Track the weight
+            Pesa más. Sé más.
           </motion.div>
         </motion.div>
       </motion.div>
 
-      {/* ── Daily quote ── */}
+      {/* ── Quote diaria ── */}
       <AnimatePresence>
         {phase === 'quote' && (
           <motion.div
             key="quote"
-            initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+            initial={{ opacity: 0, y: 18, filter: 'blur(12px)' }}
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-            transition={{ duration: 0.54, ease: SETTLE }}
+            exit={{ opacity: 0, filter: 'blur(6px)' }}
+            transition={{ duration: 0.56, ease: SETTLE }}
             style={{
               position: 'absolute',
-              bottom: 'max(env(safe-area-inset-bottom, 0px), 52px)',
+              bottom: 'max(env(safe-area-inset-bottom, 0px), 56px)',
               left: 40,
               right: 40,
               textAlign: 'center',
             }}
           >
-            <div style={{
-              width: 24, height: 1.5,
-              background: 'linear-gradient(90deg, transparent, rgba(232,146,74,0.5), transparent)',
-              borderRadius: 1,
-              margin: '0 auto 16px',
-            }} />
             <p style={{
-              fontSize: 12.5,
-              fontWeight: 400,
+              fontSize: 13,
+              fontWeight: 500,
               fontStyle: 'italic',
-              color: 'rgba(245,239,230,0.45)',
-              lineHeight: 1.7,
-              letterSpacing: '0.015em',
+              color: 'rgba(245,239,230,0.42)',
+              lineHeight: 1.65,
+              letterSpacing: '0.01em',
               margin: 0,
               fontFamily: 'DM Sans, sans-serif',
             }}>
-              "{quote.text}"
+              "{quote}"
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Loading dots ── */}
+      {/* ── Dots de carga ── */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === 'enter' ? 0 : 0.5 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
         style={{
           position: 'absolute',
-          bottom: 'max(env(safe-area-inset-bottom, 0px), 24px)',
+          bottom: 'max(env(safe-area-inset-bottom, 0px), 26px)',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
@@ -332,18 +333,17 @@ export function SplashScreen({ onComplete }) {
         {[0, 1, 2].map(i => (
           <motion.div
             key={i}
-            animate={{
-              opacity: [0.2, 1, 0.2],
-              scale: [0.8, 1.2, 0.8],
-            }}
+            animate={{ opacity: [0.18, 1, 0.18], scale: [0.75, 1.25, 0.75] }}
             transition={{
-              duration: 1.2,
+              duration: 1.3,
               repeat: Infinity,
-              delay: i * 0.18,
+              delay: i * 0.2,
               ease: 'easeInOut',
+              repeatType: 'mirror',
             }}
             style={{
-              width: 4, height: 4,
+              width: 4,
+              height: 4,
               borderRadius: '50%',
               background: '#E8924A',
             }}
