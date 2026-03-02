@@ -266,7 +266,7 @@ export default function App() {
         display: 'flex', flexDirection: 'column',
         height: '100dvh', overflow: 'hidden',
         background: 'var(--bg)',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
+        // Sin paddingTop — el header fixed maneja la safe-area él solo
       }}>
         {/* Ambient background glow */}
         <div style={{
