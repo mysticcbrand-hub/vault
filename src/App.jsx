@@ -295,40 +295,77 @@ export default function App() {
         <ToastContainer />
         <BadgeUnlockToast />
 
-        {/* App header — GRAW mark + wordmark + avatar */}
+        {/* ══ App header — Frosted Glass premium ══ */}
         <div style={{
-          flexShrink: 0, height: 56,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 20px',
+          flexShrink: 0,
+          position: 'sticky',
+          top: 0,
+          zIndex: 80,
+          // Frosted glass base
+          background: 'rgba(12, 10, 9, 0.62)',
+          backdropFilter: 'blur(28px) saturate(180%) brightness(0.96)',
+          WebkitBackdropFilter: 'blur(28px) saturate(180%) brightness(0.96)',
+          // Bottom border refinado — línea de luz, no de separación
+          borderBottom: '0.5px solid rgba(255, 230, 180, 0.08)',
+          boxShadow: '0 1px 0 rgba(255,230,180,0.05), 0 4px 24px rgba(0,0,0,0.18)',
         }}>
-          {/* Left: GRAW mark + wordmark */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <GrawMark size={28} />
-            <span style={{
-              fontSize: 20, fontWeight: 800,
-              letterSpacing: '-0.04em',
-              color: 'var(--text)',
-              lineHeight: 1,
-            }}>GRAW</span>
-          </div>
+          {/* Tint amber muy sutil — da personalidad sin dominar */}
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            background: 'linear-gradient(180deg, rgba(232,146,74,0.04) 0%, rgba(232,146,74,0.01) 100%)',
+          }}/>
 
-          {/* Right: user avatar → navigates to Profile tab */}
-          <button
-            onClick={() => handleTabChange('profile')}
-            className="pressable"
-            style={{
-              width: 34, height: 34, borderRadius: '50%',
-              background: 'rgba(232,146,74,0.12)',
-              border: '1.5px solid rgba(232,146,74,0.28)',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, fontWeight: 700, color: '#E8924A',
-              flexShrink: 0,
-              transition: 'transform 0.15s ease',
-            }}
-          >
-            {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}
-          </button>
+          {/* Inner highlight en el top edge — efecto glass real */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0,
+            height: 1, pointerEvents: 'none',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,230,180,0.18) 30%, rgba(255,230,180,0.22) 50%, rgba(255,230,180,0.18) 70%, transparent 100%)',
+          }}/>
+
+          {/* Content row */}
+          <div style={{
+            height: 54,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 18px',
+            position: 'relative',
+          }}>
+            {/* Left: GRAW mark + wordmark */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <GrawMark size={30} />
+              <span style={{
+                fontSize: 19, fontWeight: 800,
+                letterSpacing: '-0.03em',
+                color: '#F5EFE6',
+                lineHeight: 1,
+                fontFamily: 'DM Sans, sans-serif',
+              }}>GRAW</span>
+            </div>
+
+            {/* Right: avatar pill — glass tinted */}
+            <button
+              onClick={() => handleTabChange('profile')}
+              className="pressable"
+              style={{
+                height: 34, minWidth: 34,
+                borderRadius: 17,
+                background: 'rgba(232,146,74,0.10)',
+                border: '1px solid rgba(232,146,74,0.24)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                boxShadow: '0 0 0 3px rgba(232,146,74,0.06), inset 0 1px 0 rgba(255,230,180,0.12)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 15, fontWeight: 700, color: '#E8924A',
+                flexShrink: 0,
+                padding: '0 2px',
+                transition: 'box-shadow 0.2s ease, background 0.2s ease',
+              }}
+            >
+              <span style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Tab content */}

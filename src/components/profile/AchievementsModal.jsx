@@ -8,38 +8,69 @@ import useStore from '../../store/index.js'
 import { calculateUserStats } from '../../utils/userStats.js'
 
 // ─── Flip animation config por rareza ────────────────────────────────────────
+// Filosofía: el flip debe sentirse como una moneda/chapa de metal real.
+// Aceleración rápida, deceleración larga y suave. Nunca mecánico.
 const FLIP_CONFIG = {
   common: {
-    rotations: 1,         // 1 vuelta
-    duration: 0.55,
-    ease: [0.32, 0.72, 0, 1],
-    scalePeak: 1.08,
+    // Flip limpio, directo. Como girar una moneda de cobre.
+    keyframes: [
+      { ry: 0,   scale: 1,    z: 0  },
+      { ry: 90,  scale: 0.92, z: 8  }, // punto muerto — se aplana
+      { ry: 180, scale: 1.06, z: 16 }, // emerge al otro lado — leve overshoot
+      { ry: 270, scale: 0.96, z: 8  }, // vuelta al centro
+      { ry: 360, scale: 1,    z: 0  }, // reposo
+    ],
+    duration: 0.78,
+    ease: [0.25, 0.1, 0.15, 1],
     glowOpacity: 0,
     burst: false,
   },
   rare: {
-    rotations: 1,
-    duration: 0.62,
-    ease: [0.16, 1, 0.3, 1],
-    scalePeak: 1.12,
-    glowOpacity: 0.35,
+    // Algo más vivo. Como una chapa de acero bruñido.
+    keyframes: [
+      { ry: 0,   scale: 1,    z: 0  },
+      { ry: 90,  scale: 0.88, z: 12 },
+      { ry: 180, scale: 1.10, z: 20 },
+      { ry: 270, scale: 0.94, z: 12 },
+      { ry: 360, scale: 1,    z: 0  },
+    ],
+    duration: 0.88,
+    ease: [0.22, 1, 0.2, 1],
+    glowOpacity: 0.4,
     burst: false,
   },
   epic: {
-    rotations: 1,
-    duration: 0.68,
-    ease: [0.16, 1, 0.3, 1],
-    scalePeak: 1.16,
-    glowOpacity: 0.55,
+    // Pesado y poderoso. Como una medalla de campeonato.
+    keyframes: [
+      { ry: 0,   scale: 1,    z: 0  },
+      { ry: 90,  scale: 0.84, z: 16 },
+      { ry: 180, scale: 1.14, z: 24 },
+      { ry: 270, scale: 0.92, z: 16 },
+      { ry: 360, scale: 1,    z: 0  },
+    ],
+    duration: 0.96,
+    ease: [0.22, 1, 0.18, 1],
+    glowOpacity: 0.65,
     burst: false,
   },
   legendary: {
-    rotations: 2,          // Doble vuelta completa
-    duration: 0.85,
-    ease: [0.16, 1, 0.3, 1],
-    scalePeak: 1.22,
+    // Doble flip. Primera vuelta rápida, segunda más lenta y solemne.
+    // Como una moneda de oro que gira dos veces antes de caer perfecta.
+    keyframes: [
+      { ry: 0,   scale: 1,    z: 0  },
+      { ry: 90,  scale: 0.82, z: 14 },
+      { ry: 180, scale: 1.18, z: 28 }, // primer peak
+      { ry: 270, scale: 0.88, z: 14 },
+      { ry: 360, scale: 1.04, z: 0  }, // micro-rebote entre vueltas
+      { ry: 450, scale: 0.90, z: 10 },
+      { ry: 540, scale: 1.22, z: 26 }, // segundo peak — más alto
+      { ry: 630, scale: 0.96, z: 10 },
+      { ry: 720, scale: 1,    z: 0  }, // reposo solemne
+    ],
+    duration: 1.4,
+    ease: [0.22, 1, 0.15, 1],
     glowOpacity: 1,
-    burst: true,           // Burst de partículas
+    burst: true,
   },
 }
 
@@ -260,38 +291,39 @@ function BadgeGridItem({ badge, unlocked, unlockedAt, stats, onTap }) {
   const [glowing,  setGlowing]  = useState(false)
 
   const handleTap = useCallback(async () => {
-    // Si ya está girando, ignora — no stack animaciones
     if (isFlipping.current) return
     isFlipping.current = true
 
-    // Glow flash al inicio
     if (cfg.glowOpacity > 0) setGlowing(true)
 
-    // Burst de partículas en legendario — dispara al inicio del flip
     if (cfg.burst) {
-      setBursting(true)
-      setTimeout(() => setBursting(false), 600)
+      // Burst al punto medio de la primera vuelta
+      setTimeout(() => {
+        setBursting(true)
+        setTimeout(() => setBursting(false), 700)
+      }, cfg.duration * 1000 * 0.3)
     }
 
-    // El flip: rotateY va de 0 → 360° × rotations
-    // scale sube al punto medio y vuelve
-    const totalDeg = 360 * cfg.rotations
+    // Extraer keyframes tipados
+    const kf = cfg.keyframes
+    const n  = kf.length
+    const times = kf.map((_, i) => i / (n - 1))
+
     await controls.start({
-      rotateY: [0, totalDeg / 2, totalDeg],
-      scale:   [1, cfg.scalePeak, 1],
+      rotateY:    kf.map(k => k.ry),
+      scale:      kf.map(k => k.scale),
+      translateZ: kf.map(k => k.z),
       transition: {
         duration: cfg.duration,
         ease: cfg.ease,
-        times: [0, 0.5, 1],
+        times,
       },
     })
 
-    // Reset rotateY a 0 sin animación para que el próximo tap funcione
-    controls.set({ rotateY: 0 })
+    controls.set({ rotateY: 0, scale: 1, translateZ: 0 })
     if (cfg.glowOpacity > 0) setGlowing(false)
     isFlipping.current = false
 
-    // Abre el detail sheet después del flip
     onTap(badge, unlockedAt)
   }, [controls, cfg, badge, unlockedAt, onTap])
 
