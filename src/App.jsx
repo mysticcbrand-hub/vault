@@ -295,95 +295,69 @@ export default function App() {
         <ToastContainer />
         <BadgeUnlockToast />
 
-        {/* ══ App header — Fixed Frosted Glass ══
-            CRÍTICO: fixed + z alto para que el backdrop-filter
-            vea el contenido de las tabs desplazándose detrás.
-            overflow:hidden en el padre mata sticky+backdrop-filter.
-        ══════════════════════════════════════════════════════ */}
+        {/* ══ App header — Frosted Glass ══ */}
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
+          top: 0, left: 0, right: 0,
           zIndex: 80,
-          // Safe area top — iPhone notch/Dynamic Island
           paddingTop: 'env(safe-area-inset-top, 0px)',
-          // Frosted glass — el blur actúa sobre el contenido que pasa detrás
-          background: 'rgba(12, 10, 9, 0.55)',
-          backdropFilter: 'blur(32px) saturate(200%) brightness(0.94)',
-          WebkitBackdropFilter: 'blur(32px) saturate(200%) brightness(0.94)',
-          // Borde inferior: línea de luz, no separador duro
-          borderBottom: '0.5px solid rgba(255,230,180,0.09)',
-          // Sombra: difusa y profunda para separar del contenido
-          boxShadow: '0 0.5px 0 rgba(255,230,180,0.07), 0 8px 32px rgba(0,0,0,0.28)',
+          // Glass: fondo muy transparente para que el blur tenga material
+          background: 'rgba(18, 14, 10, 0.72)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          isolation: 'isolate',
+          // Separador inferior sutil
+          boxShadow: '0 1px 0 rgba(255,235,200,0.08), 0 4px 20px rgba(0,0,0,0.3)',
         }}>
-          {/* Tint amber — personalidad GRAW, máximo 5% para no tapar el blur */}
+          {/* Tint amber — capa de color sin bloquear el blur */}
           <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: 'linear-gradient(180deg, rgba(232,146,74,0.055) 0%, rgba(232,146,74,0.015) 100%)',
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+            background: 'linear-gradient(180deg, rgba(232,146,74,0.06) 0%, transparent 100%)',
           }}/>
-
-          {/* Top edge highlight — simula el borde superior del cristal */}
+          {/* Top edge highlight — borde de luz del cristal */}
           <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0,
-            height: '1px', pointerEvents: 'none',
-            background: 'linear-gradient(90deg, transparent 5%, rgba(255,235,200,0.20) 25%, rgba(255,240,210,0.28) 50%, rgba(255,235,200,0.20) 75%, transparent 95%)',
+            position: 'absolute', top: 0, left: '10%', right: '10%',
+            height: '0.5px', pointerEvents: 'none', zIndex: 1,
+            background: 'linear-gradient(90deg, transparent, rgba(255,240,210,0.35) 40%, rgba(255,240,210,0.35) 60%, transparent)',
+            borderRadius: 1,
           }}/>
-
-          {/* Bottom edge — línea de separación muy sutil */}
+          {/* Content */}
           <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            height: '0.5px', pointerEvents: 'none',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,230,180,0.12) 20%, rgba(255,230,180,0.16) 50%, rgba(255,230,180,0.12) 80%, transparent 100%)',
-          }}/>
-
-          {/* Content row */}
-          <div style={{
-            height: 54,
+            position: 'relative', zIndex: 2,
+            height: 52,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 18px',
-            position: 'relative',
+            padding: '0 16px',
           }}>
-            {/* Left: GRAW mark + wordmark */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <GrawMark size={30} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GrawMark size={28} />
               <span style={{
-                fontSize: 19, fontWeight: 800,
-                letterSpacing: '-0.03em',
+                fontSize: 18, fontWeight: 800,
+                letterSpacing: '-0.02em',
                 color: '#F5EFE6',
-                lineHeight: 1,
                 fontFamily: 'DM Sans, sans-serif',
+                lineHeight: 1,
               }}>GRAW</span>
             </div>
-
-            {/* Right: avatar pill */}
             <button
               onClick={() => handleTabChange('profile')}
               className="pressable"
               style={{
-                height: 34, minWidth: 34,
-                borderRadius: 17,
-                background: 'rgba(232,146,74,0.11)',
-                border: '0.5px solid rgba(232,146,74,0.28)',
+                width: 32, height: 32, borderRadius: 16,
+                background: 'rgba(232,146,74,0.13)',
+                border: '0.5px solid rgba(232,146,74,0.30)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 15, fontWeight: 700, color: '#E8924A',
-                flexShrink: 0,
-                boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.10), 0 0 0 2.5px rgba(232,146,74,0.07)',
+                fontSize: 14, fontWeight: 700, color: '#E8924A',
+                boxShadow: 'inset 0 0.5px 0 rgba(255,235,200,0.15)',
               }}
             >
-              <span style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}
-              </span>
+              {user?.avatarEmoji || (user?.name || 'A').charAt(0).toUpperCase()}
             </button>
           </div>
         </div>
 
-        {/* Spacer que empuja el contenido debajo del header fixed */}
-        <div style={{
-          flexShrink: 0,
-          height: 'calc(54px + env(safe-area-inset-top, 0px))',
-        }}/>
+        {/* Spacer — altura exacta del header */}
+        <div style={{ flexShrink: 0, height: 'calc(52px + env(safe-area-inset-top, 0px))' }}/>
 
         {/* Tab content */}
         <div style={{ flex: 1, position: 'relative', paddingBottom: 'var(--nav-h)' }}>
