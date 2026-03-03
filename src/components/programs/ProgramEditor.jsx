@@ -8,6 +8,7 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { Plus, X, Search, Check, ChevronLeft, GripVertical, Dumbbell, Clock, Trash2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { Sheet, ConfirmDialog } from '../ui/Sheet.jsx'
+import { CreateExerciseSheet } from './CreateExerciseSheet.jsx'
 import { EXERCISES, MUSCLE_NAMES, ALL_MUSCLES } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
 import { useDragToReorder } from '../../hooks/useDragToReorder.js'
@@ -499,148 +500,7 @@ function DayNameInput({ value, onChange }) {
   )
 }
 
-// ─── CustomExerciseCreator ───────────────────────────────────────────────────
-function CustomExerciseCreator({ open, onClose, onCreated }) {
-  const [name, setName]           = useState('')
-  const [muscle, setMuscle]       = useState('')
-  const [equipment, setEquipment] = useState('barbell')
-  const [error, setError]         = useState('')
-  const saveCustomExercise        = useStore(s => s.saveCustomExercise)
-
-  useEffect(() => {
-    if (open) { setName(''); setMuscle(''); setEquipment('barbell'); setError('') }
-  }, [open])
-
-  const handleCreate = () => {
-    const trimmed = name.trim()
-    if (!trimmed || trimmed.length < 2) { setError('El nombre debe tener al menos 2 caracteres'); return }
-    if (!muscle) { setError('Selecciona un grupo muscular'); return }
-
-    const newEx = {
-      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
-      name: trimmed,
-      muscle,
-      equipment,
-      difficulty: 'principiante',
-      isCustom: true,
-    }
-
-    // Fuente de verdad: Zustand store (persiste en localStorage via middleware)
-    saveCustomExercise(newEx)
-    // Compatibilidad con legacy key
-    try {
-      const prev = JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]')
-      localStorage.setItem('graw_custom_exercises', JSON.stringify([...prev, newEx]))
-    } catch (e) {}
-
-    onCreated?.(newEx)
-    onClose?.()
-  }
-
-  if (!open) return null
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            key="cc-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={onClose}
-            style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(0,0,0,0.6)' }}
-          />
-          <motion.div
-            key="cc-sheet"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-            style={{
-              position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 121,
-              maxHeight: '88dvh', display: 'flex', flexDirection: 'column',
-              background: 'rgba(16,13,9,0.95)',
-              backdropFilter: 'blur(56px) saturate(220%)',
-              WebkitBackdropFilter: 'blur(56px) saturate(220%)',
-              borderRadius: '32px 32px 0 0',
-              boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1), 0 -4px 40px rgba(0,0,0,0.6)',
-            }}
-          >
-            <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '12px auto 0' }} />
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
-              <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 16, letterSpacing: '-0.02em' }}>Crear ejercicio propio</p>
-
-              <div style={{ marginBottom: 16 }}>
-                <p className="t-label" style={{ marginBottom: 8 }}>Nombre</p>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => { setName(e.target.value); setError('') }}
-                  placeholder="Ej: Curl con Cuerda"
-                  className="input"
-                  style={{ fontSize: 16 }}
-                  autoFocus
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <p className="t-label" style={{ marginBottom: 8 }}>Grupo muscular</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {ALL_MUSCLES.map(m => {
-                    const selected = muscle === m
-                    return (
-                      <button key={m} onClick={() => { setMuscle(m); setError('') }} className="pressable" style={{
-                        padding: '7px 13px', borderRadius: 'var(--r-pill)',
-                        background: selected ? 'rgba(232,146,74,0.14)' : 'var(--surface2)',
-                        border: `1px solid ${selected ? 'rgba(232,146,74,0.35)' : 'var(--border)'}`,
-                        color: selected ? '#E8924A' : 'var(--text2)',
-                        fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                      }}>
-                        {MUSCLE_NAMES[m]}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <p className="t-label" style={{ marginBottom: 8 }}>Equipamiento</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {EQUIPMENT_OPTIONS.map(eq => (
-                    <button key={eq.id} onClick={() => setEquipment(eq.id)} className="pressable" style={{
-                      padding: '7px 13px', borderRadius: 'var(--r-pill)',
-                      background: equipment === eq.id ? 'var(--accent-dim)' : 'var(--surface2)',
-                      border: `1px solid ${equipment === eq.id ? 'var(--accent-border)' : 'var(--border)'}`,
-                      color: equipment === eq.id ? 'var(--accent)' : 'var(--text2)',
-                      fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                    }}>
-                      {eq.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {error && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 12 }}>{error}</p>}
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={onClose} className="pressable" style={{ flex: 1, height: 52, borderRadius: 14, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-                  Cancelar
-                </button>
-                <button onClick={handleCreate} className="pressable" style={{ flex: 2, height: 52, borderRadius: 14, background: 'var(--accent)', border: 'none', color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-                  Crear ejercicio
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>,
-    document.body
-  )
-}
+// CreateExerciseSheet importado desde su propio archivo
 
 // ─── ExercisePickerSheet ──────────────────────────────────────────────────────
 function ExercisePickerSheet({ isOpen, onClose, onSelect }) {
@@ -695,6 +555,26 @@ function ExercisePickerSheet({ isOpen, onClose, onSelect }) {
 
   return (
     <Sheet isOpen={isOpen} onClose={() => { setQuery(''); setMuscleFilter('all'); onClose() }} size="full" title="Añadir ejercicio">
+
+      {/* ── Crear ejercicio propio — TOP, siempre visible ── */}
+      <button
+        onClick={() => setShowCreator(true)}
+        style={{
+          width: '100%', height: 44, marginBottom: 14,
+          borderRadius: 13,
+          border: '1px dashed rgba(232,146,74,0.35)',
+          background: 'rgba(232,146,74,0.06)',
+          color: '#E8924A', fontSize: 13, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          WebkitTapHighlightColor: 'transparent',
+          transition: 'background 0.15s ease',
+          flexShrink: 0,
+        }}
+      >
+        <Plus size={14} strokeWidth={2.5} /> Crear ejercicio personalizado
+      </button>
+
       {/* Search */}
       <div style={{ position: 'relative', marginBottom: 12 }}>
         <Search size={14} color="rgba(245,239,230,0.3)" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -821,24 +701,7 @@ function ExercisePickerSheet({ isOpen, onClose, onSelect }) {
         </div>
       )}
 
-      {/* Create custom exercise CTA */}
-      <button
-        onClick={() => setShowCreator(true)}
-        style={{
-          width: '100%', height: 48, marginTop: 8,
-          borderRadius: 14,
-          border: '1.5px dashed rgba(232,146,74,0.25)',
-          background: 'rgba(232,146,74,0.04)',
-          color: '#E8924A', fontSize: 13, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      >
-        <Plus size={14} /> Crear ejercicio propio
-      </button>
-
-      <CustomExerciseCreator
+      <CreateExerciseSheet
         open={showCreator}
         onClose={() => setShowCreator(false)}
         onCreated={(ex) => {
