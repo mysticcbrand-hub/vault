@@ -564,36 +564,42 @@ function DayCard({ day, isExpanded, onToggle, onUpdateName, onUpdateNotes, onAdd
 
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function ProgramEditor({ programId, onClose }) {
-  const {
-    programs, updateProgram, saveCustomProgram,
-    addToast,
-  } = useStore(s => ({
-    programs: s.programs,
-    updateProgram: s.updateProgram,
-    saveCustomProgram: s.saveCustomProgram,
-    addToast: s.addToast,
-  }))
-
-  const existing = programs.find(p => p.id === programId) || { id: programId || null, name: '', days: [], source: 'user' }
-  const [name, setName] = useState(existing.name || '')
-  const [days, setDays] = useState(
-    (existing.days || []).map(d => ({
-      id: d.id || uid(),
-      name: d.name || 'Día',
-      notes: d.notes || '',
-      exercises: (d.exercises || []).map(ex => ({
-        id: ex.id || uid(),
-        exerciseId: ex.exerciseId,
-        name: ex.name || EXERCISES.find(e => e.id === ex.exerciseId)?.name || 'Ejercicio',
-        muscle: ex.muscle || EXERCISES.find(e => e.id === ex.exerciseId)?.muscle || 'arms',
-        notes: ex.notes || '',
-        warmupSets: ex.warmupSets || [],
-        workingSets: ex.workingSets || [ { id: uid(), sets: 3, reps: 10, restSeconds: 120 } ],
-      }))
+function initDays(rawDays = []) {
+  return rawDays.map(d => ({
+    id: d.id || uid(),
+    name: d.name || 'Día',
+    notes: d.notes || '',
+    exercises: (d.exercises || []).map(ex => ({
+      id: ex.id || uid(),
+      exerciseId: ex.exerciseId,
+      name: ex.name || EXERCISES.find(e => e.id === ex.exerciseId)?.name || 'Ejercicio',
+      muscle: ex.muscle || EXERCISES.find(e => e.id === ex.exerciseId)?.muscle || 'arms',
+      notes: ex.notes || '',
+      warmupSets: ex.warmupSets || [],
+      workingSets: ex.workingSets?.length
+        ? ex.workingSets
+        : [{ id: uid(), sets: 3, reps: 10, restSeconds: 120 }],
     }))
+  }))
+}
+
+export function ProgramEditor({ programId, onClose }) {
+  // Selectors individuales — evita objeto nuevo en cada render
+  const programs        = useStore(s => s.programs)
+  const updateProgram   = useStore(s => s.updateProgram)
+  const saveCustomProgram = useStore(s => s.saveCustomProgram)
+  const addToast        = useStore(s => s.addToast)
+
+  // Inicialización estable — useMemo para no recalcular en cada render
+  const existing = useMemo(
+    () => programs.find(p => p.id === programId) ?? { id: null, name: '', days: [] },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // Solo al montar — programId no cambia durante la sesión de edición
   )
-  const [expandedDayId, setExpandedDayId] = useState(days[0]?.id || null)
+
+  const [name, setName] = useState(() => existing.name || '')
+  const [days, setDays] = useState(() => initDays(existing.days))
+  const [expandedDayId, setExpandedDayId] = useState(() => initDays(existing.days)[0]?.id || null)
   const [expandedExerciseId, setExpandedExerciseId] = useState(null)
   const [showPickerDay, setShowPickerDay] = useState(null)
 
