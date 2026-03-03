@@ -100,7 +100,7 @@ export function CreateExerciseSheet({ open, onClose, onCreated }) {
             transition={{ duration: 0.2 }}
             onClick={onClose}
             style={{
-              position: 'fixed', inset: 0, zIndex: 200,
+              position: 'fixed', inset: 0, zIndex: 1100,
               background: 'rgba(0,0,0,0.55)',
               backdropFilter: 'blur(2px)',
               WebkitBackdropFilter: 'blur(2px)',
@@ -115,7 +115,7 @@ export function CreateExerciseSheet({ open, onClose, onCreated }) {
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 42, mass: 1 }}
             style={{
-              position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 201,
+              position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1101,
               maxHeight: '92dvh',
               display: 'flex', flexDirection: 'column',
               background: 'rgba(14,11,8,0.97)',
