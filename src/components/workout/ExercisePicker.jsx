@@ -289,6 +289,24 @@ export function ExercisePicker({ open, onClose, onSelect }) {
 
         {/* Exercise list */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
+
+          {/* ── Crear ejercicio — siempre visible al TOP ── */}
+          <button
+            onClick={() => setShowCreator(true)}
+            className="pressable"
+            style={{
+              width: 'calc(100% - 32px)', margin: '12px 16px 4px',
+              padding: '12px 16px', borderRadius: 14,
+              border: '1px dashed rgba(232,146,74,0.35)',
+              background: 'rgba(232,146,74,0.06)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              cursor: 'pointer',
+            }}
+          >
+            <Plus size={15} color="var(--accent)" strokeWidth={2.5}/>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>Crear ejercicio personalizado</span>
+          </button>
+
           {Object.keys(grouped).length === 0 ? (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
               <p style={{ fontSize: 14, color: 'var(--text3)' }}>Sin resultados. Prueba otro término.</p>

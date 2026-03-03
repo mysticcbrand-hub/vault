@@ -1,19 +1,23 @@
 import { useState, useRef, useCallback } from 'react'
 
 // ─── useDragToReorder ─────────────────────────────────────────────────────────
-// Y-position based engine. Works on iOS Safari.
-// Grip element fires longpress → card lifts.
-// onPointerMove on the CONTAINER reads clientY → computes slot from DOM rects.
-// No onPointerEnter — that breaks on touch.
+// FIX: drag ONLY from grip handle, scroll works everywhere else.
+// - touchAction:'none' ONLY on the grip handle element
+// - Container uses touchAction:'pan-y' unless drag is active
+// - Long press cancelled if pointer moves > 8px vertically (scroll intent)
 // ─────────────────────────────────────────────────────────────────────────────
 export function useDragToReorder({ onReorder }) {
-  const [dragIndex, setDragIndex]   = useState(null)
-  const [overIndex, setOverIndex]   = useState(null)
-  const [active, setActive]         = useState(false)
+  const [dragIndex, setDragIndex] = useState(null)
+  const [overIndex, setOverIndex] = useState(null)
+  const [active, setActive]       = useState(false)
 
-  const containerRef  = useRef(null)
-  const timerRef      = useRef(null)
-  const stateRef      = useRef({ dragIndex: null, overIndex: null, active: false })
+  const containerRef = useRef(null)
+  const timerRef     = useRef(null)
+  const stateRef     = useRef({ dragIndex: null, overIndex: null, active: false })
+  const startPos     = useRef({ x: 0, y: 0 })
+
+  const LONG_PRESS_MS        = 320
+  const SCROLL_CANCEL_PX     = 8
 
   const sync = (di, oi, a) => {
     stateRef.current = { dragIndex: di, overIndex: oi, active: a }
@@ -32,33 +36,48 @@ export function useDragToReorder({ onReorder }) {
     return Math.max(0, kids.length - 1)
   }
 
-  const cancel = useCallback(() => {
+  const cancelTimer = useCallback(() => {
     clearTimeout(timerRef.current)
     timerRef.current = null
   }, [])
 
-  // Grip pointerdown — start long press countdown
-  const gripDown = useCallback((index, e) => {
-    e.stopPropagation()
-    cancel()
-    timerRef.current = setTimeout(() => {
-      try { navigator.vibrate(45) } catch (_) {}
-      document.body.style.overflow = 'hidden'
-      sync(index, index, true)
-    }, 300)
-  }, [cancel])
-
-  // Grip pointerup before threshold — cancel
-  const gripUp = useCallback(() => {
-    cancel()
-    if (!stateRef.current.active) return
+  const commitDrop = useCallback(() => {
     const { dragIndex: di, overIndex: oi } = stateRef.current
     document.body.style.overflow = ''
     sync(null, null, false)
     if (di !== null && oi !== null && di !== oi) onReorder(di, oi)
-  }, [cancel, onReorder])
+  }, [onReorder])
 
-  // Container pointermove — drives the over-slot detection
+  // ── Grip handlers ─────────────────────────────────────────────
+  // touchAction:'none' is set inline on the grip element only
+  const gripDown = useCallback((index, e) => {
+    e.stopPropagation()
+    cancelTimer()
+    startPos.current = { x: e.clientX, y: e.clientY }
+
+    timerRef.current = setTimeout(() => {
+      try { navigator.vibrate(45) } catch (_) {}
+      document.body.style.overflow = 'hidden'
+      sync(index, index, true)
+    }, LONG_PRESS_MS)
+  }, [cancelTimer])
+
+  // Move on grip — cancel if user is scrolling
+  const gripMove = useCallback((e) => {
+    if (stateRef.current.active) return // already dragging, container handles it
+    if (!timerRef.current) return
+    const dy = Math.abs(e.clientY - startPos.current.y)
+    if (dy > SCROLL_CANCEL_PX) cancelTimer() // scroll intent → cancel drag
+  }, [cancelTimer])
+
+  const gripUp = useCallback(() => {
+    cancelTimer()
+    if (!stateRef.current.active) return
+    commitDrop()
+  }, [cancelTimer, commitDrop])
+
+  // ── Container handlers ────────────────────────────────────────
+  // Only active during drag — safe to preventDefault then
   const containerMove = useCallback((e) => {
     if (!stateRef.current.active) return
     e.preventDefault()
@@ -70,30 +89,36 @@ export function useDragToReorder({ onReorder }) {
     }
   }, [])
 
-  // Container pointerup/cancel — commit drop
   const containerUp = useCallback(() => {
     if (!stateRef.current.active) return
-    const { dragIndex: di, overIndex: oi } = stateRef.current
-    document.body.style.overflow = ''
-    sync(null, null, false)
-    if (di !== null && oi !== null && di !== oi) onReorder(di, oi)
-  }, [onReorder])
+    commitDrop()
+  }, [commitDrop])
 
   return {
     containerRef,
     dragIndex,
     overIndex,
     isDragging: active,
+    // Grip handlers — touchAction:none ONLY here
     gripHandlers: (index) => ({
-      onPointerDown: (e) => gripDown(index, e),
-      onPointerUp:   gripUp,
+      onPointerDown:   (e) => gripDown(index, e),
+      onPointerMove:   gripMove,
+      onPointerUp:     gripUp,
       onPointerCancel: gripUp,
-      style: { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' },
+      style: {
+        touchAction: 'none',       // ONLY grip blocks scroll
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        cursor: 'grab',
+      },
     }),
+    // Container handlers — pan-y unless actively dragging
     containerHandlers: {
       onPointerMove:   containerMove,
       onPointerUp:     containerUp,
       onPointerCancel: containerUp,
     },
+    // Expose active so container can set touchAction conditionally
+    isActive: active,
   }
 }

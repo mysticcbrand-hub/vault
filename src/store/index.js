@@ -53,12 +53,23 @@ const initialState = () => ({
   toasts: [],
   unlockedBadges: [],
   pendingBadgeToast: null,
+  customExercises: [],
 })
 
 const useStore = create(
   persist(
     (set, get) => ({
       ...initialState(),
+
+      // ── CUSTOM EXERCISES ──────────────────────────────────────────────────
+      saveCustomExercise: (exercise) => set(s => {
+        const list = [...(s.customExercises ?? []), exercise]
+        try { localStorage.setItem('graw_custom_exercises', JSON.stringify(list)) } catch (e) {}
+        return { customExercises: list }
+      }),
+      deleteCustomExercise: (id) => set(s => ({
+        customExercises: (s.customExercises ?? []).filter(e => e.id !== id),
+      })),
 
       // ── USER ──────────────────────────────────────────────────────────────
       updateUser: (data) => set(s => ({ user: { ...s.user, ...data } })),
@@ -456,6 +467,7 @@ const useStore = create(
         manualWeightLogs: state.manualWeightLogs,
         settings: state.settings,
         unlockedBadges: state.unlockedBadges,
+        customExercises: state.customExercises,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error('Failed to rehydrate store:', error)
