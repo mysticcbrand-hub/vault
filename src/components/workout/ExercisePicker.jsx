@@ -1,10 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, X, Check } from 'lucide-react'
-import { EXERCISES, MUSCLE_NAMES, ALL_MUSCLES, getAllExercises, getExerciseById } from '../../data/exercises.js'
+import { Search, Plus, X } from 'lucide-react'
+import { EXERCISES, MUSCLE_NAMES, ALL_MUSCLES } from '../../data/exercises.js'
 import { getMuscleVars } from '../../utils/format.js'
-import { Sheet } from '../layout/Sheet.jsx'
 import useStore from '../../store/index.js'
 
 // ─── Custom exercise creator ──────────────────────────────────────────────────
@@ -23,27 +22,33 @@ function CustomExerciseCreator({ open, onClose, onCreated }) {
   const [muscle, setMuscle]       = useState('')
   const [equipment, setEquipment] = useState('barbell')
   const [error, setError]         = useState('')
+  // Usar el store para persistencia real
+  const saveCustomExercise = useStore(s => s.saveCustomExercise)
 
   useEffect(() => {
     if (open) { setName(''); setMuscle(''); setEquipment('barbell'); setError('') }
   }, [open])
 
   const handleCreate = () => {
-    if (!name.trim() || name.trim().length < 2) { setError('El nombre debe tener al menos 2 caracteres'); return }
+    const trimmed = name.trim()
+    if (!trimmed || trimmed.length < 2) { setError('El nombre debe tener al menos 2 caracteres'); return }
     if (!muscle) { setError('Selecciona un grupo muscular'); return }
 
     const newEx = {
       id: `custom-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
-      name: name.trim(),
+      name: trimmed,
       muscle,
       equipment,
       difficulty: 'principiante',
       isCustom: true,
     }
 
+    // Persistir en store Zustand (que ya persiste en localStorage via persist middleware)
+    saveCustomExercise(newEx)
+    // También en la key legacy para compatibilidad
     try {
-      const existing = JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]')
-      localStorage.setItem('graw_custom_exercises', JSON.stringify([...existing, newEx]))
+      const prev = JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]')
+      localStorage.setItem('graw_custom_exercises', JSON.stringify([...prev, newEx]))
     } catch (e) {}
 
     onCreated(newEx)
@@ -150,25 +155,32 @@ function CustomExerciseCreator({ open, onClose, onCreated }) {
 export function ExercisePicker({ open, onClose, onSelect }) {
   const [search, setSearch] = useState('')
   const [filterMuscle, setFilterMuscle] = useState(null)
-  const [showCreator, setShowCreator] = useState(false)
+  const [showCreator, setShowCreator]           = useState(false)
   const [showAllDifficulty, setShowAllDifficulty] = useState(false)
-  const [customExercises, setCustomExercises] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]') } catch { return [] }
-  })
   const searchRef = useRef(null)
-  const user = useStore(s => s.user)
-  const userLevel = user?.level || 'avanzado'
+  const user            = useStore(s => s.user)
+  const storeCustom     = useStore(s => s.customExercises ?? [])
+  const deleteCustomExercise = useStore(s => s.deleteCustomExercise)
+  const userLevel       = user?.level || 'avanzado'
+
+  // Local mirror so we can add instantly without waiting for store re-render
+  const [localNew, setLocalNew] = useState([])
 
   // Reset on open
   useEffect(() => {
     if (open) {
       setSearch('')
       setFilterMuscle(null)
-      // Reload custom exercises
-      try { setCustomExercises(JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]')) } catch {}
+      setLocalNew([])
       setTimeout(() => searchRef.current?.focus(), 300)
     }
   }, [open])
+
+  // Merge store + any locally added this session (deduped by id)
+  const customExercises = useMemo(() => {
+    const ids = new Set(storeCustom.map(e => e.id))
+    return [...storeCustom, ...localNew.filter(e => !ids.has(e.id))]
+  }, [storeCustom, localNew])
 
   const allExercises = useMemo(() => [...EXERCISES, ...customExercises], [customExercises])
 
@@ -196,10 +208,14 @@ export function ExercisePicker({ open, onClose, onSelect }) {
   }, [filtered])
 
   const deleteCustom = (id) => {
+    // Eliminar del store (fuente de verdad)
+    deleteCustomExercise(id)
+    // Eliminar del mirror local si existe
+    setLocalNew(prev => prev.filter(e => e.id !== id))
+    // Limpiar legacy key también
     try {
-      const updated = customExercises.filter(e => e.id !== id)
-      localStorage.setItem('graw_custom_exercises', JSON.stringify(updated))
-      setCustomExercises(updated)
+      const prev = JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]')
+      localStorage.setItem('graw_custom_exercises', JSON.stringify(prev.filter(e => e.id !== id)))
     } catch {}
   }
 
@@ -364,23 +380,6 @@ export function ExercisePicker({ open, onClose, onSelect }) {
             })
           )}
 
-          {/* Create custom exercise CTA */}
-          <button
-            onClick={() => setShowCreator(true)}
-            className="pressable"
-            style={{
-              width: 'calc(100% - 40px)', margin: '12px 20px',
-              padding: '14px 16px', borderRadius: 'var(--r)',
-              border: '1.5px dashed rgba(232,146,74,0.25)',
-              background: 'rgba(232,146,74,0.04)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              cursor: 'pointer',
-            }}
-          >
-            <Plus size={16} color="var(--accent)" />
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>Crear ejercicio propio</span>
-          </button>
-
           <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
       </motion.div>
@@ -390,7 +389,9 @@ export function ExercisePicker({ open, onClose, onSelect }) {
         open={showCreator}
         onClose={() => setShowCreator(false)}
         onCreated={(ex) => {
-          setCustomExercises(prev => [...prev, ex])
+          // Añadir al mirror local para visibilidad inmediata
+          setLocalNew(prev => [...prev, ex])
+          // Seleccionar el ejercicio recién creado y cerrar
           onSelect(ex.id)
           setShowCreator(false)
           onClose()

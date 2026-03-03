@@ -236,7 +236,7 @@ function ExerciseCard({ exercise, index, onRemove, onUpdate, dragHandlers, isDra
         border: `0.5px solid ${isOver ? 'rgba(232,146,74,0.3)' : 'rgba(255,235,200,0.08)'}`,
         overflow: 'hidden',
         position: 'relative',
-        touchAction: 'none',
+        touchAction: 'pan-y',  // FIX: solo el grip bloquea scroll
       }}
     >
       {/* Muscle color left bar */}
@@ -501,42 +501,36 @@ function DayNameInput({ value, onChange }) {
 
 // ─── CustomExerciseCreator ───────────────────────────────────────────────────
 function CustomExerciseCreator({ open, onClose, onCreated }) {
-  const [name, setName] = useState('')
-  const [muscle, setMuscle] = useState('')
+  const [name, setName]           = useState('')
+  const [muscle, setMuscle]       = useState('')
   const [equipment, setEquipment] = useState('barbell')
-  const [error, setError] = useState('')
+  const [error, setError]         = useState('')
+  const saveCustomExercise        = useStore(s => s.saveCustomExercise)
 
   useEffect(() => {
-    if (open) {
-      setName('')
-      setMuscle('')
-      setEquipment('barbell')
-      setError('')
-    }
+    if (open) { setName(''); setMuscle(''); setEquipment('barbell'); setError('') }
   }, [open])
 
   const handleCreate = () => {
-    if (!name.trim() || name.trim().length < 2) {
-      setError('El nombre debe tener al menos 2 caracteres')
-      return
-    }
-    if (!muscle) {
-      setError('Selecciona un grupo muscular')
-      return
-    }
+    const trimmed = name.trim()
+    if (!trimmed || trimmed.length < 2) { setError('El nombre debe tener al menos 2 caracteres'); return }
+    if (!muscle) { setError('Selecciona un grupo muscular'); return }
 
     const newEx = {
       id: `custom-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
-      name: name.trim(),
+      name: trimmed,
       muscle,
       equipment,
       difficulty: 'principiante',
       isCustom: true,
     }
 
+    // Fuente de verdad: Zustand store (persiste en localStorage via middleware)
+    saveCustomExercise(newEx)
+    // Compatibilidad con legacy key
     try {
-      const existing = JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]')
-      localStorage.setItem('graw_custom_exercises', JSON.stringify([...existing, newEx]))
+      const prev = JSON.parse(localStorage.getItem('graw_custom_exercises') || '[]')
+      localStorage.setItem('graw_custom_exercises', JSON.stringify([...prev, newEx]))
     } catch (e) {}
 
     onCreated?.(newEx)
