@@ -1,3 +1,10 @@
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, X, Plus } from 'lucide-react'
+import { getExerciseById, EXERCISES, ALL_MUSCLES, MUSCLE_NAMES, getExercisesByMuscle } from '../../data/exercises.js'
+import { getMuscleVars } from '../../utils/format.js'
+import useStore from '../../store/index.js'
 import { CreateExerciseSheet } from '../programs/CreateExerciseSheet.jsx'
 
 // ─── Main ExercisePicker ──────────────────────────────────────────────────────

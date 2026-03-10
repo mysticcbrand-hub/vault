@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ── NUCLEAR BACKGROUNDS ─────────────────────────────────── */
 html,
 html body,
@@ -18,8 +20,6 @@ body[style],
 body[style*="overflow"] {
   background-color: #0C0A09 !important;
 }
-
-@import "tailwindcss";
 
 *, *::before, *::after {
   box-sizing: border-box;
