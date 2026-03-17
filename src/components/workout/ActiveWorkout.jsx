@@ -193,7 +193,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           const pct = exercises.length > 0 ? (completedEx / exercises.length) * 100 : 0
           const allExDone = completedEx === exercises.length && exercises.length > 0
           return (
-            <div style={{ position: 'fixed', top: 'env(safe-area-inset-top, 0px)', left: 0, right: 0, height: 2, zIndex: 200, background: 'rgba(255,235,200,0.06)' }}>
+            <div style={{ position: 'fixed', top: 3, left: 0, right: 0, height: 2, zIndex: 200, background: 'rgba(255,235,200,0.06)' }}>
               <div style={{
                 height: '100%',
                 width: `${pct}%`,
