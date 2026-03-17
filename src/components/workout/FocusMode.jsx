@@ -25,7 +25,7 @@ function formatElapsed(s) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-// ─── Progress bar + exercise dots pill ───────────────────────────────────────
+// ─── Progress bar (thin 2px line at top of screen) ───────────────────────────
 function WorkoutProgressBar({ exercises }) {
   const completed = exercises.filter(ex =>
     ex.sets?.length > 0 && ex.sets.every(s => s.completed)
@@ -35,86 +35,30 @@ function WorkoutProgressBar({ exercises }) {
   const allDone = completed === total && total > 0
 
   return (
-    <>
-      {/* Thin top progress line */}
-      <div style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0,
-        height: 2,
-        zIndex: 200,
-        background: 'rgba(255,235,200,0.06)',
-      }}>
-        <motion.div
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.55, ease: [0.32, 0.72, 0, 1] }}
-          style={{
-            position: 'absolute',
-            top: 0, left: 0, height: '100%',
-            background: allDone
-              ? '#34C77B'
-              : 'linear-gradient(90deg, #E8924A, #D4A843)',
-            boxShadow: allDone
-              ? '0 0 8px rgba(52,199,123,0.7)'
-              : '0 0 8px rgba(232,146,74,0.55)',
-            borderRadius: '0 2px 2px 0',
-            transition: 'background 0.4s ease',
-          }}
-        />
-      </div>
-
-      {/* Exercise dots pill */}
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0,
+      height: 2,
+      zIndex: 200,
+      background: 'rgba(255,235,200,0.06)',
+    }}>
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.55, ease: [0.32, 0.72, 0, 1] }}
         style={{
-          position: 'fixed',
-          top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 201,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 5,
-          height: 28,
-          padding: '0 12px',
-          borderRadius: 100,
-          background: 'rgba(12,10,9,0.88)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '0.5px solid rgba(255,235,200,0.1)',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          position: 'absolute',
+          top: 0, left: 0, height: '100%',
+          background: allDone
+            ? '#34C77B'
+            : 'linear-gradient(90deg, #E8924A, #D4A843)',
+          boxShadow: allDone
+            ? '0 0 8px rgba(52,199,123,0.7)'
+            : '0 0 8px rgba(232,146,74,0.55)',
+          borderRadius: '0 2px 2px 0',
+          transition: 'background 0.4s ease',
         }}
-      >
-        {exercises.map((ex, i) => {
-          const done = ex.sets?.length > 0 && ex.sets.every(s => s.completed)
-          const isCurrent = i === completed
-          return (
-            <motion.div
-              key={i}
-              animate={{
-                width: isCurrent ? 14 : 5,
-                background: done
-                  ? '#34C77B'
-                  : isCurrent
-                    ? '#E8924A'
-                    : 'rgba(255,235,200,0.18)',
-              }}
-              transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-              style={{ height: 5, borderRadius: 3, flexShrink: 0 }}
-            />
-          )
-        })}
-        <span style={{
-          fontSize: 10, fontWeight: 700,
-          color: 'rgba(245,239,230,0.5)',
-          marginLeft: 4,
-          fontFamily: 'DM Mono, monospace',
-        }}>
-          {completed}/{total}
-        </span>
-      </motion.div>
-    </>
+      />
+    </div>
   )
 }
 
