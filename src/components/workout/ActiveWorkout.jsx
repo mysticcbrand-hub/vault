@@ -187,33 +187,58 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
 
-        {/* ── Workout header — glassmorphism ── */}
+        {/* Progress bar — fixed at absolute top of screen */}
+        {(() => {
+          const completedEx = exercises.filter(e => e.sets?.length > 0 && e.sets.every(s => s.completed)).length
+          const pct = exercises.length > 0 ? (completedEx / exercises.length) * 100 : 0
+          const allExDone = completedEx === exercises.length && exercises.length > 0
+          return (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 2, zIndex: 200, background: 'rgba(255,235,200,0.06)' }}>
+              <div style={{
+                height: '100%',
+                width: `${pct}%`,
+                background: allExDone ? '#34C77B' : 'linear-gradient(90deg, #E8924A, #D4A843)',
+                boxShadow: allExDone ? '0 0 8px rgba(52,199,123,0.7)' : '0 0 8px rgba(232,146,74,0.55)',
+                borderRadius: '0 2px 2px 0',
+                transition: 'width 0.55s cubic-bezier(0.32,0.72,0,1), background 0.4s ease',
+              }} />
+            </div>
+          )
+        })()}
+
+        {/* ── Workout header — frosted glass ── */}
         <div style={{
           flexShrink: 0,
           position: 'sticky', top: 0, zIndex: 10,
-          background: 'rgba(10,8,6,0.88)',
-          backdropFilter: 'blur(40px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-          boxShadow: '0 1px 0 rgba(0,0,0,0.5)',
+          background: 'rgba(16,13,9,0.55)',
+          backdropFilter: 'blur(40px) saturate(220%) brightness(1.1)',
+          WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.1)',
+          borderBottom: '0.5px solid rgba(255,235,200,0.12)',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+          isolation: 'isolate',
+          overflow: 'hidden',
         }}>
-          {/* Progress bar — flush at top of header */}
-          {(() => {
-            const completedEx = exercises.filter(e => e.sets?.length > 0 && e.sets.every(s => s.completed)).length
-            const pct = exercises.length > 0 ? (completedEx / exercises.length) * 100 : 0
-            const allExDone = completedEx === exercises.length && exercises.length > 0
-            return (
-              <div style={{ height: 2, background: 'rgba(255,235,200,0.06)', width: '100%' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${pct}%`,
-                  background: allExDone ? '#34C77B' : 'linear-gradient(90deg, #E8924A, #D4A843)',
-                  boxShadow: allExDone ? '0 0 8px rgba(52,199,123,0.7)' : '0 0 8px rgba(232,146,74,0.55)',
-                  borderRadius: '0 2px 2px 0',
-                  transition: 'width 0.55s cubic-bezier(0.32,0.72,0,1), background 0.4s ease',
-                }} />
-              </div>
-            )
-          })()}
+          {/* Noise texture */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")`,
+            backgroundSize: '160px 160px',
+            mixBlendMode: 'soft-light',
+            opacity: 0.18,
+            pointerEvents: 'none',
+          }}/>
+          {/* Light sheen */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,245,225,0.25) 50%, transparent 100%)',
+            pointerEvents: 'none',
+          }}/>
+          {/* Amber tint */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(180deg, rgba(232,146,74,0.06) 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }}/>
           {/* Controls row */}
           <div style={{
             padding: '10px 16px',
