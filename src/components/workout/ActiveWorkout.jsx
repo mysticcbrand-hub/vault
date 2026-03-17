@@ -189,7 +189,9 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
 
         {/* Fixed header — glassmorphism */}
         <div style={{
-          flexShrink: 0, padding: '12px 16px',
+          flexShrink: 0,
+          padding: '12px 16px',
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
           display: 'flex', alignItems: 'center', gap: 12,
           position: 'sticky', top: 0, zIndex: 10,
           background: 'rgba(10,8,6,0.82)',
