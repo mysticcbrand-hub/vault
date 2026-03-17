@@ -148,11 +148,11 @@ export const ExerciseCard = memo(function ExerciseCard({
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: mv.color, flexShrink: 0, marginTop: 5 }} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {/* Exercise name — full width, no truncation competition */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {exData?.name || exercise.exerciseId}
             </p>
-            {/* Note indicator */}
             {exercise.note && (
               <StickyNote size={11} color="rgba(245,158,11,0.55)" style={{ flexShrink: 0 }} />
             )}
@@ -162,42 +162,46 @@ export const ExerciseCard = memo(function ExerciseCard({
               </button>
             )}
           </div>
-          {/* Última vez */}
-          {lastSession ? (
-            <p style={{
-              fontSize: 11, fontFamily: 'DM Mono, monospace',
-              color: beating ? 'var(--green)' : 'var(--text3)',
-              letterSpacing: '-0.01em',
+
+          {/* Meta row — muscle tag, rep range, last session */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{
+              fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
+              padding: '1.5px 5px', borderRadius: 4,
+              background: mv.dim, color: mv.color,
             }}>
-              {beating ? '↑ Superando · ' : 'Última: '}
-              {lastSession.sets.slice(0, 3).map(s => `${s.weight}×${s.reps}`).join(', ')}
-              {' · '}{relativeDate(lastSession.date)}
-            </p>
-          ) : (
-            <p style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'DM Mono, monospace' }}>
-              Primera vez — deja huella
-            </p>
-          )}
+              {MUSCLE_NAMES[exData?.muscle] || exData?.muscle}
+            </span>
+            {repRange && (
+              <span style={{
+                fontSize: 10, padding: '1.5px 5px', borderRadius: 4,
+                border: '0.5px solid var(--border2)',
+                color: repRange.color || 'var(--text3)',
+                background: 'transparent',
+                fontFamily: 'DM Mono, monospace', fontWeight: 600, whiteSpace: 'nowrap',
+              }}>
+                {repRange.range || repRange.label}
+              </span>
+            )}
+            {lastSession ? (
+              <span style={{
+                fontSize: 10.5, fontFamily: 'DM Mono, monospace',
+                color: beating ? 'var(--green)' : 'var(--text3)',
+                letterSpacing: '-0.01em',
+              }}>
+                {beating ? '↑ ' : ''}
+                {lastSession.sets.slice(0, 3).map(s => `${s.weight}×${s.reps}`).join(', ')}
+              </span>
+            ) : (
+              <span style={{ fontSize: 10.5, color: 'var(--text3)', fontFamily: 'DM Mono, monospace' }}>
+                Primera vez
+              </span>
+            )}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span className="muscle-pill" style={{ background: mv.dim, color: mv.color, border: `1px solid ${mv.color}22` }}>
-            {MUSCLE_NAMES[exData?.muscle] || exData?.muscle}
-          </span>
-
-          {repRange && (
-            <span style={{
-              fontSize: 10, padding: '2px 6px', borderRadius: 'var(--r-pill)',
-              border: '0.5px solid var(--border2)',
-              color: repRange.color || 'var(--text3)',
-              background: 'transparent',
-              fontFamily: 'DM Mono, monospace', fontWeight: 600, whiteSpace: 'nowrap',
-            }}>
-              {repRange.range || repRange.label}
-            </span>
-          )}
-
-          {/* Menu */}
+        {/* Menu */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, flexShrink: 0 }}>
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}

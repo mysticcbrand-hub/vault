@@ -91,20 +91,23 @@ function DaySelector({ program, sessions, selectedDayId, onSelectDay, templates 
                 padding: '14px 14px 12px',
                 borderRadius: 16,
                 background: isSelected
-                  ? 'rgba(255,255,255,0.10)'
-                  : 'rgba(255,255,255,0.04)',
+                  ? 'rgba(232,146,74,0.10)'
+                  : 'rgba(255,255,255,0.03)',
                 border: 'none',
                 borderTop: isSelected
                   ? '2px solid var(--accent)'
                   : '2px solid transparent',
                 outline: isSelected
-                  ? '0.5px solid rgba(255,255,255,0.15)'
+                  ? '0.5px solid rgba(232,146,74,0.25)'
                   : '0.5px solid rgba(255,255,255,0.06)',
                 cursor: 'pointer',
                 textAlign: 'left',
                 position: 'relative',
                 scrollSnapAlign: 'start',
-                transition: 'background 0.18s ease, border-color 0.18s ease, outline-color 0.18s ease',
+                boxShadow: isSelected
+                  ? 'inset 0 1px 0 rgba(255,235,200,0.08), 0 4px 16px rgba(232,146,74,0.12)'
+                  : 'none',
+                transition: 'background 0.2s ease, border-color 0.2s ease, outline-color 0.2s ease, box-shadow 0.2s ease',
               }}
             >
               {/* Suggested dot */}
@@ -483,15 +486,15 @@ export function WorkoutTab({ onSwitchTab }) {
         )}
       </div>
 
-      {/* ══ Pinned CTA — outside scroll, always visible ════════════════ */}
+      {/* ══ Pinned CTA — premium start button ════════════════════════ */}
       {selectedDay && selectedTemplate && (
         <div style={{
           position: 'absolute',
           bottom: 0, left: 0, right: 0,
-          paddingBottom: 'calc(var(--nav-h) + 8px)',
-          paddingTop: 20,
+          paddingBottom: 'calc(var(--nav-h) + 12px)',
+          paddingTop: 32,
           paddingLeft: 20, paddingRight: 20,
-          background: 'linear-gradient(to top, #0C0A09 40%, rgba(12,10,9,0.92) 70%, transparent 100%)',
+          background: 'linear-gradient(to top, var(--bg) 50%, rgba(12,10,9,0.95) 75%, transparent 100%)',
           pointerEvents: 'none',
           zIndex: 10,
         }}>
@@ -503,20 +506,30 @@ export function WorkoutTab({ onSwitchTab }) {
               name: selectedDay.name,
             })}
             style={{
-              width: '100%', height: 54,
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%)',
-              boxShadow: '0 6px 28px rgba(232,146,74,0.30)',
+              width: '100%', height: 58,
+              borderRadius: 18,
+              background: 'linear-gradient(135deg, #E8924A 0%, #D4803C 50%, #C06D2E 100%)',
+              boxShadow: '0 4px 20px rgba(232,146,74,0.35), inset 0 1px 0 rgba(255,235,200,0.30), inset 0 -1px 0 rgba(0,0,0,0.15)',
               border: 'none',
               cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               pointerEvents: 'auto',
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <Play size={16} color="#000" fill="#000" strokeWidth={2.5} />
+            {/* Inner light sheen */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 100%)',
+              borderRadius: '18px 18px 0 0',
+              pointerEvents: 'none',
+            }}/>
+            <Play size={17} color="#000" fill="#000" strokeWidth={2.5} style={{ position: 'relative' }} />
             <span style={{
-              fontSize: 16, fontWeight: 700,
+              fontSize: 16, fontWeight: 800,
               color: '#000', letterSpacing: '-0.02em',
+              position: 'relative',
             }}>
               Empezar · {selectedDay.name}
             </span>
