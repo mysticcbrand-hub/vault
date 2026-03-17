@@ -199,7 +199,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           {/* Controls row */}
           <div style={{
             padding: '10px 16px',
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)',
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)',
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
             <button onClick={() => setShowCancel(true)} className="pressable" style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, borderRadius: 10 }}>
