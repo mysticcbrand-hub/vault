@@ -141,6 +141,9 @@ export function ProfileTab() {
   const updateUser = useStore(s => s.updateUser)
   const updateSettings = useStore(s => s.updateSettings)
   const setActiveProgram = useStore(s => s.setActiveProgram)
+  const streakCurrentStreak = useStore(s => s.streakCurrentStreak)
+  const streakLongestStreak = useStore(s => s.streakLongestStreak)
+  const streakCompletedDays = useStore(s => s.streakCompletedDays)
 
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState(user?.name || '')
@@ -159,7 +162,7 @@ export function ProfileTab() {
   const statsRef = useRef(null)
   const [statsVisible, setStatsVisible] = useState(false)
 
-  const stats = useMemo(() => calculateUserStats(sessions, bodyMetrics, user, programs, prs), [sessions, bodyMetrics, user, programs, prs])
+  const stats = useMemo(() => calculateUserStats(sessions, bodyMetrics, user, programs, prs, { streakCurrentStreak, streakLongestStreak }), [sessions, bodyMetrics, user, programs, prs, streakCurrentStreak, streakLongestStreak])
 
   // ── Rewards — computed from unlocked badges + current streak ──────────────
   const rewards = useMemo(

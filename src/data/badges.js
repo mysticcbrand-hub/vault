@@ -126,7 +126,7 @@ export const ALL_BADGES = [
   {
     id: 'streak_3',
     name: 'Tres en Raya',
-    description: 'Racha de 3 días entrenando',
+    description: 'Completa 3 ciclos de programa',
     flavor: 'El hábito empieza a formarse.',
     category: 'consistency',
     rarity: 'common',
@@ -139,8 +139,8 @@ export const ALL_BADGES = [
   {
     id: 'streak_7',
     name: 'Una Semana Sólida',
-    description: 'Racha de 7 días consecutivos',
-    flavor: 'Una semana entera. Sin excusas.',
+    description: '7 ciclos completados',
+    flavor: 'Siete ciclos completos. Sin excusas.',
     category: 'consistency',
     rarity: 'common',
     icon: 'Shield',
@@ -152,7 +152,7 @@ export const ALL_BADGES = [
   {
     id: 'streak_14',
     name: 'Dos Semanas de Hierro',
-    description: 'Racha de 14 días consecutivos',
+    description: '14 ciclos completados',
     flavor: 'Cuando apareces aunque no apetezca, eso es carácter.',
     category: 'consistency',
     rarity: 'rare',
@@ -165,8 +165,8 @@ export const ALL_BADGES = [
   {
     id: 'streak_30',
     name: 'Un Mes Imparable',
-    description: 'Racha de 30 días consecutivos',
-    flavor: 'Treinta días. No todos lo consiguen.',
+    description: '30 ciclos completados',
+    flavor: 'Treinta ciclos. No todos lo consiguen.',
     category: 'consistency',
     rarity: 'epic',
     icon: 'ShieldCheck',
@@ -178,8 +178,8 @@ export const ALL_BADGES = [
   {
     id: 'streak_60',
     name: 'Máquina de Guerra',
-    description: 'Racha de 60 días consecutivos',
-    flavor: 'Sesenta días sin rendirse. Eres diferente.',
+    description: '60 ciclos completados',
+    flavor: 'Sesenta ciclos sin rendirse. Eres diferente.',
     category: 'consistency',
     rarity: 'epic',
     icon: 'Flame',
@@ -191,8 +191,8 @@ export const ALL_BADGES = [
   {
     id: 'streak_100',
     name: 'Centurión',
-    description: 'Racha de 100 días consecutivos',
-    flavor: 'Cien días. Una transformación completa.',
+    description: '100 ciclos completados',
+    flavor: 'Cien ciclos. Una transformación completa.',
     category: 'consistency',
     rarity: 'legendary',
     icon: 'Crown',

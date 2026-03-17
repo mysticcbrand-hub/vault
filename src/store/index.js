@@ -42,6 +42,11 @@ const initialState = () => ({
   // Badge-specific counters — only incremented by intentional user actions
   userCreatedPrograms: 0,   // incremented by saveCustomProgram(), NOT addRecommendedProgram()
   manualWeightLogs: 0,      // incremented by addBodyMetric() when source !== 'onboarding'
+  // Streak — cycle-based (not calendar-day)
+  streakCurrentStreak: 0,
+  streakLongestStreak: 0,
+  streakCycleStart: null,           // ISO date string
+  streakCompletedDays: [],          // array of program day IDs completed this cycle
   settings: {
     unit: 'kg',
     theme: 'dark',
@@ -240,6 +245,7 @@ const useStore = create(
             ...s.activeWorkout,
             exercises: s.activeWorkout.exercises.map(ex => {
               if (ex.id !== exerciseId) return ex
+              if (ex.sets.length <= 1) return ex // guard: keep at least 1 set
               const newSets = ex.sets.filter(st => st.id !== setId)
                 .map((st, i) => ({ ...st, setNumber: i + 1 }))
               return { ...ex, sets: newSets }
@@ -264,30 +270,55 @@ const useStore = create(
         }
       }),
 
+      // Toggle set complete/uncomplete — bidirectional
       completeSet: (exerciseId, setId) => {
         const { activeWorkout, prs } = get()
-        if (!activeWorkout) return { isPR: false }
+        if (!activeWorkout) return { isPR: false, wasCompleted: false }
 
         const ex = activeWorkout.exercises.find(e => e.id === exerciseId)
         const set_ = ex?.sets.find(s => s.id === setId)
-        if (!set_) return { isPR: false }
+        if (!set_) return { isPR: false, wasCompleted: false }
 
-        const weight = parseFloat(set_.weight) || 0
-        const reps = parseInt(set_.reps) || 0
-        const e1rm = computeE1RM(weight, reps)
-        const currentPR = prs[ex.exerciseId]
-        const isPR = e1rm > 0 && (!currentPR || e1rm > currentPR.e1rm)
+        const wasCompleted = set_.completed
+        const nowCompleted = !wasCompleted
 
-        set(s => {
-          const newPRs = { ...s.prs }
-          if (isPR) {
-            newPRs[ex.exerciseId] = {
-              weight, reps, e1rm,
-              date: new Date().toISOString()
+        let isPR = false
+        if (nowCompleted) {
+          const weight = parseFloat(set_.weight) || 0
+          const reps = parseInt(set_.reps) || 0
+          const e1rm = computeE1RM(weight, reps)
+          const currentPR = prs[ex.exerciseId]
+          isPR = e1rm > 0 && (!currentPR || e1rm > currentPR.e1rm)
+
+          set(s => {
+            const newPRs = { ...s.prs }
+            if (isPR) {
+              newPRs[ex.exerciseId] = {
+                weight, reps, e1rm,
+                date: new Date().toISOString()
+              }
             }
-          }
-          return {
-            prs: newPRs,
+            return {
+              prs: newPRs,
+              activeWorkout: {
+                ...s.activeWorkout,
+                exercises: s.activeWorkout.exercises.map(e => {
+                  if (e.id !== exerciseId) return e
+                  return {
+                    ...e,
+                    sets: e.sets.map(st =>
+                      st.id === setId ? { ...st, completed: true } : st
+                    )
+                  }
+                })
+              }
+            }
+          })
+
+          return { isPR, e1rm: computeE1RM(parseFloat(set_.weight)||0, parseInt(set_.reps)||0), exerciseId: ex.exerciseId, weight: parseFloat(set_.weight)||0, reps: parseInt(set_.reps)||0, wasCompleted: false }
+        } else {
+          // Uncomplete
+          set(s => ({
             activeWorkout: {
               ...s.activeWorkout,
               exercises: s.activeWorkout.exercises.map(e => {
@@ -295,16 +326,68 @@ const useStore = create(
                 return {
                   ...e,
                   sets: e.sets.map(st =>
-                    st.id === setId ? { ...st, completed: true } : st
+                    st.id === setId ? { ...st, completed: false } : st
                   )
                 }
               })
             }
-          }
-        })
-
-        return { isPR, e1rm, exerciseId: ex.exerciseId, weight, reps }
+          }))
+          return { isPR: false, wasCompleted: true }
+        }
       },
+
+      // Add dropset after a parent set
+      addDropset: (exerciseId, parentSetId) => set(s => {
+        if (!s.activeWorkout) return {}
+        return {
+          activeWorkout: {
+            ...s.activeWorkout,
+            exercises: s.activeWorkout.exercises.map(ex => {
+              if (ex.id !== exerciseId) return ex
+              const parentSet = ex.sets.find(st => st.id === parentSetId)
+              if (!parentSet) return ex
+              const dropset = {
+                id: uid(),
+                type: 'dropset',
+                weight: Math.round((parseFloat(parentSet.weight) || 0) * 0.75),
+                reps: (parseInt(parentSet.reps) || 0) + 2,
+                completed: false,
+                setNumber: 0, // will be renumbered
+              }
+              const newSets = []
+              for (const st of ex.sets) {
+                newSets.push(st)
+                if (st.id === parentSetId) newSets.push(dropset)
+              }
+              return { ...ex, sets: newSets.map((st, i) => ({ ...st, setNumber: i + 1 })) }
+            })
+          }
+        }
+      }),
+
+      // Reorder exercises during workout
+      reorderExercises: (fromIndex, toIndex) => set(s => {
+        if (!s.activeWorkout) return {}
+        const exercises = [...s.activeWorkout.exercises]
+        const [item] = exercises.splice(fromIndex, 1)
+        exercises.splice(toIndex, 0, item)
+        return {
+          activeWorkout: { ...s.activeWorkout, exercises }
+        }
+      }),
+
+      // Add/update note on an exercise
+      updateExerciseNote: (exerciseId, note) => set(s => {
+        if (!s.activeWorkout) return {}
+        return {
+          activeWorkout: {
+            ...s.activeWorkout,
+            exercises: s.activeWorkout.exercises.map(ex =>
+              ex.id === exerciseId ? { ...ex, note } : ex
+            )
+          }
+        }
+      }),
 
       finishWorkout: (notes = '') => {
         const { activeWorkout, prs } = get()
@@ -359,10 +442,68 @@ const useStore = create(
         }
 
         localStorage.removeItem('graw_workout_start_ts')
+
+        // ── Streak cycle logic ──────────────────────────────────────────
+        const state = get()
+        const program = state.programs.find(p => p.id === activeWorkout.programId)
+        let streakUpdates = {}
+
+        if (program?.days?.length) {
+          const now = new Date()
+          const cycleStart = state.streakCycleStart ? new Date(state.streakCycleStart) : null
+          const windowDays = program.days.length * 2
+
+          // Find which program day was completed (match by templateId)
+          const completedDayId = program.days.find(d => d.templateId === activeWorkout.templateId)?.id
+
+          if (completedDayId) {
+            let currentCompleted = [...(state.streakCompletedDays || [])]
+            let currentCycleStart = cycleStart
+
+            // Check if window expired
+            if (currentCycleStart) {
+              const daysSince = Math.floor((now - currentCycleStart) / (1000 * 60 * 60 * 24))
+              if (daysSince > windowDays) {
+                // Window expired — reset cycle, streak resets
+                currentCompleted = []
+                currentCycleStart = null
+                streakUpdates.streakCurrentStreak = 0
+              }
+            }
+
+            // Start cycle if not started
+            if (!currentCycleStart) currentCycleStart = now
+
+            // Add day (deduplicate)
+            if (!currentCompleted.includes(completedDayId)) {
+              currentCompleted.push(completedDayId)
+            }
+
+            // Check if cycle complete
+            const allDone = program.days.every(d => currentCompleted.includes(d.id))
+            if (allDone) {
+              const newStreak = (streakUpdates.streakCurrentStreak ?? state.streakCurrentStreak) + 1
+              streakUpdates = {
+                streakCurrentStreak: newStreak,
+                streakLongestStreak: Math.max(state.streakLongestStreak, newStreak),
+                streakCycleStart: null,
+                streakCompletedDays: [],
+              }
+            } else {
+              streakUpdates = {
+                ...streakUpdates,
+                streakCycleStart: currentCycleStart.toISOString(),
+                streakCompletedDays: currentCompleted,
+              }
+            }
+          }
+        }
+
         set(s => ({
           sessions: [session, ...s.sessions],
           activeWorkout: null,
           prs: { ...s.prs, ...newPRs },
+          ...streakUpdates,
         }))
 
         return { session, newPRs }
@@ -465,12 +606,34 @@ const useStore = create(
         bodyMetrics: state.bodyMetrics,
         userCreatedPrograms: state.userCreatedPrograms,
         manualWeightLogs: state.manualWeightLogs,
+        streakCurrentStreak: state.streakCurrentStreak,
+        streakLongestStreak: state.streakLongestStreak,
+        streakCycleStart: state.streakCycleStart,
+        streakCompletedDays: state.streakCompletedDays,
         settings: state.settings,
         unlockedBadges: state.unlockedBadges,
         customExercises: state.customExercises,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error('Failed to rehydrate store:', error)
+        // Check streak window on app open
+        if (state?.streakCycleStart) {
+          const now = new Date()
+          const cycleStart = new Date(state.streakCycleStart)
+          const program = state.programs?.find(p => p.id === state.activeProgram)
+          const windowDays = (program?.days?.length || 3) * 2
+          const daysSince = Math.floor((now - cycleStart) / (1000 * 60 * 60 * 24))
+          if (daysSince > windowDays) {
+            // Window expired — streak broken
+            setTimeout(() => {
+              useStore.setState({
+                streakCurrentStreak: 0,
+                streakCycleStart: null,
+                streakCompletedDays: [],
+              })
+            }, 0)
+          }
+        }
       },
     }
   )

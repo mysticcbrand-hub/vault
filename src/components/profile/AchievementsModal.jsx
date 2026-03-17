@@ -401,10 +401,12 @@ export function AchievementsModal({ open, onClose }) {
   const programs    = useStore(s => s.programs)
   const prs         = useStore(s => s.prs)
   const unlockedBadges = useStore(s => s.unlockedBadges)
+  const streakCurrentStreak = useStore(s => s.streakCurrentStreak)
+  const streakLongestStreak = useStore(s => s.streakLongestStreak)
 
   const stats = useMemo(() =>
-    calculateUserStats(sessions, bodyMetrics, user, programs, prs),
-    [sessions, bodyMetrics, user, programs, prs]
+    calculateUserStats(sessions, bodyMetrics, user, programs, prs, { streakCurrentStreak, streakLongestStreak }),
+    [sessions, bodyMetrics, user, programs, prs, streakCurrentStreak, streakLongestStreak]
   )
 
   const unlockedMap = useMemo(() => {

@@ -1,4 +1,4 @@
-import { useState, memo, useEffect } from 'react'
+import { useState, memo, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Plus } from 'lucide-react'
@@ -6,7 +6,9 @@ import { ExerciseCard } from './ExerciseCard.jsx'
 import { RestTimerPill } from './RestTimer.jsx'
 import { WorkoutComplete } from './WorkoutComplete.jsx'
 import { ExercisePicker } from './ExercisePicker.jsx'
+import { NoteSheet } from './NoteSheet.jsx'
 import { useWorkoutTimer, useRestTimer, formatElapsed } from '../../hooks/useGrawTimer.js'
+import { useDragToReorder } from '../../hooks/useDragToReorder.js'
 import { formatKg } from '../../utils/format.js'
 import { getExerciseById } from '../../data/exercises.js'
 import { getSmartRestSuggestion } from '../../data/restProfiles.js'
@@ -24,6 +26,9 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const finishWorkout = useStore(s => s.finishWorkout)
   const removeExercise = useStore(s => s.removeExerciseFromWorkout)
   const updateWorkoutName = useStore(s => s.updateWorkoutName)
+  const reorderExercises = useStore(s => s.reorderExercises)
+  const addDropset = useStore(s => s.addDropset)
+  const updateExerciseNote = useStore(s => s.updateExerciseNote)
 
   const [showPicker, setShowPicker] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
@@ -31,42 +36,76 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const [completedData, setCompletedData] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [restingExerciseId, setRestingExerciseId] = useState(null)
+  const [noteSheet, setNoteSheet] = useState(null) // { exerciseId, name, note }
 
   const { elapsed, start: startTimer, stop: stopTimer } = useWorkoutTimer()
   const restTimer = useRestTimer()
 
   // Start the Web Worker timer when workout mounts.
-  // useWorkoutTimer recovers from localStorage if already running (page refresh).
   useEffect(() => {
     if (!activeWorkout) return
-    // If no saved timestamp exists, write it now and start fresh
     const saved = localStorage.getItem('graw_workout_start_ts')
     if (!saved) {
       const ts = new Date(activeWorkout.startTime).getTime()
       localStorage.setItem('graw_workout_start_ts', String(ts))
       startTimer(ts)
     }
-    // If saved exists, useWorkoutTimer already started itself in its own useEffect
   }, [activeWorkout?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Drag to reorder ────────────────────────────────────────────
+  // Split exercises: locked (all sets done) + draggable (pending)
+  const exercises = activeWorkout?.exercises || []
+  const lockedExercises = exercises.filter(ex => ex.sets.length > 0 && ex.sets.every(s => s.completed))
+  const draggableExercises = exercises.filter(ex => !(ex.sets.length > 0 && ex.sets.every(s => s.completed)))
+
+  // Map draggable indices back to global indices for reorder
+  const draggableGlobalIndices = exercises
+    .map((ex, i) => ({ ex, i }))
+    .filter(({ ex }) => !(ex.sets.length > 0 && ex.sets.every(s => s.completed)))
+    .map(({ i }) => i)
+
+  const { containerRef, dragIndex, overIndex, isDragging, gripHandlers, containerHandlers } = useDragToReorder({
+    onReorder: (from, to) => {
+      const globalFrom = draggableGlobalIndices[from]
+      const globalTo = draggableGlobalIndices[to]
+      if (globalFrom !== undefined && globalTo !== undefined) {
+        reorderExercises(globalFrom, globalTo)
+      }
+    },
+  })
 
   if (!activeWorkout) return null
 
-  const totalVolume = activeWorkout.exercises.reduce((t, ex) =>
+  const totalVolume = exercises.reduce((t, ex) =>
     t + ex.sets.reduce((s, set) =>
       s + (set.completed ? (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0) : 0), 0), 0)
 
-  const completedSets = activeWorkout.exercises.reduce((t, ex) =>
+  const completedSets = exercises.reduce((t, ex) =>
     t + ex.sets.filter(s => s.completed).length, 0)
 
   const elapsedStr = formatElapsed(elapsed)
   const [mm, ss] = elapsedStr.split(':')
 
+  // ── Toggle set complete — bidirectional ────────────────────────
   const handleCompleteSet = (exerciseId, setId) => {
     const result = completeSet(exerciseId, setId)
-    setRestingExerciseId(exerciseId)
 
-    // Smart rest: find the set that was just completed to get weight/reps
+    // If we just uncompleted (wasCompleted=true), don't trigger rest timer
+    if (result.wasCompleted) return result
+
+    // Check if this was a regular set and the NEXT set is a dropset — skip rest
     const exercise = activeWorkout.exercises.find(ex => ex.id === exerciseId)
+    if (exercise) {
+      const setIdx = exercise.sets.findIndex(s => s.id === setId)
+      const nextSet = exercise.sets[setIdx + 1]
+      if (nextSet?.type === 'dropset' && !nextSet.completed) {
+        // Dropset follows — no rest timer
+        return result
+      }
+    }
+
+    // Normal rest timer
+    setRestingExerciseId(exerciseId)
     const set = exercise?.sets.find(s => s.id === setId)
     const prs = useStore.getState().prs
     const defaultRest = settings?.restTimerDefault || 120
@@ -98,7 +137,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   }
 
   const nextExercise = (() => {
-    for (const ex of activeWorkout.exercises) {
+    for (const ex of exercises) {
       if (ex.sets.some(s => !s.completed)) {
         return getExerciseById(ex.exerciseId)?.name || ex.exerciseId
       }
@@ -106,43 +145,32 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     return null
   })()
 
-  // Inline confirm dialogs — rendered via portal to avoid timer re-render conflicts
+  // Inline confirm dialogs — rendered via portal
   const ConfirmOverlay = ({ id, children, onDismiss }) => createPortal(
     <AnimatePresence>
       {true && (
         <>
           <motion.div
             key={`${id}-backdrop`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={onDismiss}
-            style={{
-              position: 'fixed', inset: 0,
-              background: 'rgba(0,0,0,0.65)',
-              zIndex: 60,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           />
           <motion.div
             key={`${id}-dialog`}
             initial={{ opacity: 0, scale: 0.92, x: '-50%', y: 'calc(-50% + 12px)' }}
-            animate={{ opacity: 1, scale: 1,   x: '-50%', y: '-50%' }}
-            exit={{ opacity: 0,   scale: 0.95,  x: '-50%', y: 'calc(-50% + 8px)' }}
+            animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%' }}
+            exit={{ opacity: 0, scale: 0.95, x: '-50%', y: 'calc(-50% + 8px)' }}
             transition={{ type: 'spring', stiffness: 500, damping: 35 }}
             style={{
-              position: 'fixed',
-              top: '50%', left: '50%',
-              /* NO CSS transform — Framer Motion x/y handle -50%/-50% centering */
-              width: 'calc(100% - 40px)', maxWidth: 340,
-              zIndex: 61,
+              position: 'fixed', top: '50%', left: '50%',
+              width: 'calc(100% - 40px)', maxWidth: 340, zIndex: 61,
               background: 'rgba(16,13,9,0.96)',
               backdropFilter: 'blur(40px) saturate(200%)',
               WebkitBackdropFilter: 'blur(40px) saturate(200%)',
               border: '0.5px solid rgba(255,235,200,0.12)',
-              borderRadius: 24,
-              padding: 24,
+              borderRadius: 24, padding: 24,
               boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.09), 0 20px 60px rgba(0,0,0,0.7)',
             }}
             onClick={e => e.stopPropagation()}
@@ -161,45 +189,24 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
 
         {/* Fixed header — glassmorphism */}
         <div style={{
-          flexShrink: 0,
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
+          flexShrink: 0, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', gap: 12,
           position: 'sticky', top: 0, zIndex: 10,
           background: 'rgba(10,8,6,0.82)',
           backdropFilter: 'blur(40px) saturate(200%)',
           WebkitBackdropFilter: 'blur(40px) saturate(200%)',
           boxShadow: 'inset 0 -1px 0 rgba(255,235,200,0.06), 0 1px 0 rgba(0,0,0,0.5)',
         }}>
-          <button
-            onClick={() => setShowCancel(true)}
-            className="pressable"
-            style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, borderRadius: 10 }}
-          >
+          <button onClick={() => setShowCancel(true)} className="pressable" style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, borderRadius: 10 }}>
             <ChevronLeft size={22} color="var(--text2)" />
           </button>
 
           <div style={{ flex: 1, minWidth: 0 }}>
             {editingName ? (
-              <input
-                autoFocus
-                value={activeWorkout.name}
-                onChange={e => updateWorkoutName(e.target.value)}
-                onBlur={() => setEditingName(false)}
-                onKeyDown={e => e.key === 'Enter' && setEditingName(false)}
-                style={{
-                  background: 'none', border: 'none',
-                  borderBottom: '1.5px solid var(--accent)',
-                  fontSize: 16, fontWeight: 600, color: 'var(--text)',
-                  outline: 'none', width: '100%', padding: '2px 0', fontFamily: 'inherit',
-                }}
-              />
+              <input autoFocus value={activeWorkout.name} onChange={e => updateWorkoutName(e.target.value)} onBlur={() => setEditingName(false)} onKeyDown={e => e.key === 'Enter' && setEditingName(false)}
+                style={{ background: 'none', border: 'none', borderBottom: '1.5px solid var(--accent)', fontSize: 16, fontWeight: 600, color: 'var(--text)', outline: 'none', width: '100%', padding: '2px 0', fontFamily: 'inherit' }} />
             ) : (
-              <button
-                onClick={() => setEditingName(true)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
-              >
+              <button onClick={() => setEditingName(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
                 <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
                   {activeWorkout.name}
                 </p>
@@ -213,22 +220,13 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           </div>
 
           {/* Finish button */}
-          <button
-            onClick={() => setShowFinish(true)}
-            className="pressable"
-            style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--accent)', border: 'none', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
-          >
+          <button onClick={() => setShowFinish(true)} className="pressable" style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--accent)', border: 'none', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
             Finalizar
           </button>
         </div>
 
         {/* Volume tracker bar */}
-        <div style={{
-          flexShrink: 0, height: 36,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 20px',
-          borderBottom: '1px solid var(--border)',
-        }}>
+        <div style={{ flexShrink: 0, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontSize: 13, fontFamily: 'DM Mono, monospace', color: 'var(--text2)', fontVariantNumeric: 'tabular-nums' }}>
             {formatKg(totalVolume)} kg levantados
           </span>
@@ -237,7 +235,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           </span>
         </div>
 
-        {/* Rest timer pill — floats above content */}
+        {/* Rest timer pill */}
         <RestTimerPill timer={restTimer} />
 
         {/* Exercises scroll area */}
@@ -247,7 +245,9 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           display: 'flex', flexDirection: 'column', gap: 12,
           paddingBottom: 'calc(var(--nav-h) + 80px)',
         }}>
-          {activeWorkout.exercises.map((exercise, i) => (
+
+          {/* Locked (completed) exercises — no drag */}
+          {lockedExercises.map((exercise, i) => (
             <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms` }}>
               <ExerciseCard
                 exercise={exercise}
@@ -256,11 +256,44 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
                 onCompleteSet={handleCompleteSet}
                 onUpdateSet={updateSet}
                 onRemoveSet={removeSet}
+                onAddDropset={addDropset}
+                onOpenNote={(id, name, note) => setNoteSheet({ exerciseId: id, name, note })}
                 restTimer={restTimer}
                 isResting={restingExerciseId === exercise.id && restTimer.isActive}
+                isDraggable={false}
               />
             </div>
           ))}
+
+          {/* Draggable (pending) exercises */}
+          <div
+            ref={containerRef}
+            {...containerHandlers}
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 12,
+              touchAction: isDragging ? 'none' : 'pan-y',
+            }}
+          >
+            {draggableExercises.map((exercise, i) => (
+              <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${(lockedExercises.length + i) * 40}ms` }}>
+                <ExerciseCard
+                  exercise={exercise}
+                  onAddSet={addSet}
+                  onRemoveExercise={() => removeExercise(exercise.id)}
+                  onCompleteSet={handleCompleteSet}
+                  onUpdateSet={updateSet}
+                  onRemoveSet={removeSet}
+                  onAddDropset={addDropset}
+                  onOpenNote={(id, name, note) => setNoteSheet({ exerciseId: id, name, note })}
+                  restTimer={restTimer}
+                  isResting={restingExerciseId === exercise.id && restTimer.isActive}
+                  isDraggable={true}
+                  isDragging={dragIndex === i}
+                  dragHandlers={gripHandlers(i)}
+                />
+              </div>
+            ))}
+          </div>
 
           {/* Add exercise button */}
           <button
@@ -299,6 +332,19 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
         onSelect={id => { addExercise(id); setShowPicker(false) }}
       />
 
+      {/* Note sheet */}
+      <AnimatePresence>
+        {noteSheet && (
+          <NoteSheet
+            exerciseId={noteSheet.exerciseId}
+            exerciseName={noteSheet.name}
+            existingNote={noteSheet.note}
+            onSave={updateExerciseNote}
+            onClose={() => setNoteSheet(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Cancel confirm */}
       {showCancel && (
         <ConfirmOverlay id="cancel" onDismiss={() => setShowCancel(false)}>
@@ -320,7 +366,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
               { label: 'DURACIÓN', value: elapsedStr },
               { label: 'VOLUMEN', value: `${formatKg(totalVolume)} kg` },
               { label: 'SERIES', value: completedSets },
-              { label: 'EJERCICIOS', value: activeWorkout.exercises.length },
+              { label: 'EJERCICIOS', value: exercises.length },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: 'var(--surface3)', borderRadius: 12, padding: 12 }}>
                 <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em' }}>{value}</p>
@@ -335,7 +381,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
         </ConfirmOverlay>
       )}
 
-      {/* Workout complete overlay — PRs shown here, never during session */}
+      {/* Workout complete overlay */}
       {completedData && (
         <WorkoutComplete
           session={completedData.session}

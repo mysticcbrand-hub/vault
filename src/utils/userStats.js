@@ -41,35 +41,9 @@ export function calculateUserStats(sessions, bodyMetrics, user, programs, prs, s
   const benchPR = prMap['bench'] || prMap['press_banca'] || 0
   const deadliftPR = prMap['deadlift'] || prMap['peso_muerto'] || 0
 
-  // ── Streak calculation ────────────────────────────────────────────────────
-  const dateStrings = [
-    ...new Set(
-      sessions
-        .map(s => s.date ? new Date(s.date).toISOString().split('T')[0] : null)
-        .filter(Boolean)
-    )
-  ].sort().reverse()
-
-  let currentStreak = 0
-  let maxStreak = 0
-  let temp = 0
-  const todayStr = new Date().toISOString().split('T')[0]
-
-  for (let i = 0; i < dateStrings.length; i++) {
-    const expected = new Date(todayStr)
-    expected.setDate(expected.getDate() - i)
-    const expectedStr = expected.toISOString().split('T')[0]
-    if (dateStrings[i] === expectedStr) {
-      temp++
-      if (i === 0 || currentStreak === temp - 1) currentStreak = temp
-    } else {
-      maxStreak = Math.max(maxStreak, temp)
-      temp = 1
-      // If first day was skipped, current streak resets
-      if (i === 0) currentStreak = 0
-    }
-  }
-  maxStreak = Math.max(maxStreak, temp, currentStreak)
+  // ── Streak — cycle-based, read from store ──────────────────────────────────
+  const currentStreak = storeCounters.streakCurrentStreak ?? 0
+  const maxStreak = Math.max(storeCounters.streakLongestStreak ?? 0, currentStreak)
 
   // ── Active weeks (weeks with >= 2 sessions) ───────────────────────────────
   const byWeek = {}

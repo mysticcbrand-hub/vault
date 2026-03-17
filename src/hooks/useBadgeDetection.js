@@ -11,6 +11,8 @@ export function useBadgeDetection(enabled = true) {
   const prs                  = useStore(s => s.prs)
   const userCreatedPrograms  = useStore(s => s.userCreatedPrograms)
   const manualWeightLogs     = useStore(s => s.manualWeightLogs)
+  const streakCurrentStreak  = useStore(s => s.streakCurrentStreak)
+  const streakLongestStreak  = useStore(s => s.streakLongestStreak)
   const unlockedBadges       = useStore(s => s.unlockedBadges)
   const unlockBadges         = useStore(s => s.unlockBadges)
   const setPendingBadgeToast = useStore(s => s.setPendingBadgeToast)
@@ -22,7 +24,7 @@ export function useBadgeDetection(enabled = true) {
       user,
       programs,
       prs,
-      { userCreatedPrograms, manualWeightLogs }
+      { userCreatedPrograms, manualWeightLogs, streakCurrentStreak, streakLongestStreak }
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -33,6 +35,8 @@ export function useBadgeDetection(enabled = true) {
       user?.goalWeight,
       userCreatedPrograms,
       manualWeightLogs,
+      streakCurrentStreak,
+      streakLongestStreak,
     ]
   )
 

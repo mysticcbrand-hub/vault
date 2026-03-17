@@ -1,7 +1,7 @@
 import { memo, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MoreHorizontal, Plus, Info, X } from 'lucide-react'
+import { MoreHorizontal, Plus, Info, X, GripVertical, StickyNote, ChevronDown } from 'lucide-react'
 import { SetRow } from './SetRow.jsx'
 import { getExerciseById, MUSCLE_NAMES } from '../../data/exercises.js'
 import { getMuscleVars, relativeDate } from '../../utils/format.js'
@@ -40,7 +40,10 @@ function FormTipSheet({ exerciseName, tips, onClose }) {
 }
 
 export const ExerciseCard = memo(function ExerciseCard({
-  exercise, onAddSet, onRemoveExercise, onCompleteSet, onUpdateSet, onRemoveSet, restTimer, isResting
+  exercise, onAddSet, onRemoveExercise, onCompleteSet, onUpdateSet, onRemoveSet,
+  onAddDropset, onOpenNote,
+  restTimer, isResting,
+  dragHandlers, isDragging, isDraggable,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [restOverrideOpen, setRestOverrideOpen] = useState(false)
@@ -59,7 +62,7 @@ export const ExerciseCard = memo(function ExerciseCard({
     : repRangeRaw
   const showFormTip = user?.level === 'principiante' && !!FORM_TIPS[exercise.exerciseId]
 
-  // Last session data for this exercise — "Última vez" reference
+  // Last session data for this exercise
   const lastSession = (() => {
     for (const s of sessions) {
       const ex = s.exercises?.find(e => e.exerciseId === exercise.exerciseId)
@@ -84,9 +87,13 @@ export const ExerciseCard = memo(function ExerciseCard({
   const nextIncomplete = exercise.sets.findIndex(s => !s.completed)
 
   const handleComplete = useCallback((setId) => {
-    try { navigator.vibrate(12) } catch (e) {}
+    // Determine haptic type: check current state
+    const currentSet = exercise.sets.find(s => s.id === setId)
+    try {
+      navigator.vibrate(currentSet?.completed ? 6 : 12)
+    } catch (e) {}
     return onCompleteSet(exercise.id, setId)
-  }, [exercise.id, onCompleteSet])
+  }, [exercise.id, exercise.sets, onCompleteSet])
 
   const REST_PRESETS = [45, 60, 90, 120, 180]
 
@@ -104,13 +111,39 @@ export const ExerciseCard = memo(function ExerciseCard({
       border: `0.5px solid ${borderColor}`,
       borderRadius: 'var(--r)',
       overflow: 'hidden',
-      boxShadow: `inset 0 1px 0 rgba(255,235,200,0.07), 0 2px 12px rgba(0,0,0,0.35), 0 0 0 0.5px rgba(255,235,200,0.06)`,
-      transition: 'border-color 0.4s ease',
+      boxShadow: isDragging
+        ? '0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,235,200,0.1)'
+        : `inset 0 1px 0 rgba(255,235,200,0.07), 0 2px 12px rgba(0,0,0,0.35), 0 0 0 0.5px rgba(255,235,200,0.06)`,
+      transition: 'border-color 0.4s ease, box-shadow 0.25s ease',
       animation: isResting ? 'cardRestPulse 2s ease-in-out infinite' : 'none',
+      opacity: isDragging ? 0.5 : 1,
+      transform: isDragging ? 'scale(1.02)' : 'scale(1)',
     }}>
 
       {/* Header */}
-      <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+
+        {/* Drag grip — only for draggable (pending) exercises */}
+        {isDraggable && dragHandlers && (
+          <div
+            onPointerDown={dragHandlers.onPointerDown}
+            onPointerMove={dragHandlers.onPointerMove}
+            onPointerUp={dragHandlers.onPointerUp}
+            onPointerCancel={dragHandlers.onPointerCancel}
+            style={{
+              width: 24, height: 24, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              cursor: 'grab', flexShrink: 0, marginTop: 3,
+              color: isDragging ? 'var(--accent)' : 'rgba(245,239,230,0.18)',
+              transition: 'color 0.15s ease',
+              touchAction: 'none', userSelect: 'none',
+              WebkitUserSelect: 'none',
+            }}
+          >
+            <GripVertical size={14} strokeWidth={1.8} />
+          </div>
+        )}
+
         {/* Muscle color dot */}
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: mv.color, flexShrink: 0, marginTop: 5 }} />
 
@@ -119,13 +152,17 @@ export const ExerciseCard = memo(function ExerciseCard({
             <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {exData?.name || exercise.exerciseId}
             </p>
+            {/* Note indicator */}
+            {exercise.note && (
+              <StickyNote size={11} color="rgba(245,158,11,0.55)" style={{ flexShrink: 0 }} />
+            )}
             {showFormTip && (
               <button onClick={() => setFormTipOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 <Info size={13} color="var(--text3)" />
               </button>
             )}
           </div>
-          {/* Última vez — non-optional progressive overload reference */}
+          {/* Última vez */}
           {lastSession ? (
             <p style={{
               fontSize: 11, fontFamily: 'DM Mono, monospace',
@@ -144,12 +181,10 @@ export const ExerciseCard = memo(function ExerciseCard({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {/* Muscle badge */}
           <span className="muscle-pill" style={{ background: mv.dim, color: mv.color, border: `1px solid ${mv.color}22` }}>
             {MUSCLE_NAMES[exData?.muscle] || exData?.muscle}
           </span>
 
-          {/* Rep range guidance — based on user goal */}
           {repRange && (
             <span style={{
               fontSize: 10, padding: '2px 6px', borderRadius: 'var(--r-pill)',
@@ -190,6 +225,14 @@ export const ExerciseCard = memo(function ExerciseCard({
                       </p>
                     </div>
                   )}
+                  {/* Note option */}
+                  <button
+                    onClick={() => { setMenuOpen(false); onOpenNote?.(exercise.id, exData?.name || exercise.exerciseId, exercise.note || '') }}
+                    style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                  >
+                    <StickyNote size={14} color="var(--text3)" />
+                    {exercise.note ? 'Editar nota' : 'Añadir nota'}
+                  </button>
                   <button
                     onClick={() => { setMenuOpen(false); setRestOverrideOpen(true) }}
                     style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
@@ -226,17 +269,45 @@ export const ExerciseCard = memo(function ExerciseCard({
           const r = parseInt(set.reps) || 0
           const e1rm = r > 0 && w > 0 ? (r === 1 ? w : w * 36 / (37 - Math.min(r, 36))) : 0
           const isPR = set.completed && e1rm > 0 && (!currentPR || e1rm > currentPR.e1rm)
+          const isDropset = set.type === 'dropset'
+
+          // Check if next set is a dropset (for + Drop button logic)
+          const nextSet = exercise.sets[i + 1]
+          const hasFollowingDropset = nextSet?.type === 'dropset'
+          const showDropButton = set.completed && !isDropset && !hasFollowingDropset
+
           return (
-            <SetRow
-              key={set.id}
-              set={set}
-              setIndex={i}
-              isPR={isPR}
-              isNext={i === nextIncomplete}
-              onUpdate={data => onUpdateSet(exercise.id, set.id, data)}
-              onComplete={() => handleComplete(set.id)}
-              onDelete={() => onRemoveSet(exercise.id, set.id)}
-            />
+            <div key={set.id}>
+              <SetRow
+                set={set}
+                setIndex={i}
+                isPR={isPR}
+                isNext={i === nextIncomplete}
+                isDropset={isDropset}
+                onUpdate={data => onUpdateSet(exercise.id, set.id, data)}
+                onComplete={() => handleComplete(set.id)}
+                onDelete={exercise.sets.length > 1 ? (() => onRemoveSet(exercise.id, set.id)) : null}
+              />
+              {/* + Drop button after completed normal sets */}
+              {showDropButton && (
+                <button
+                  onClick={() => onAddDropset?.(exercise.id, set.id)}
+                  className="pressable"
+                  style={{
+                    margin: '2px 0 2px 32px',
+                    padding: '4px 10px', borderRadius: 6,
+                    background: 'rgba(245,158,11,0.08)',
+                    border: '0.5px solid rgba(245,158,11,0.18)',
+                    color: 'rgba(245,158,11,0.70)',
+                    fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <ChevronDown size={10} />
+                  + Drop
+                </button>
+              )}
+            </div>
           )
         })}
       </div>
@@ -257,7 +328,7 @@ export const ExerciseCard = memo(function ExerciseCard({
         Añadir serie
       </button>
 
-      {/* Form tip sheet — principiante only */}
+      {/* Form tip sheet */}
       <AnimatePresence>
         {formTipOpen && showFormTip && (
           <FormTipSheet
@@ -268,7 +339,7 @@ export const ExerciseCard = memo(function ExerciseCard({
         )}
       </AnimatePresence>
 
-      {/* Rest duration override sheet — portal, no CSS animation conflict */}
+      {/* Rest override sheet */}
       <AnimatePresence>
         {restOverrideOpen && createPortal(
         <>

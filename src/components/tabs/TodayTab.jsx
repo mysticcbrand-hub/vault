@@ -3,7 +3,7 @@ import { Check, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getMuscleVars } from '../../utils/format.js'
 import { MUSCLE_NAMES, getExerciseById } from '../../data/exercises.js'
-import { calculateStreak, isSameDayAs, getGreeting, formatDateHeader } from '../../utils/dates.js'
+import { isSameDayAs, getGreeting, formatDateHeader } from '../../utils/dates.js'
 import useStore from '../../store/index.js'
 import { useWeeklyStats } from '../../hooks/useWeeklyStats.js'
 import { GOAL_CONFIG } from '../../data/presetPrograms.js'
@@ -270,7 +270,11 @@ function HeroCard({ next, onStart, onShowProgram }) {
   )
 }
 
-function StreakCard({ streak }) {
+function StreakCard({ streak, completedDays, program }) {
+  const cycleDays = program?.days?.length || 0
+  const daysInCycle = completedDays?.length || 0
+  const inCycle = cycleDays > 0 && daysInCycle > 0
+
   return (
     <div style={{
       background: 'rgba(22,18,12,0.65)',
@@ -289,7 +293,7 @@ function StreakCard({ streak }) {
           fill="var(--accent)" opacity="0.1" />
       </svg>
 
-      {streak > 0 ? (
+      {streak > 0 || inCycle ? (
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{ fontSize: 48, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--accent)', fontFamily: 'DM Mono, monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
@@ -298,13 +302,30 @@ function StreakCard({ streak }) {
             <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text2)' }}>🔥</span>
           </div>
           <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4, fontWeight: 600, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
-            {streak === 1 ? 'día seguido' : 'días seguidos'}
+            {streak === 1 ? 'ciclo completado' : 'ciclos completados'}
           </p>
+          {/* Cycle progress bar — only when mid-cycle */}
+          {inCycle && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Ciclo actual</span>
+                <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, fontFamily: 'DM Mono, monospace' }}>{daysInCycle}/{cycleDays}</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: 'var(--surface3)', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 2,
+                  width: `${Math.round((daysInCycle / cycleDays) * 100)}%`,
+                  background: 'linear-gradient(90deg, var(--accent), var(--accent-bright))',
+                  transition: 'width 0.6s cubic-bezier(0.32,0.72,0,1)',
+                }} />
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div>
           <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Sin racha aún</p>
-          <p style={{ fontSize: 13, color: 'var(--text2)' }}>Empieza hoy tu racha 🔥</p>
+          <p style={{ fontSize: 13, color: 'var(--text2)' }}>Completa un ciclo del programa 🔥</p>
         </div>
       )}
     </div>
@@ -380,8 +401,9 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
   const prs = useStore(s => s.prs)
   const { thisWeekVolume, sessionCount } = useWeeklyStats()
 
-  const streakData = useMemo(() => calculateStreak(sessions), [sessions])
-  const streak = streakData.current
+  const streakCurrentStreak = useStore(s => s.streakCurrentStreak)
+  const streakCompletedDays = useStore(s => s.streakCompletedDays)
+  const streak = streakCurrentStreak || 0
   const weekStrip = useMemo(() => getWeekStrip(sessions), [sessions])
 
   const program = programs.find(p => p.id === activeProgram)
@@ -578,7 +600,7 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
 
         {/* Streak */}
         <motion.div variants={itemVariants}>
-          <StreakCard streak={streak} />
+          <StreakCard streak={streak} completedDays={streakCompletedDays} program={program} />
         </motion.div>
 
         {/* Stat cards */}
