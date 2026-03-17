@@ -187,13 +187,13 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
 
-        {/* Progress bar — fixed at absolute top of screen */}
+        {/* Progress bar — below safe area, visible */}
         {(() => {
           const completedEx = exercises.filter(e => e.sets?.length > 0 && e.sets.every(s => s.completed)).length
           const pct = exercises.length > 0 ? (completedEx / exercises.length) * 100 : 0
           const allExDone = completedEx === exercises.length && exercises.length > 0
           return (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 2, zIndex: 200, background: 'rgba(255,235,200,0.06)' }}>
+            <div style={{ position: 'fixed', top: 'env(safe-area-inset-top, 0px)', left: 0, right: 0, height: 2, zIndex: 200, background: 'rgba(255,235,200,0.06)' }}>
               <div style={{
                 height: '100%',
                 width: `${pct}%`,
@@ -206,15 +206,15 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           )
         })()}
 
-        {/* ── Workout header — frosted glass ── */}
+        {/* ── Workout header — true frosted glass ── */}
         <div style={{
           flexShrink: 0,
           position: 'sticky', top: 0, zIndex: 10,
-          background: 'rgba(16,13,9,0.55)',
-          backdropFilter: 'blur(40px) saturate(220%) brightness(1.1)',
-          WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.1)',
-          borderBottom: '0.5px solid rgba(255,235,200,0.12)',
-          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+          background: 'rgba(14,11,8,0.4)',
+          backdropFilter: 'blur(32px) saturate(200%) brightness(1.15)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%) brightness(1.15)',
+          borderBottom: '0.5px solid rgba(255,235,200,0.10)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
           isolation: 'isolate',
           overflow: 'hidden',
         }}>

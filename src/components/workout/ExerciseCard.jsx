@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MoreHorizontal, Plus, Info, X, GripVertical, StickyNote, ChevronDown } from 'lucide-react'
@@ -53,6 +53,7 @@ export const ExerciseCard = memo(function ExerciseCard({
 
   const settings = useStore(s => s.settings)
   const user = useStore(s => s.user)
+  const menuBtnRef = useRef(null)
   const exData = getExerciseById(exercise.exerciseId)
   const mv = getMuscleVars(exData?.muscle)
   const currentPR = prs[exercise.exerciseId]
@@ -201,58 +202,60 @@ export const ExerciseCard = memo(function ExerciseCard({
         </div>
 
         {/* Menu */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, flexShrink: 0 }}>
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 8 }}
-            >
-              <MoreHorizontal size={16} color="var(--text3)" />
-            </button>
-            {menuOpen && (
-              <>
-                <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setMenuOpen(false)} />
-                <div style={{
-                  position: 'absolute', right: 0, top: 36, zIndex: 20,
-                  background: 'rgba(16,13,9,0.96)',
-                  backdropFilter: 'blur(40px) saturate(200%)',
-                  WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-                  border: '0.5px solid rgba(255,235,200,0.12)',
-                  borderRadius: 14, overflow: 'hidden', minWidth: 180,
-                  boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.08), 0 8px 32px rgba(0,0,0,0.6)',
-                }}>
-                  {currentPR && (
-                    <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                      <p style={{ fontSize: 10.5, color: 'var(--text3)', marginBottom: 2 }}>Récord personal</p>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'DM Mono, monospace' }}>
-                        {currentPR.weight}kg × {currentPR.reps}
-                      </p>
-                    </div>
-                  )}
-                  {/* Note option */}
-                  <button
-                    onClick={() => { setMenuOpen(false); onOpenNote?.(exercise.id, exData?.name || exercise.exerciseId, exercise.note || '') }}
-                    style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
-                  >
-                    <StickyNote size={14} color="var(--text3)" />
-                    {exercise.note ? 'Editar nota' : 'Añadir nota'}
-                  </button>
-                  <button
-                    onClick={() => { setMenuOpen(false); setRestOverrideOpen(true) }}
-                    style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
-                  >
-                    Cambiar descanso
-                  </button>
-                  <button
-                    onClick={() => { setMenuOpen(false); onRemoveExercise() }}
-                    style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer' }}
-                  >
-                    Eliminar ejercicio
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+        <div style={{ flexShrink: 0 }}>
+          <button
+            ref={menuBtnRef}
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 8 }}
+          >
+            <MoreHorizontal size={16} color="var(--text3)" />
+          </button>
+          {menuOpen && createPortal(
+            <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setMenuOpen(false)} />
+              <div style={{
+                position: 'fixed',
+                top: menuBtnRef.current ? menuBtnRef.current.getBoundingClientRect().bottom + 4 : 100,
+                right: 16,
+                zIndex: 9999,
+                background: 'rgba(16,13,9,0.96)',
+                backdropFilter: 'blur(40px) saturate(200%)',
+                WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+                border: '0.5px solid rgba(255,235,200,0.12)',
+                borderRadius: 14, overflow: 'hidden', minWidth: 200,
+                boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.08), 0 12px 40px rgba(0,0,0,0.7)',
+              }}>
+                {currentPR && (
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: 10.5, color: 'var(--text3)', marginBottom: 2 }}>Récord personal</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'DM Mono, monospace' }}>
+                      {currentPR.weight}kg × {currentPR.reps}
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={() => { setMenuOpen(false); onOpenNote?.(exercise.id, exData?.name || exercise.exerciseId, exercise.note || '') }}
+                  style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <StickyNote size={14} color="var(--text3)" />
+                  {exercise.note ? 'Editar nota' : 'Añadir nota'}
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); setRestOverrideOpen(true) }}
+                  style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                >
+                  Cambiar descanso
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); onRemoveExercise() }}
+                  style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  Eliminar ejercicio
+                </button>
+              </div>
+            </>,
+            document.body
+          )}
         </div>
       </div>
 
