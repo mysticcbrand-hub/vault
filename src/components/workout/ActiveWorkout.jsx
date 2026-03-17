@@ -196,10 +196,28 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           WebkitBackdropFilter: 'blur(40px) saturate(200%)',
           boxShadow: '0 1px 0 rgba(0,0,0,0.5)',
         }}>
+          {/* Progress bar — flush at top of header */}
+          {(() => {
+            const completedEx = exercises.filter(e => e.sets?.length > 0 && e.sets.every(s => s.completed)).length
+            const pct = exercises.length > 0 ? (completedEx / exercises.length) * 100 : 0
+            const allExDone = completedEx === exercises.length && exercises.length > 0
+            return (
+              <div style={{ height: 2, background: 'rgba(255,235,200,0.06)', width: '100%' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${pct}%`,
+                  background: allExDone ? '#34C77B' : 'linear-gradient(90deg, #E8924A, #D4A843)',
+                  boxShadow: allExDone ? '0 0 8px rgba(52,199,123,0.7)' : '0 0 8px rgba(232,146,74,0.55)',
+                  borderRadius: '0 2px 2px 0',
+                  transition: 'width 0.55s cubic-bezier(0.32,0.72,0,1), background 0.4s ease',
+                }} />
+              </div>
+            )
+          })()}
           {/* Controls row */}
           <div style={{
             padding: '10px 16px',
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 120px)',
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 25px)',
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
             <button onClick={() => setShowCancel(true)} className="pressable" style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, borderRadius: 10 }}>

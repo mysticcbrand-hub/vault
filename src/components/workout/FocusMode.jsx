@@ -25,42 +25,7 @@ function formatElapsed(s) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-// ─── Progress bar (thin 2px line at top of screen) ───────────────────────────
-function WorkoutProgressBar({ exercises }) {
-  const completed = exercises.filter(ex =>
-    ex.sets?.length > 0 && ex.sets.every(s => s.completed)
-  ).length
-  const total = exercises.length
-  const pct = total > 0 ? (completed / total) * 100 : 0
-  const allDone = completed === total && total > 0
 
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0,
-      height: 2,
-      zIndex: 200,
-      background: 'rgba(255,235,200,0.06)',
-    }}>
-      <motion.div
-        animate={{ width: `${pct}%` }}
-        transition={{ duration: 0.55, ease: [0.32, 0.72, 0, 1] }}
-        style={{
-          position: 'absolute',
-          top: 0, left: 0, height: '100%',
-          background: allDone
-            ? '#34C77B'
-            : 'linear-gradient(90deg, #E8924A, #D4A843)',
-          boxShadow: allDone
-            ? '0 0 8px rgba(52,199,123,0.7)'
-            : '0 0 8px rgba(232,146,74,0.55)',
-          borderRadius: '0 2px 2px 0',
-          transition: 'background 0.4s ease',
-        }}
-      />
-    </div>
-  )
-}
 
 // ─── Focus Nav — replaces bottom nav during workout ──────────────────────────
 function FocusNav({ activeWorkout, onFinish }) {
@@ -194,22 +159,17 @@ function FocusNav({ activeWorkout, onFinish }) {
   )
 }
 
-// ─── Main FocusMode — renders via portal ─────────────────────────────────────
+// ─── Main FocusMode — renders bottom nav via portal ──────────────────────────
 export function FocusMode({ onFinish }) {
   const activeWorkout = useStore(s => s.activeWorkout)
   const isActive = !!activeWorkout
 
   if (!isActive) return null
 
-  const exercises = activeWorkout.exercises || []
-
   return createPortal(
     <AnimatePresence>
       {isActive && (
-        <>
-          <WorkoutProgressBar exercises={exercises} />
-          <FocusNav activeWorkout={activeWorkout} onFinish={onFinish} />
-        </>
+        <FocusNav activeWorkout={activeWorkout} onFinish={onFinish} />
       )}
     </AnimatePresence>,
     document.body
