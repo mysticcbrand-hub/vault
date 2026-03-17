@@ -187,79 +187,52 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
 
-        {/* ── Workout header — fixed top, outside scroll ── */}
+        {/* Fixed header — glassmorphism */}
         <div style={{
-          flexShrink: 0,
-          paddingTop: 'env(safe-area-inset-top, 0px)',
-          position: 'sticky', top: 0, zIndex: 50,
-          background: 'rgba(10,8,6,0.92)',
+          flexShrink: 0, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', gap: 12,
+          position: 'sticky', top: 0, zIndex: 10,
+          background: 'rgba(10,8,6,0.82)',
           backdropFilter: 'blur(40px) saturate(200%)',
           WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-          boxShadow: 'inset 0 -0.5px 0 rgba(255,235,200,0.08)',
+          boxShadow: 'inset 0 -1px 0 rgba(255,235,200,0.06), 0 1px 0 rgba(0,0,0,0.5)',
         }}>
-          {/* Header content row */}
-          <div style={{
-            padding: '10px 16px',
-            display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <button onClick={() => setShowCancel(true)} className="pressable" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,235,200,0.06)', border: '0.5px solid rgba(255,235,200,0.08)', cursor: 'pointer', flexShrink: 0, borderRadius: 12 }}>
-              <ChevronLeft size={20} color="var(--text2)" />
-            </button>
+          <button onClick={() => setShowCancel(true)} className="pressable" style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, borderRadius: 10 }}>
+            <ChevronLeft size={22} color="var(--text2)" />
+          </button>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {editingName ? (
-                <input autoFocus value={activeWorkout.name} onChange={e => updateWorkoutName(e.target.value)} onBlur={() => setEditingName(false)} onKeyDown={e => e.key === 'Enter' && setEditingName(false)}
-                  style={{ background: 'none', border: 'none', borderBottom: '1.5px solid var(--accent)', fontSize: 16, fontWeight: 600, color: 'var(--text)', outline: 'none', width: '100%', padding: '2px 0', fontFamily: 'inherit' }} />
-              ) : (
-                <button onClick={() => setEditingName(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
-                    {activeWorkout.name}
-                  </p>
-                </button>
-              )}
-            </div>
-
-            {/* Live timer */}
-            <div style={{ fontSize: 17, fontFamily: 'DM Mono, monospace', fontWeight: 600, color: 'var(--green)', letterSpacing: '-0.02em', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-              {mm}<span className="colon">:</span>{ss}
-            </div>
-
-            {/* Finish button — animated state transition */}
-            {(() => {
-              const allDone = exercises.length > 0 && exercises.every(ex => ex.sets.length > 0 && ex.sets.every(s => s.completed))
-              return (
-                <motion.button
-                  onClick={() => setShowFinish(true)}
-                  className="pressable"
-                  animate={{
-                    background: allDone ? 'rgba(52,199,123,0.18)' : 'var(--accent)',
-                    borderColor: allDone ? 'rgba(52,199,123,0.35)' : 'transparent',
-                  }}
-                  transition={{ duration: 0.3 }}
-                  style={{
-                    height: 36, padding: '0 14px', borderRadius: 10,
-                    border: allDone ? '1px solid rgba(52,199,123,0.35)' : '1px solid transparent',
-                    background: allDone ? 'rgba(52,199,123,0.18)' : 'var(--accent)',
-                    color: allDone ? '#34C77B' : 'white',
-                    fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {allDone ? '✓ Guardar' : 'Finalizar'}
-                </motion.button>
-              )
-            })()}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {editingName ? (
+              <input autoFocus value={activeWorkout.name} onChange={e => updateWorkoutName(e.target.value)} onBlur={() => setEditingName(false)} onKeyDown={e => e.key === 'Enter' && setEditingName(false)}
+                style={{ background: 'none', border: 'none', borderBottom: '1.5px solid var(--accent)', fontSize: 16, fontWeight: 600, color: 'var(--text)', outline: 'none', width: '100%', padding: '2px 0', fontFamily: 'inherit' }} />
+            ) : (
+              <button onClick={() => setEditingName(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                  {activeWorkout.name}
+                </p>
+              </button>
+            )}
           </div>
 
-          {/* Volume & sets tracker bar */}
-          <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderTop: '0.5px solid rgba(255,235,200,0.05)' }}>
-            <span style={{ fontSize: 12, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
-              {formatKg(totalVolume)} kg
-            </span>
-            <span style={{ fontSize: 12, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
-              {completedSets} series ✓
-            </span>
+          {/* Live timer */}
+          <div style={{ fontSize: 17, fontFamily: 'DM Mono, monospace', fontWeight: 600, color: 'var(--green)', letterSpacing: '-0.02em', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+            {mm}<span className="colon">:</span>{ss}
           </div>
+
+          {/* Finish button */}
+          <button onClick={() => setShowFinish(true)} className="pressable" style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--accent)', border: 'none', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+            Finalizar
+          </button>
+        </div>
+
+        {/* Volume tracker bar */}
+        <div style={{ flexShrink: 0, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 13, fontFamily: 'DM Mono, monospace', color: 'var(--text2)', fontVariantNumeric: 'tabular-nums' }}>
+            {formatKg(totalVolume)} kg levantados
+          </span>
+          <span style={{ fontSize: 13, fontFamily: 'DM Mono, monospace', color: 'var(--text2)', fontVariantNumeric: 'tabular-nums' }}>
+            {completedSets} series ✓
+          </span>
         </div>
 
         {/* Rest timer pill */}
