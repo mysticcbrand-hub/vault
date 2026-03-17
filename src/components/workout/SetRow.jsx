@@ -1,4 +1,4 @@
-import { memo, useRef, useState, useCallback } from 'react'
+import { memo, useRef, useState, useCallback, useEffect } from 'react'
 
 const CheckIcon = ({ done }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -22,7 +22,20 @@ function SwipeableRow({ onDelete, children, canDelete }) {
   const startX = useRef(0)
   const startY = useRef(0)
   const locked = useRef(false) // scroll vs swipe lock
+  const rowRef = useRef(null)
   const DELETE_THRESHOLD = 80
+
+  // Close swipe when tapping outside this row
+  useEffect(() => {
+    if (translateX >= -10) return
+    const handler = (e) => {
+      if (rowRef.current && !rowRef.current.contains(e.target)) {
+        setTranslateX(0)
+      }
+    }
+    document.addEventListener('pointerdown', handler, true)
+    return () => document.removeEventListener('pointerdown', handler, true)
+  }, [translateX])
 
   const handleTouchStart = useCallback((e) => {
     if (!canDelete) return
@@ -67,16 +80,16 @@ function SwipeableRow({ onDelete, children, canDelete }) {
     setSwiping(false)
   }, [canDelete, translateX])
 
-  const close = useCallback(() => setTranslateX(0), [])
 
   const isRevealed = translateX < -10
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 10 }}>
+    <div ref={rowRef} style={{ position: 'relative', overflow: 'hidden', borderRadius: 10 }}>
       {/* Delete action behind */}
       {isRevealed && (
         <div
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation()
             try { navigator.vibrate(12) } catch {}
             onDelete()
             setTranslateX(0)
@@ -88,6 +101,7 @@ function SwipeableRow({ onDelete, children, canDelete }) {
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: 2,
             cursor: 'pointer', borderRadius: 10,
+            zIndex: 3,
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
@@ -105,20 +119,12 @@ function SwipeableRow({ onDelete, children, canDelete }) {
         style={{
           transform: `translateX(${translateX}px)`,
           transition: swiping ? 'none' : 'transform 0.25s cubic-bezier(0.32,0.72,0,1)',
-          position: 'relative', zIndex: 1,
-          background: 'inherit',
+          position: 'relative', zIndex: 2,
+          background: 'var(--bg, #0C0A09)',
         }}
       >
         {children}
       </div>
-
-      {/* Tap-to-close overlay when revealed */}
-      {isRevealed && (
-        <div
-          onClick={close}
-          style={{ position: 'fixed', inset: 0, zIndex: 0 }}
-        />
-      )}
     </div>
   )
 }

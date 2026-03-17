@@ -314,6 +314,8 @@ export default function App() {
           boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
           isolation: 'isolate',
           overflow: 'hidden',
+          // ── CRITICAL: Hide header during active workout session ──
+          display: activeWorkout ? 'none' : 'block',
         }}>
           {/* Noise layer */}
           <div style={{
