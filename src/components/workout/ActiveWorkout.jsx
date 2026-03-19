@@ -53,10 +53,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   }, [activeWorkout?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Drag to reorder ────────────────────────────────────────────
-  // Split exercises: locked (all sets done) + draggable (pending)
   const exercises = activeWorkout?.exercises || []
-  const lockedExercises = exercises.filter(ex => ex.sets.length > 0 && ex.sets.every(s => s.completed))
-  const draggableExercises = exercises.filter(ex => !(ex.sets.length > 0 && ex.sets.every(s => s.completed)))
 
   // Map draggable indices back to global indices for reorder
   const draggableGlobalIndices = exercises
@@ -327,26 +324,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           paddingBottom: 'calc(var(--nav-h) + 80px)',
         }}>
 
-          {/* Locked (completed) exercises — no drag */}
-          {lockedExercises.map((exercise, i) => (
-            <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms` }}>
-              <ExerciseCard
-                exercise={exercise}
-                onAddSet={addSet}
-                onRemoveExercise={() => removeExercise(exercise.id)}
-                onCompleteSet={handleCompleteSet}
-                onUpdateSet={updateSet}
-                onRemoveSet={removeSet}
-                onAddDropset={addDropset}
-                onOpenNote={(id, name, note) => setNoteSheet({ exerciseId: id, name, note })}
-                restTimer={restTimer}
-                isResting={restingExerciseId === exercise.id && restTimer.isActive}
-                isDraggable={false}
-              />
-            </div>
-          ))}
-
-          {/* Draggable (pending) exercises */}
+          {/* All exercises in a single container — prevents scroll jump on set completion */}
           <div
             ref={containerRef}
             {...containerHandlers}
@@ -355,25 +333,29 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
               touchAction: isDragging ? 'none' : 'pan-y',
             }}
           >
-            {draggableExercises.map((exercise, i) => (
-              <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${(lockedExercises.length + i) * 40}ms` }}>
-                <ExerciseCard
-                  exercise={exercise}
-                  onAddSet={addSet}
-                  onRemoveExercise={() => removeExercise(exercise.id)}
-                  onCompleteSet={handleCompleteSet}
-                  onUpdateSet={updateSet}
-                  onRemoveSet={removeSet}
-                  onAddDropset={addDropset}
-                  onOpenNote={(id, name, note) => setNoteSheet({ exerciseId: id, name, note })}
-                  restTimer={restTimer}
-                  isResting={restingExerciseId === exercise.id && restTimer.isActive}
-                  isDraggable={true}
-                  isDragging={dragIndex === i}
-                  dragHandlers={gripHandlers(i)}
-                />
-              </div>
-            ))}
+            {exercises.map((exercise, i) => {
+              const isLocked = exercise.sets.length > 0 && exercise.sets.every(s => s.completed)
+              const draggableIdx = draggableGlobalIndices.indexOf(i)
+              return (
+                <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms` }}>
+                  <ExerciseCard
+                    exercise={exercise}
+                    onAddSet={addSet}
+                    onRemoveExercise={() => removeExercise(exercise.id)}
+                    onCompleteSet={handleCompleteSet}
+                    onUpdateSet={updateSet}
+                    onRemoveSet={removeSet}
+                    onAddDropset={addDropset}
+                    onOpenNote={(id, name, note) => setNoteSheet({ exerciseId: id, name, note })}
+                    restTimer={restTimer}
+                    isResting={restingExerciseId === exercise.id && restTimer.isActive}
+                    isDraggable={!isLocked}
+                    isDragging={!isLocked && dragIndex === draggableIdx}
+                    dragHandlers={!isLocked && draggableIdx >= 0 ? gripHandlers(draggableIdx) : undefined}
+                  />
+                </div>
+              )
+            })}
           </div>
 
           {/* Add exercise button */}
