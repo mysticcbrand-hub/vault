@@ -12,6 +12,7 @@ import { useDragToReorder } from '../../hooks/useDragToReorder.js'
 import { formatKg } from '../../utils/format.js'
 import { getExerciseById } from '../../data/exercises.js'
 import { getSmartRestSuggestion } from '../../data/restProfiles.js'
+import { haptics } from '../../utils/haptics.js'
 import useStore from '../../store/index.js'
 
 export const ActiveWorkout = memo(function ActiveWorkout() {
@@ -29,6 +30,8 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const reorderExercises = useStore(s => s.reorderExercises)
   const addDropset = useStore(s => s.addDropset)
   const updateExerciseNote = useStore(s => s.updateExerciseNote)
+
+  const addToast = useStore(s => s.addToast)
 
   const [showPicker, setShowPicker] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
@@ -71,7 +74,22 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     },
   })
 
-  if (!activeWorkout) return null
+  // Show completion overlay even after activeWorkout is cleared from store
+  if (!activeWorkout && !completedData) return null
+  if (!activeWorkout && completedData) {
+    return (
+      <WorkoutComplete
+        session={completedData.session}
+        newPRs={completedData.newPRs}
+        onSave={(notes) => {
+          if (notes && completedData.session?.id) {
+            useStore.getState().updateSession(completedData.session.id, { notes })
+          }
+          setCompletedData(null)
+        }}
+      />
+    )
+  }
 
   const totalVolume = exercises.reduce((t, ex) =>
     t + ex.sets.reduce((s, set) =>
@@ -89,6 +107,17 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
 
     // If we just uncompleted (wasCompleted=true), don't trigger rest timer
     if (result.wasCompleted) return result
+
+    // PR celebration feedback
+    if (result.isPR) {
+      haptics.heavy()
+      addToast({ message: '🏆 ¡Nuevo récord personal!', type: 'success', duration: 3000 })
+    } else if (result.isRepPR) {
+      haptics.double()
+      addToast({ message: `💪 +Reps a ${result.weight}kg — ¡récord de reps!`, type: 'success', duration: 2800 })
+    } else {
+      haptics.medium()
+    }
 
     // Check if this was a regular set and the NEXT set is a dropset — skip rest
     const exercise = activeWorkout.exercises.find(ex => ex.id === exerciseId)
@@ -127,6 +156,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
 
   const handleFinishConfirm = () => {
     setShowFinish(false)
+    haptics.success()
     const result = finishWorkout('')
     if (result) {
       setCompletedData(result)
@@ -264,10 +294,25 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
               {mm}<span className="colon">:</span>{ss}
             </div>
 
-            {/* Finish button */}
-            <button onClick={() => setShowFinish(true)} className="pressable" style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--accent)', border: 'none', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-              Finalizar
-            </button>
+            {/* Finish button — glows green when all exercises done */}
+            {(() => {
+              const allDone = exercises.length > 0 && exercises.every(ex => ex.sets?.length > 0 && ex.sets.every(s => s.completed))
+              return (
+                <button
+                  onClick={() => setShowFinish(true)}
+                  className={`pressable${allDone ? ' finish-btn-glow' : ''}`}
+                  style={{
+                    height: 36, padding: '0 14px', borderRadius: 10,
+                    background: allDone ? 'var(--green)' : 'var(--accent)',
+                    border: 'none',
+                    color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+                    transition: 'background 0.4s ease',
+                  }}
+                >
+                  {allDone ? '✓ Finalizar' : 'Finalizar'}
+                </button>
+              )
+            })()}
           </div>
 
           {/* Exercise dots + volume — integrated info bar */}
@@ -336,23 +381,56 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
             {exercises.map((exercise, i) => {
               const isLocked = exercise.sets.length > 0 && exercise.sets.every(s => s.completed)
               const draggableIdx = draggableGlobalIndices.indexOf(i)
+              const isBeingDragged = !isLocked && dragIndex === draggableIdx
+              const showInsertBefore = isDragging && overIndex !== null && overIndex !== dragIndex && draggableIdx === overIndex && draggableIdx < dragIndex
+              const showInsertAfter = isDragging && overIndex !== null && overIndex !== dragIndex && draggableIdx === overIndex && draggableIdx > dragIndex
               return (
-                <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms` }}>
-                  <ExerciseCard
-                    exercise={exercise}
-                    onAddSet={addSet}
-                    onRemoveExercise={() => removeExercise(exercise.id)}
-                    onCompleteSet={handleCompleteSet}
-                    onUpdateSet={updateSet}
-                    onRemoveSet={removeSet}
-                    onAddDropset={addDropset}
-                    onOpenNote={(id, name, note) => setNoteSheet({ exerciseId: id, name, note })}
-                    restTimer={restTimer}
-                    isResting={restingExerciseId === exercise.id && restTimer.isActive}
-                    isDraggable={!isLocked}
-                    isDragging={!isLocked && dragIndex === draggableIdx}
-                    dragHandlers={!isLocked && draggableIdx >= 0 ? gripHandlers(draggableIdx) : undefined}
-                  />
+                <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms`, position: 'relative' }}>
+                  {/* Insertion line — before */}
+                  {showInsertBefore && (
+                    <div style={{
+                      position: 'absolute', top: -7, left: 12, right: 12,
+                      height: 3, borderRadius: 2,
+                      background: 'var(--accent)',
+                      boxShadow: '0 0 12px rgba(232,146,74,0.4)',
+                      zIndex: 5,
+                      animation: 'fadeIn 0.15s ease',
+                    }} />
+                  )}
+                  <div style={{
+                    transition: isBeingDragged ? 'none' : 'transform 0.2s cubic-bezier(0.32,0.72,0,1), opacity 0.2s ease',
+                    transform: isBeingDragged ? 'scale(1.03)' : 'scale(1)',
+                    opacity: isBeingDragged ? 0.55 : 1,
+                    zIndex: isBeingDragged ? 10 : 1,
+                    position: 'relative',
+                  }}>
+                    <ExerciseCard
+                      exercise={exercise}
+                      onAddSet={addSet}
+                      onRemoveExercise={() => removeExercise(exercise.id)}
+                      onCompleteSet={handleCompleteSet}
+                      onUpdateSet={updateSet}
+                      onRemoveSet={removeSet}
+                      onAddDropset={addDropset}
+                      onOpenNote={(id, name, note) => setNoteSheet({ exerciseId: id, name, note })}
+                      restTimer={restTimer}
+                      isResting={restingExerciseId === exercise.id && restTimer.isActive}
+                      isDraggable={!isLocked}
+                      isDragging={isBeingDragged}
+                      dragHandlers={!isLocked && draggableIdx >= 0 ? gripHandlers(draggableIdx) : undefined}
+                    />
+                  </div>
+                  {/* Insertion line — after */}
+                  {showInsertAfter && (
+                    <div style={{
+                      position: 'absolute', bottom: -7, left: 12, right: 12,
+                      height: 3, borderRadius: 2,
+                      background: 'var(--accent)',
+                      boxShadow: '0 0 12px rgba(232,146,74,0.4)',
+                      zIndex: 5,
+                      animation: 'fadeIn 0.15s ease',
+                    }} />
+                  )}
                 </div>
               )
             })}

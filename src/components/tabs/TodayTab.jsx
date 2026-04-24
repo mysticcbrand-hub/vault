@@ -271,61 +271,149 @@ function HeroCard({ next, onStart, onShowProgram }) {
 }
 
 function StreakCard({ streak, completedDays, program }) {
+  const longestStreak = useStore(s => s.streakLongestStreak) || 0
   const cycleDays = program?.days?.length || 0
   const daysInCycle = completedDays?.length || 0
   const inCycle = cycleDays > 0 && daysInCycle > 0
+  const almostDone = inCycle && (cycleDays - daysInCycle) === 1
+
+  // Fire level — grows with streak
+  const fireLevel = streak === 0 ? 0 : streak < 3 ? 1 : streak < 5 ? 2 : streak < 10 ? 3 : 4
+  const fireSize = [0, 48, 60, 72, 84][fireLevel]
+  const fireOpacity = [0, 0.10, 0.14, 0.18, 0.24][fireLevel]
+
+  // Milestone badges
+  const milestones = [
+    { at: 3,  emoji: '🥉', label: 'Constante' },
+    { at: 5,  emoji: '🥈', label: 'Dedicado' },
+    { at: 10, emoji: '🥇', label: 'Imparable' },
+    { at: 25, emoji: '💎', label: 'Élite' },
+    { at: 50, emoji: '👑', label: 'Leyenda' },
+  ]
+  const reached = milestones.filter(m => streak >= m.at)
+  const latest = reached[reached.length - 1]
 
   return (
     <div style={{
-      background: 'rgba(22,18,12,0.65)',
+      background: almostDone
+        ? 'linear-gradient(155deg, rgba(36,27,12,0.75) 0%, rgba(22,18,12,0.65) 100%)'
+        : 'rgba(22,18,12,0.65)',
       backdropFilter: 'blur(20px) saturate(160%)',
       WebkitBackdropFilter: 'blur(20px) saturate(160%)',
       borderRadius: 'var(--r)', padding: '18px 20px',
       position: 'relative', overflow: 'hidden',
-      boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.07), 0 0 0 0.5px rgba(255,235,200,0.07)',
+      boxShadow: almostDone
+        ? 'inset 0 1px 0 rgba(255,235,200,0.10), 0 0 0 1px rgba(232,146,74,0.18), 0 0 24px rgba(232,146,74,0.08)'
+        : 'inset 0 1px 0 rgba(255,235,200,0.07), 0 0 0 0.5px rgba(255,235,200,0.07)',
+      transition: 'box-shadow 0.6s ease, background 0.6s ease',
     }}>
-      {/* Decorative flame */}
-      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style={{
-        position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
-        pointerEvents: 'none',
-      }}>
-        <path d="M32 56C20 56 12 46 12 36C12 28 18 22 22 18C22 26 28 28 28 28C28 20 34 10 40 6C40 16 48 20 52 28C56 36 52 48 44 52C46 46 44 40 40 38C40 44 36 52 32 56Z"
-          fill="var(--accent)" opacity="0.1" />
-      </svg>
+      {/* Animated flame — scales with streak level */}
+      {fireLevel > 0 && (
+        <svg width={fireSize} height={fireSize} viewBox="0 0 64 64" fill="none" style={{
+          position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+          pointerEvents: 'none',
+          transition: 'width 0.6s cubic-bezier(0.32,0.72,0,1), height 0.6s cubic-bezier(0.32,0.72,0,1)',
+          animation: fireLevel >= 3 ? 'streakFlameFlicker 2s ease-in-out infinite' : 'none',
+        }}>
+          <path d="M32 56C20 56 12 46 12 36C12 28 18 22 22 18C22 26 28 28 28 28C28 20 34 10 40 6C40 16 48 20 52 28C56 36 52 48 44 52C46 46 44 40 40 38C40 44 36 52 32 56Z"
+            fill={fireLevel >= 4 ? '#E8924A' : fireLevel >= 3 ? '#D4A843' : 'var(--accent)'}
+            opacity={fireOpacity} />
+          {/* Inner flame core for higher levels */}
+          {fireLevel >= 3 && (
+            <path d="M32 52C24 52 18 44 18 38C18 33 22 28 24 26C24 30 28 32 28 32C28 28 32 20 36 16C36 22 40 24 44 30C46 34 44 42 40 46C42 42 40 38 38 36C38 40 36 46 32 52Z"
+              fill="#F0A55E" opacity={fireLevel >= 4 ? 0.25 : 0.15} />
+          )}
+        </svg>
+      )}
 
       {streak > 0 || inCycle ? (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: 48, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--accent)', fontFamily: 'DM Mono, monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-              {streak}
-            </span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text2)' }}>🔥</span>
+        <div style={{ position: 'relative' }}>
+          {/* Streak number + milestone badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{
+                fontSize: 48, fontWeight: 800, letterSpacing: '-0.04em',
+                color: fireLevel >= 4 ? '#F0A55E' : 'var(--accent)',
+                fontFamily: 'DM Mono, monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+                textShadow: fireLevel >= 3 ? '0 0 20px rgba(232,146,74,0.25)' : 'none',
+                transition: 'color 0.4s ease, text-shadow 0.4s ease',
+              }}>
+                {streak}
+              </span>
+              <span style={{
+                fontSize: fireLevel >= 3 ? 20 : 15, fontWeight: 600, color: 'var(--text2)',
+                animation: fireLevel >= 2 ? 'streak-emblem-bounce 1.8s ease-in-out infinite' : 'none',
+                display: 'inline-block',
+              }}>🔥</span>
+            </div>
+            {/* Milestone badge */}
+            {latest && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '3px 8px', borderRadius: 'var(--r-pill)',
+                background: 'rgba(232,146,74,0.12)', border: '0.5px solid rgba(232,146,74,0.22)',
+                animation: 'fadeIn 0.5s ease both',
+              }}>
+                <span style={{ fontSize: 12 }}>{latest.emoji}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{latest.label}</span>
+              </div>
+            )}
           </div>
+
           <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4, fontWeight: 600, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
             {streak === 1 ? 'ciclo completado' : 'ciclos completados'}
           </p>
-          {/* Cycle progress bar — only when mid-cycle */}
-          {inCycle && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+
+          {/* Longest streak secondary stat */}
+          {longestStreak > streak && longestStreak > 0 && (
+            <p style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2, fontWeight: 500 }}>
+              Mejor racha: <span style={{ color: 'var(--accent)', fontWeight: 700, fontFamily: 'DM Mono, monospace' }}>{longestStreak}</span>
+            </p>
+          )}
+
+          {/* Cycle progress — individual dots */}
+          {inCycle && cycleDays > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Ciclo actual</span>
-                <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, fontFamily: 'DM Mono, monospace' }}>{daysInCycle}/{cycleDays}</span>
+                <span style={{ fontSize: 11, color: almostDone ? '#F0A55E' : 'var(--accent)', fontWeight: 700, fontFamily: 'DM Mono, monospace' }}>
+                  {daysInCycle}/{cycleDays}
+                </span>
               </div>
-              <div style={{ height: 4, borderRadius: 2, background: 'var(--surface3)', overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%', borderRadius: 2,
-                  width: `${Math.round((daysInCycle / cycleDays) * 100)}%`,
-                  background: 'linear-gradient(90deg, var(--accent), var(--accent-bright))',
-                  transition: 'width 0.6s cubic-bezier(0.32,0.72,0,1)',
-                }} />
+              <div style={{ display: 'flex', gap: 4 }}>
+                {Array.from({ length: cycleDays }).map((_, i) => {
+                  const completed = i < daysInCycle
+                  const isNext = i === daysInCycle
+                  return (
+                    <div key={i} style={{
+                      flex: 1, height: 6, borderRadius: 3,
+                      background: completed
+                        ? 'linear-gradient(90deg, var(--accent), var(--accent-bright))'
+                        : isNext
+                          ? 'rgba(232,146,74,0.22)'
+                          : 'var(--surface3)',
+                      boxShadow: completed ? '0 0 6px rgba(232,146,74,0.2)' : 'none',
+                      transition: 'background 0.4s ease, box-shadow 0.4s ease',
+                      animation: isNext && almostDone ? 'todayPulse 2.5s ease-in-out infinite' : 'none',
+                    }} />
+                  )
+                })}
               </div>
+              {almostDone && (
+                <p style={{
+                  fontSize: 11, color: 'var(--accent-bright)', fontWeight: 600, marginTop: 6,
+                  animation: 'fadeIn 0.4s ease both',
+                }}>
+                  ¡Un entrenamiento más y completas el ciclo! 🎯
+                </p>
+              )}
             </div>
           )}
         </div>
       ) : (
         <div>
           <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Sin racha aún</p>
-          <p style={{ fontSize: 13, color: 'var(--text2)' }}>Completa un ciclo del programa 🔥</p>
+          <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>Completa todos los días de tu programa para iniciar tu racha 🔥</p>
         </div>
       )}
     </div>

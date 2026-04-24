@@ -18,6 +18,18 @@ function computeE1RM(weight, reps) {
   return weight * 36 / (37 - Math.min(reps, 36))
 }
 
+// ── PR detection: weight PR OR reps-at-weight PR ─────────────────────────────
+// prs[exerciseId] = { weight, reps, e1rm, date, repPRs: { [weight]: { reps, date } } }
+function isPRSet(weight, reps, existingPR) {
+  if (!weight || !reps) return { isE1rmPR: false, isRepPR: false }
+  const e1rm = computeE1RM(weight, reps)
+  const isE1rmPR = e1rm > 0 && (!existingPR || e1rm > existingPR.e1rm)
+  // Rep PR: same weight, more reps than ever done at that weight
+  const existingRepPR = existingPR?.repPRs?.[String(weight)]?.reps ?? 0
+  const isRepPR = !isE1rmPR && reps > existingRepPR
+  return { isE1rmPR, isRepPR, e1rm }
+}
+
 const initialState = () => ({
   user: {
     name: null,
@@ -40,13 +52,15 @@ const initialState = () => ({
   prs: {},
   bodyMetrics: [],
   // Badge-specific counters — only incremented by intentional user actions
-  userCreatedPrograms: 0,   // incremented by saveCustomProgram(), NOT addRecommendedProgram()
-  manualWeightLogs: 0,      // incremented by addBodyMetric() when source !== 'onboarding'
-  // Streak — cycle-based (not calendar-day)
+  userCreatedPrograms: 0,
+  manualWeightLogs: 0,
+  // ── Streak — program-cycle-based (NOT calendar-day) ──────────────────────
+  // A "cycle" = completing ALL days of the active program once.
+  // Streak increments each completed cycle. Window = days.length * 2 days to complete.
   streakCurrentStreak: 0,
   streakLongestStreak: 0,
-  streakCycleStart: null,           // ISO date string
-  streakCompletedDays: [],          // array of program day IDs completed this cycle
+  streakCycleStart: null,         // ISO date string — when current cycle started
+  streakCompletedDays: [],        // program day IDs completed in current cycle
   settings: {
     unit: 'kg',
     theme: 'dark',
@@ -89,8 +103,6 @@ const useStore = create(
       createProgram: (data) => set(s => ({
         programs: [...s.programs, { id: uid(), days: [], ...data }]
       })),
-      // saveCustomProgram — called from ProgramEditor when user taps "Guardar"
-      // This is the ONLY action that increments userCreatedPrograms
       saveCustomProgram: (program) => set(s => ({
         programs: [...s.programs, {
           ...program,
@@ -101,8 +113,6 @@ const useStore = create(
         }],
         userCreatedPrograms: s.userCreatedPrograms + 1,
       })),
-      // addRecommendedProgram — called by personalizeFromOnboarding()
-      // Does NOT increment userCreatedPrograms
       addRecommendedProgram: (program) => set(s => ({
         programs: [...s.programs, {
           ...program,
@@ -215,6 +225,21 @@ const useStore = create(
         }
       }),
 
+      // ── SWAP EXERCISE IN WORKOUT — replace exerciseId, keep sets structure ─
+      swapExerciseInWorkout: (exerciseId, newExerciseId) => set(s => {
+        if (!s.activeWorkout) return {}
+        return {
+          activeWorkout: {
+            ...s.activeWorkout,
+            exercises: s.activeWorkout.exercises.map(ex =>
+              ex.id === exerciseId
+                ? { ...ex, exerciseId: newExerciseId, note: '' }
+                : ex
+            ),
+          }
+        }
+      }),
+
       addSet: (exerciseId) => set(s => {
         if (!s.activeWorkout) return {}
         return {
@@ -245,7 +270,7 @@ const useStore = create(
             ...s.activeWorkout,
             exercises: s.activeWorkout.exercises.map(ex => {
               if (ex.id !== exerciseId) return ex
-              if (ex.sets.length <= 1) return ex // guard: keep at least 1 set
+              if (ex.sets.length <= 1) return ex
               const newSets = ex.sets.filter(st => st.id !== setId)
                 .map((st, i) => ({ ...st, setNumber: i + 1 }))
               return { ...ex, sets: newSets }
@@ -270,32 +295,52 @@ const useStore = create(
         }
       }),
 
-      // Toggle set complete/uncomplete — bidirectional
+      // ── COMPLETE SET — bidirectional + rep PR detection ───────────────────
       completeSet: (exerciseId, setId) => {
         const { activeWorkout, prs } = get()
-        if (!activeWorkout) return { isPR: false, wasCompleted: false }
+        if (!activeWorkout) return { isPR: false, isRepPR: false, wasCompleted: false }
 
         const ex = activeWorkout.exercises.find(e => e.id === exerciseId)
         const set_ = ex?.sets.find(s => s.id === setId)
-        if (!set_) return { isPR: false, wasCompleted: false }
+        if (!set_) return { isPR: false, isRepPR: false, wasCompleted: false }
 
         const wasCompleted = set_.completed
         const nowCompleted = !wasCompleted
 
-        let isPR = false
         if (nowCompleted) {
           const weight = parseFloat(set_.weight) || 0
           const reps = parseInt(set_.reps) || 0
-          const e1rm = computeE1RM(weight, reps)
           const currentPR = prs[ex.exerciseId]
-          isPR = e1rm > 0 && (!currentPR || e1rm > currentPR.e1rm)
+          const { isE1rmPR, isRepPR, e1rm } = isPRSet(weight, reps, currentPR)
 
           set(s => {
             const newPRs = { ...s.prs }
-            if (isPR) {
-              newPRs[ex.exerciseId] = {
-                weight, reps, e1rm,
-                date: new Date().toISOString()
+            if (isE1rmPR || isRepPR) {
+              const existing = newPRs[ex.exerciseId] || {}
+              const repPRs = { ...(existing.repPRs || {}) }
+              // Always update per-weight rep record
+              if (!repPRs[String(weight)] || reps > repPRs[String(weight)].reps) {
+                repPRs[String(weight)] = { reps, date: new Date().toISOString() }
+              }
+              if (isE1rmPR) {
+                newPRs[ex.exerciseId] = {
+                  weight, reps, e1rm,
+                  date: new Date().toISOString(),
+                  repPRs,
+                }
+              } else {
+                // Rep PR only — update repPRs but don't overwrite weight/e1rm PR
+                newPRs[ex.exerciseId] = { ...existing, repPRs }
+              }
+            } else {
+              // Still update per-weight rep record even if no PR
+              const existing = newPRs[ex.exerciseId]
+              if (existing) {
+                const repPRs = { ...(existing.repPRs || {}) }
+                if (!repPRs[String(weight)] || reps > repPRs[String(weight)].reps) {
+                  repPRs[String(weight)] = { reps, date: new Date().toISOString() }
+                  newPRs[ex.exerciseId] = { ...existing, repPRs }
+                }
               }
             }
             return {
@@ -315,7 +360,7 @@ const useStore = create(
             }
           })
 
-          return { isPR, e1rm: computeE1RM(parseFloat(set_.weight)||0, parseInt(set_.reps)||0), exerciseId: ex.exerciseId, weight: parseFloat(set_.weight)||0, reps: parseInt(set_.reps)||0, wasCompleted: false }
+          return { isPR: isE1rmPR, isRepPR, e1rm, exerciseId: ex.exerciseId, weight, reps, wasCompleted: false }
         } else {
           // Uncomplete
           set(s => ({
@@ -332,7 +377,7 @@ const useStore = create(
               })
             }
           }))
-          return { isPR: false, wasCompleted: true }
+          return { isPR: false, isRepPR: false, wasCompleted: true }
         }
       },
 
@@ -352,7 +397,7 @@ const useStore = create(
                 weight: Math.round((parseFloat(parentSet.weight) || 0) * 0.75),
                 reps: (parseInt(parentSet.reps) || 0) + 2,
                 completed: false,
-                setNumber: 0, // will be renumbered
+                setNumber: 0,
               }
               const newSets = []
               for (const st of ex.sets) {
@@ -398,7 +443,7 @@ const useStore = create(
         const duration = Math.floor((endTime - startTime) / 1000)
         const totalVolume = calcSessionVolume(activeWorkout.exercises)
 
-        // Detect new PRs — compare e1RM of each completed set vs stored PRs
+        // Detect new PRs — e1rm and rep PRs
         const newPRs = {}
         activeWorkout.exercises.forEach(ex => {
           ex.sets.forEach(set => {
@@ -406,21 +451,24 @@ const useStore = create(
             const w = parseFloat(set.weight) || 0
             const r = parseInt(set.reps) || 0
             if (!w || !r) return
-            const e1rm = computeE1RM(w, r)
-            const existing = prs[ex.exerciseId]
-            if (e1rm > 0 && (!existing || e1rm > existing.e1rm)) {
-              if (!newPRs[ex.exerciseId] || e1rm > newPRs[ex.exerciseId].e1rm) {
-                newPRs[ex.exerciseId] = { weight: w, reps: r, e1rm, date: new Date().toISOString() }
+            const currentPR = prs[ex.exerciseId]
+            const { isE1rmPR, isRepPR, e1rm } = isPRSet(w, r, currentPR)
+            if (isE1rmPR || isRepPR) {
+              if (!newPRs[ex.exerciseId]) newPRs[ex.exerciseId] = { isE1rmPR: false, isRepPR: false, weight: w, reps: r, e1rm: e1rm || 0 }
+              if (isE1rmPR && e1rm > (newPRs[ex.exerciseId].e1rm || 0)) {
+                newPRs[ex.exerciseId] = { ...newPRs[ex.exerciseId], isE1rmPR: true, weight: w, reps: r, e1rm, date: new Date().toISOString() }
+              }
+              if (isRepPR) {
+                newPRs[ex.exerciseId] = { ...newPRs[ex.exerciseId], isRepPR: true }
               }
             }
           })
         })
 
-        // Determine muscle groups from exercises (use muscle field if available)
+        // Muscle groups
         const muscles = [...new Set(
           activeWorkout.exercises
             .map(ex => {
-              // Try to get muscle from exercise data — fallback to exerciseId
               const stored = activeWorkout.exercises.find(e => e.id === ex.id)
               return stored?.muscle || null
             })
@@ -443,7 +491,10 @@ const useStore = create(
 
         localStorage.removeItem('graw_workout_start_ts')
 
-        // ── Streak cycle logic ──────────────────────────────────────────
+        // ── STREAK: program-cycle-based ──────────────────────────────────────
+        // A cycle is complete when all program days have been done.
+        // Window: days.length * 2 calendar days to avoid breaking streak on rest days.
+        // Streak only increments when a full cycle is completed.
         const state = get()
         const program = state.programs.find(p => p.id === activeWorkout.programId)
         let streakUpdates = {}
@@ -451,20 +502,21 @@ const useStore = create(
         if (program?.days?.length) {
           const now = new Date()
           const cycleStart = state.streakCycleStart ? new Date(state.streakCycleStart) : null
-          const windowDays = program.days.length * 2
+          // Generous window: days * 2 days (e.g. 3-day program → 6-day window)
+          const windowDays = Math.max(program.days.length * 2, 7)
 
-          // Find which program day was completed (match by templateId)
+          // Find which program day was completed
           const completedDayId = program.days.find(d => d.templateId === activeWorkout.templateId)?.id
 
           if (completedDayId) {
             let currentCompleted = [...(state.streakCompletedDays || [])]
             let currentCycleStart = cycleStart
 
-            // Check if window expired
+            // Check if window expired — if so, reset cycle (but NOT streak count yet)
             if (currentCycleStart) {
               const daysSince = Math.floor((now - currentCycleStart) / (1000 * 60 * 60 * 24))
               if (daysSince > windowDays) {
-                // Window expired — reset cycle, streak resets
+                // Window expired — start a new cycle, streak is broken
                 currentCompleted = []
                 currentCycleStart = null
                 streakUpdates.streakCurrentStreak = 0
@@ -474,19 +526,20 @@ const useStore = create(
             // Start cycle if not started
             if (!currentCycleStart) currentCycleStart = now
 
-            // Add day (deduplicate)
+            // Add day (deduplicate by ID)
             if (!currentCompleted.includes(completedDayId)) {
               currentCompleted.push(completedDayId)
             }
 
-            // Check if cycle complete
+            // Check if cycle complete — ALL program days done
             const allDone = program.days.every(d => currentCompleted.includes(d.id))
             if (allDone) {
-              const newStreak = (streakUpdates.streakCurrentStreak ?? state.streakCurrentStreak) + 1
+              const prevStreak = streakUpdates.streakCurrentStreak ?? state.streakCurrentStreak
+              const newStreak = prevStreak + 1
               streakUpdates = {
                 streakCurrentStreak: newStreak,
                 streakLongestStreak: Math.max(state.streakLongestStreak, newStreak),
-                streakCycleStart: null,
+                streakCycleStart: null,       // reset for next cycle
                 streakCompletedDays: [],
               }
             } else {
@@ -499,10 +552,11 @@ const useStore = create(
           }
         }
 
+        // Merge PR updates from per-set tracking done in completeSet()
+        // finishWorkout just records the session — PRs already persisted incrementally
         set(s => ({
           sessions: [session, ...s.sessions],
           activeWorkout: null,
-          prs: { ...s.prs, ...newPRs },
           ...streakUpdates,
         }))
 
@@ -526,16 +580,12 @@ const useStore = create(
       addBodyMetric: (data) => set(s => {
         const isManual = data.source !== 'onboarding'
 
-        // Use start-of-calendar-day in LOCAL time so the date on the chart
-        // always matches what the user sees on their clock — no timezone drift.
-        // If caller passes an explicit date, respect it; otherwise use today.
         const resolveDate = () => {
           if (data.date) {
             const d = new Date(data.date)
             if (!isNaN(d.getTime())) return d.toISOString()
           }
           const now = new Date()
-          // Midnight local time → toISOString gives UTC offset but date is correct
           now.setHours(0, 0, 0, 0)
           return now.toISOString()
         }
@@ -544,7 +594,6 @@ const useStore = create(
           id: uid(),
           date: resolveDate(),
           ...data,
-          // Ensure weight is always a clean float, not a string
           weight: typeof data.weight === 'string' ? parseFloat(data.weight) : data.weight,
         }
 
@@ -569,7 +618,6 @@ const useStore = create(
       clearPendingBadgeToast: () => set({ pendingBadgeToast: null }),
 
       // ── TOASTS ────────────────────────────────────────────────────────────
-      // Accepts either a string or an object { message, type, duration }
       addToast: (toastOrMessage) => {
         const id = uid()
         const toast = typeof toastOrMessage === 'string'
@@ -616,15 +664,14 @@ const useStore = create(
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error('Failed to rehydrate store:', error)
-        // Check streak window on app open
+        // Check streak window on app open — reset if cycle window expired
         if (state?.streakCycleStart) {
           const now = new Date()
           const cycleStart = new Date(state.streakCycleStart)
           const program = state.programs?.find(p => p.id === state.activeProgram)
-          const windowDays = (program?.days?.length || 3) * 2
+          const windowDays = Math.max((program?.days?.length || 3) * 2, 7)
           const daysSince = Math.floor((now - cycleStart) / (1000 * 60 * 60 * 24))
           if (daysSince > windowDays) {
-            // Window expired — streak broken
             setTimeout(() => {
               useStore.setState({
                 streakCurrentStreak: 0,

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search, X, Trophy } from 'lucide-react'
 import { Sheet } from '../ui/Sheet.jsx'
-import { groupSessionsByWeek, formatDate, formatDuration } from '../../utils/dates.js'
+import { groupSessionsByWeek, formatDate, formatDuration, isSameDayAs } from '../../utils/dates.js'
 import { formatKg, getMuscleVars, relativeDate } from '../../utils/format.js'
 import { getExerciseById, MUSCLE_NAMES } from '../../data/exercises.js'
 import useStore from '../../store/index.js'
@@ -10,8 +10,43 @@ export function HistoryTab() {
   const sessions = useStore(s => s.sessions)
   const deleteSession = useStore(s => s.deleteSession)
   const startWorkout = useStore(s => s.startWorkout)
+  const prs = useStore(s => s.prs)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
+
+  // Precompute which sessions had PRs
+  const sessionPRMap = useMemo(() => {
+    const map = {}
+    Object.entries(prs).forEach(([exId, pr]) => {
+      if (!pr?.date) return
+      // Check e1rm PR date
+      sessions.forEach(s => {
+        if (isSameDayAs(s.date, pr.date)) {
+          if (!map[s.id]) map[s.id] = []
+          const exName = getExerciseById(exId)?.name || exId
+          if (!map[s.id].find(p => p.name === exName)) {
+            map[s.id].push({ name: exName, type: 'e1rm' })
+          }
+        }
+      })
+      // Check rep PR dates
+      if (pr.repPRs) {
+        Object.values(pr.repPRs).forEach(rp => {
+          if (!rp?.date) return
+          sessions.forEach(s => {
+            if (isSameDayAs(s.date, rp.date)) {
+              if (!map[s.id]) map[s.id] = []
+              const exName = getExerciseById(exId)?.name || exId
+              if (!map[s.id].find(p => p.name === exName && p.type === 'rep')) {
+                map[s.id].push({ name: exName, type: 'rep' })
+              }
+            }
+          })
+        })
+      }
+    })
+    return map
+  }, [prs, sessions])
 
   const totalVolume = sessions.reduce((t, s) => t + (s.totalVolume || 0), 0)
 
@@ -85,22 +120,41 @@ export function HistoryTab() {
                 {items.map((session, i) => {
                   const primary = session.muscles?.[0]
                   const mv = getMuscleVars(primary)
+                  const hasPRs = sessionPRMap[session.id]?.length > 0
+                  const prCount = sessionPRMap[session.id]?.length || 0
                   return (
                     <button key={session.id} className="pressable" onClick={() => setSelected(session)}
                       style={{
                         width: '100%', background: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        borderLeftWidth: 3, borderLeftColor: mv.color,
+                        border: hasPRs ? '1px solid rgba(212,168,67,0.18)' : '1px solid var(--border)',
+                        borderLeftWidth: 3, borderLeftColor: hasPRs ? '#D4A843' : mv.color,
                         borderRadius: 'var(--r-sm)', padding: '13px 13px',
                         display: 'flex', alignItems: 'center', gap: 12,
                         cursor: 'pointer', textAlign: 'left',
                         animation: `fadeUp 0.3s cubic-bezier(0.32,0.72,0,1) ${i * 0.04}s both`,
                       }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 12, background: mv.dim, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 18, fontWeight: 800, color: mv.color }}>{(MUSCLE_NAMES[primary] || 'E')[0]}</span>
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: hasPRs ? 'rgba(212,168,67,0.12)' : mv.dim, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {hasPRs ? (
+                          <Trophy size={18} color="#D4A843" strokeWidth={2.2} />
+                        ) : (
+                          <span style={{ fontSize: 18, fontWeight: 800, color: mv.color }}>{(MUSCLE_NAMES[primary] || 'E')[0]}</span>
+                        )}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.name}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{session.name}</p>
+                          {hasPRs && (
+                            <span style={{
+                              flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3,
+                              padding: '2px 6px', borderRadius: 'var(--r-pill)',
+                              background: 'rgba(212,168,67,0.14)', border: '0.5px solid rgba(212,168,67,0.25)',
+                              fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+                              color: '#D4A843', textTransform: 'uppercase',
+                            }}>
+                              🏆 {prCount > 1 ? `${prCount} PRs` : 'PR'}
+                            </span>
+                          )}
+                        </div>
                         <p style={{ fontSize: 12, color: 'var(--text2)' }}>{relativeDate(session.date)} · {formatDuration(session.duration)}</p>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>

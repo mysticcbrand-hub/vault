@@ -1,10 +1,12 @@
 import { memo, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MoreHorizontal, Plus, Info, X, GripVertical, StickyNote, ChevronDown } from 'lucide-react'
+import { MoreHorizontal, Plus, Info, X, GripVertical, StickyNote, ChevronDown, RefreshCw } from 'lucide-react'
 import { SetRow } from './SetRow.jsx'
+import { ExercisePicker } from './ExercisePicker.jsx'
 import { getExerciseById, MUSCLE_NAMES } from '../../data/exercises.js'
 import { getMuscleVars, relativeDate } from '../../utils/format.js'
+import { haptics } from '../../utils/haptics.js'
 import useStore from '../../store/index.js'
 
 const FORM_TIPS = {
@@ -48,8 +50,10 @@ export const ExerciseCard = memo(function ExerciseCard({
   const [menuOpen, setMenuOpen] = useState(false)
   const [restOverrideOpen, setRestOverrideOpen] = useState(false)
   const [formTipOpen, setFormTipOpen] = useState(false)
+  const [swapPickerOpen, setSwapPickerOpen] = useState(false)
   const sessions = useStore(s => s.sessions)
   const prs = useStore(s => s.prs)
+  const swapExercise = useStore(s => s.swapExerciseInWorkout)
 
   const settings = useStore(s => s.settings)
   const user = useStore(s => s.user)
@@ -88,11 +92,8 @@ export const ExerciseCard = memo(function ExerciseCard({
   const nextIncomplete = exercise.sets.findIndex(s => !s.completed)
 
   const handleComplete = useCallback((setId) => {
-    // Determine haptic type: check current state
     const currentSet = exercise.sets.find(s => s.id === setId)
-    try {
-      navigator.vibrate(currentSet?.completed ? 6 : 12)
-    } catch (e) {}
+    haptics.medium()
     return onCompleteSet(exercise.id, setId)
   }, [exercise.id, exercise.sets, onCompleteSet])
 
@@ -132,16 +133,27 @@ export const ExerciseCard = memo(function ExerciseCard({
             onPointerUp={dragHandlers.onPointerUp}
             onPointerCancel={dragHandlers.onPointerCancel}
             style={{
-              width: 24, height: 24, display: 'flex',
+              width: 28, minHeight: 36, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
-              cursor: 'grab', flexShrink: 0, marginTop: 3,
-              color: isDragging ? 'var(--accent)' : 'rgba(245,239,230,0.18)',
-              transition: 'color 0.15s ease',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              flexShrink: 0, marginTop: 0,
+              color: isDragging ? 'var(--accent)' : 'rgba(245,239,230,0.25)',
+              transition: 'color 0.15s ease, background 0.15s ease',
               touchAction: 'none', userSelect: 'none',
               WebkitUserSelect: 'none',
+              borderRadius: 6,
+              background: isDragging ? 'rgba(232,146,74,0.08)' : 'transparent',
             }}
           >
-            <GripVertical size={14} strokeWidth={1.8} />
+            {/* 6-dot grip pattern — Apple-style */}
+            <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+              <circle cx="2.5" cy="2.5" r="1.5" />
+              <circle cx="7.5" cy="2.5" r="1.5" />
+              <circle cx="2.5" cy="8"   r="1.5" />
+              <circle cx="7.5" cy="8"   r="1.5" />
+              <circle cx="2.5" cy="13.5" r="1.5" />
+              <circle cx="7.5" cy="13.5" r="1.5" />
+            </svg>
           </div>
         )}
 
@@ -229,10 +241,17 @@ export const ExerciseCard = memo(function ExerciseCard({
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                     <p style={{ fontSize: 10.5, color: 'var(--text3)', marginBottom: 2 }}>Récord personal</p>
                     <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'DM Mono, monospace' }}>
-                      {currentPR.weight}kg × {currentPR.reps}
+                      {currentPR.weight}kg × {currentPR.reps} reps
                     </p>
                   </div>
                 )}
+                <button
+                  onClick={() => { setMenuOpen(false); setSwapPickerOpen(true) }}
+                  style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <RefreshCw size={14} color="var(--text3)" />
+                  Cambiar ejercicio
+                </button>
                 <button
                   onClick={() => { setMenuOpen(false); onOpenNote?.(exercise.id, exData?.name || exercise.exerciseId, exercise.note || '') }}
                   style={{ width: '100%', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: 'var(--text2)', background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
@@ -345,6 +364,18 @@ export const ExerciseCard = memo(function ExerciseCard({
           />
         )}
       </AnimatePresence>
+
+      {/* Exercise swap picker */}
+      <ExercisePicker
+        open={swapPickerOpen}
+        onClose={() => setSwapPickerOpen(false)}
+        onSelect={(newId) => {
+          haptics.medium()
+          swapExercise(exercise.id, newId)
+          setSwapPickerOpen(false)
+        }}
+        excludeId={exercise.exerciseId}
+      />
 
       {/* Rest override sheet */}
       <AnimatePresence>

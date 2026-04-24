@@ -9,7 +9,7 @@ import { CreateExerciseSheet } from '../programs/CreateExerciseSheet.jsx'
 
 // ─── Main ExercisePicker ──────────────────────────────────────────────────────
 
-export function ExercisePicker({ open, onClose, onSelect }) {
+export function ExercisePicker({ open, onClose, onSelect, excludeId }) {
   const [search, setSearch] = useState('')
   const [filterMuscle, setFilterMuscle] = useState(null)
   const [showCreator, setShowCreator]           = useState(false)
@@ -43,6 +43,7 @@ export function ExercisePicker({ open, onClose, onSelect }) {
 
   const filtered = useMemo(() => {
     return allExercises.filter(ex => {
+      if (excludeId && ex.id === excludeId) return false
       const matchMuscle = !filterMuscle || ex.muscle === filterMuscle
       const matchSearch = !search.trim() || ex.name.toLowerCase().includes(search.toLowerCase())
       const matchDifficulty = showAllDifficulty || search.trim() || (() => {
@@ -52,7 +53,7 @@ export function ExercisePicker({ open, onClose, onSelect }) {
       })()
       return matchMuscle && matchSearch && matchDifficulty
     })
-  }, [allExercises, filterMuscle, search, showAllDifficulty, userLevel])
+  }, [allExercises, filterMuscle, search, showAllDifficulty, userLevel, excludeId])
 
   // Group by muscle
   const grouped = useMemo(() => {
@@ -98,7 +99,7 @@ export function ExercisePicker({ open, onClose, onSelect }) {
         {/* Header */}
         <div style={{ padding: '10px 20px 0', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>Añadir ejercicio</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>{excludeId ? 'Cambiar ejercicio' : 'Añadir ejercicio'}</p>
             <button onClick={onClose} className="pressable" style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,235,200,0.07)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <X size={16} color="var(--text2)" />
             </button>
