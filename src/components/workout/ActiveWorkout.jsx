@@ -59,20 +59,15 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   // ── Drag to reorder ────────────────────────────────────────────
   const exercises = activeWorkout?.exercises || []
 
-  // Map draggable indices back to global indices for reorder
-  const draggableGlobalIndices = exercises
-    .map((ex, i) => ({ ex, i }))
-    .filter(({ ex }) => !(ex.sets.length > 0 && ex.sets.every(s => s.completed)))
-    .map(({ i }) => i)
+  const canDrag = useCallback((i) => {
+    const ex = exercises[i]
+    if (!ex) return false
+    return !(ex.sets.length > 0 && ex.sets.every(s => s.completed))
+  }, [exercises])
 
-  const { containerRef, dragIndex, overIndex, isDragging, gripHandlers } = useDragToReorder({
-    onReorder: (from, to) => {
-      const globalFrom = draggableGlobalIndices[from]
-      const globalTo = draggableGlobalIndices[to]
-      if (globalFrom !== undefined && globalTo !== undefined) {
-        reorderExercises(globalFrom, globalTo)
-      }
-    },
+  const { containerRef, isDragging, dragIndex, gripHandlers, getItemStyle } = useDragToReorder({
+    onReorder: (from, to) => reorderExercises(from, to),
+    canDrag,
     scrollContainerRef: scrollAreaRef,
   })
 
@@ -379,32 +374,10 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
           >
             {exercises.map((exercise, i) => {
               const isLocked = exercise.sets.length > 0 && exercise.sets.every(s => s.completed)
-              const draggableIdx = draggableGlobalIndices.indexOf(i)
-              const isBeingDragged = !isLocked && dragIndex === draggableIdx
-              // Insertion line: show above the slot where the dragged item will land
-              const showInsertLine = isDragging && overIndex !== null && overIndex !== dragIndex && draggableIdx === overIndex
+              const isBeingDragged = dragIndex === i
+              const itemStyle = getItemStyle(i)
               return (
-                <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms`, position: 'relative' }}>
-                  {/* Insertion line */}
-                  {showInsertLine && (
-                    <div style={{
-                      position: 'absolute',
-                      top: overIndex < dragIndex ? -7 : undefined,
-                      bottom: overIndex > dragIndex ? -7 : undefined,
-                      left: 12, right: 12,
-                      height: 3, borderRadius: 2,
-                      background: 'var(--accent)',
-                      boxShadow: '0 0 12px rgba(232,146,74,0.4)',
-                      zIndex: 5,
-                    }} />
-                  )}
-                  <div style={{
-                    transition: isBeingDragged ? 'none' : 'transform 0.2s cubic-bezier(0.32,0.72,0,1), opacity 0.2s ease',
-                    transform: isBeingDragged ? 'scale(1.03)' : 'scale(1)',
-                    opacity: isBeingDragged ? 0.55 : 1,
-                    zIndex: isBeingDragged ? 10 : 1,
-                    position: 'relative',
-                  }}>
+                <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms`, position: 'relative', ...itemStyle }}>
                     <ExerciseCard
                       exercise={exercise}
                       onAddSet={addSet}
@@ -418,9 +391,8 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
                       isResting={restingExerciseId === exercise.id && restTimer.isActive}
                       isDraggable={!isLocked}
                       isDragging={isBeingDragged}
-                      dragHandlers={!isLocked && draggableIdx >= 0 ? gripHandlers(draggableIdx) : undefined}
+                      dragHandlers={!isLocked ? gripHandlers(i) : undefined}
                     />
-                  </div>
                 </div>
               )
             })}
