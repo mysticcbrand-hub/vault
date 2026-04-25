@@ -131,7 +131,7 @@ function SwipeableRow({ onDelete, children, canDelete }) {
 
 // ── Main SetRow ─────────────────────────────────────────────────────────────
 export const SetRow = memo(function SetRow({
-  set, setIndex, onUpdate, onComplete, onDelete, isPR, isNext, isDropset,
+  set, setIndex, onUpdate, onComplete, onDelete, isPR, isRepPR, isNext, isDropset,
 }) {
   const isCompleted = set.completed
 
@@ -218,16 +218,17 @@ export const SetRow = memo(function SetRow({
 
         <div style={{ flex: 1 }} />
 
-        {/* PR badge */}
+        {/* PR badge — amber for e1rm, green for rep PR */}
         {isPR && isCompleted && (
           <span style={{
             fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
             padding: '2px 5px', borderRadius: 5,
-            background: 'var(--amber-dim)', color: 'var(--amber)',
-            border: '1px solid rgba(245,166,35,0.3)',
+            background: isRepPR ? 'var(--green-dim)' : 'var(--amber-dim)',
+            color: isRepPR ? 'var(--green)' : 'var(--amber)',
+            border: `1px solid ${isRepPR ? 'rgba(52,199,123,0.3)' : 'rgba(245,166,35,0.3)'}`,
             marginRight: 6, flexShrink: 0,
             animation: 'popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both',
-          }}>PR</span>
+          }}>{isRepPR ? '+REPS' : 'PR'}</span>
         )}
 
         {/* Check — always tappable (toggle) */}

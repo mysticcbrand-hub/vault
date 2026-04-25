@@ -1,4 +1,4 @@
-import { useState, memo, useEffect, useCallback } from 'react'
+import { useState, useRef, memo, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Plus } from 'lucide-react'
@@ -40,8 +40,9 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const [editingName, setEditingName] = useState(false)
   const [restingExerciseId, setRestingExerciseId] = useState(null)
   const [noteSheet, setNoteSheet] = useState(null) // { exerciseId, name, note }
+  const scrollAreaRef = useRef(null)
 
-  const { elapsed, start: startTimer, stop: stopTimer } = useWorkoutTimer()
+  const { elapsed, start: startTimer } = useWorkoutTimer()
   const restTimer = useRestTimer()
 
   // Start the Web Worker timer when workout mounts.
@@ -64,7 +65,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     .filter(({ ex }) => !(ex.sets.length > 0 && ex.sets.every(s => s.completed)))
     .map(({ i }) => i)
 
-  const { containerRef, dragIndex, overIndex, isDragging, gripHandlers, containerHandlers } = useDragToReorder({
+  const { containerRef, dragIndex, overIndex, isDragging, gripHandlers } = useDragToReorder({
     onReorder: (from, to) => {
       const globalFrom = draggableGlobalIndices[from]
       const globalTo = draggableGlobalIndices[to]
@@ -72,6 +73,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
         reorderExercises(globalFrom, globalTo)
       }
     },
+    scrollContainerRef: scrollAreaRef,
   })
 
   // Show completion overlay even after activeWorkout is cleared from store
@@ -108,13 +110,12 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     // If we just uncompleted (wasCompleted=true), don't trigger rest timer
     if (result.wasCompleted) return result
 
-    // PR celebration feedback
+    // PR celebration feedback — e1rm PR gets toast, rep PR only inline badge
     if (result.isPR) {
       haptics.heavy()
       addToast({ message: '🏆 ¡Nuevo récord personal!', type: 'success', duration: 3000 })
     } else if (result.isRepPR) {
       haptics.double()
-      addToast({ message: `💪 +Reps a ${result.weight}kg — ¡récord de reps!`, type: 'success', duration: 2800 })
     } else {
       haptics.medium()
     }
@@ -362,39 +363,39 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
         <RestTimerPill timer={restTimer} />
 
         {/* Exercises scroll area */}
-        <div style={{
+        <div ref={scrollAreaRef} style={{
           flex: 1, overflowY: 'auto',
           padding: '16px',
           display: 'flex', flexDirection: 'column', gap: 12,
           paddingBottom: 'calc(var(--nav-h) + 80px)',
         }}>
 
-          {/* All exercises in a single container — prevents scroll jump on set completion */}
+          {/* All exercises in a single container */}
           <div
             ref={containerRef}
-            {...containerHandlers}
             style={{
               display: 'flex', flexDirection: 'column', gap: 12,
-              touchAction: isDragging ? 'none' : 'pan-y',
             }}
           >
             {exercises.map((exercise, i) => {
               const isLocked = exercise.sets.length > 0 && exercise.sets.every(s => s.completed)
               const draggableIdx = draggableGlobalIndices.indexOf(i)
               const isBeingDragged = !isLocked && dragIndex === draggableIdx
-              const showInsertBefore = isDragging && overIndex !== null && overIndex !== dragIndex && draggableIdx === overIndex && draggableIdx < dragIndex
-              const showInsertAfter = isDragging && overIndex !== null && overIndex !== dragIndex && draggableIdx === overIndex && draggableIdx > dragIndex
+              // Insertion line: show above the slot where the dragged item will land
+              const showInsertLine = isDragging && overIndex !== null && overIndex !== dragIndex && draggableIdx === overIndex
               return (
                 <div key={exercise.id} className="stagger-item" style={{ animationDelay: `${i * 40}ms`, position: 'relative' }}>
-                  {/* Insertion line — before */}
-                  {showInsertBefore && (
+                  {/* Insertion line */}
+                  {showInsertLine && (
                     <div style={{
-                      position: 'absolute', top: -7, left: 12, right: 12,
+                      position: 'absolute',
+                      top: overIndex < dragIndex ? -7 : undefined,
+                      bottom: overIndex > dragIndex ? -7 : undefined,
+                      left: 12, right: 12,
                       height: 3, borderRadius: 2,
                       background: 'var(--accent)',
                       boxShadow: '0 0 12px rgba(232,146,74,0.4)',
                       zIndex: 5,
-                      animation: 'fadeIn 0.15s ease',
                     }} />
                   )}
                   <div style={{
@@ -420,17 +421,6 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
                       dragHandlers={!isLocked && draggableIdx >= 0 ? gripHandlers(draggableIdx) : undefined}
                     />
                   </div>
-                  {/* Insertion line — after */}
-                  {showInsertAfter && (
-                    <div style={{
-                      position: 'absolute', bottom: -7, left: 12, right: 12,
-                      height: 3, borderRadius: 2,
-                      background: 'var(--accent)',
-                      boxShadow: '0 0 12px rgba(232,146,74,0.4)',
-                      zIndex: 5,
-                      animation: 'fadeIn 0.15s ease',
-                    }} />
-                  )}
                 </div>
               )
             })}

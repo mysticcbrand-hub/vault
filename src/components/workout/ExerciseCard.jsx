@@ -128,19 +128,14 @@ export const ExerciseCard = memo(function ExerciseCard({
         {/* Drag grip — only for draggable (pending) exercises */}
         {isDraggable && dragHandlers && (
           <div
-            onPointerDown={dragHandlers.onPointerDown}
-            onPointerMove={dragHandlers.onPointerMove}
-            onPointerUp={dragHandlers.onPointerUp}
-            onPointerCancel={dragHandlers.onPointerCancel}
+            onTouchStart={dragHandlers.onTouchStart}
             style={{
+              ...dragHandlers.style,
               width: 28, minHeight: 36, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
-              cursor: isDragging ? 'grabbing' : 'grab',
               flexShrink: 0, marginTop: 0,
               color: isDragging ? 'var(--accent)' : 'rgba(245,239,230,0.25)',
               transition: 'color 0.15s ease, background 0.15s ease',
-              touchAction: 'none', userSelect: 'none',
-              WebkitUserSelect: 'none',
               borderRadius: 6,
               background: isDragging ? 'rgba(232,146,74,0.08)' : 'transparent',
             }}
@@ -294,7 +289,11 @@ export const ExerciseCard = memo(function ExerciseCard({
           const w = parseFloat(set.weight) || 0
           const r = parseInt(set.reps) || 0
           const e1rm = r > 0 && w > 0 ? (r === 1 ? w : w * 36 / (37 - Math.min(r, 36))) : 0
-          const isPR = set.completed && e1rm > 0 && (!currentPR || e1rm > currentPR.e1rm)
+          const isE1rmPR = set.completed && e1rm > 0 && (!currentPR || e1rm > currentPR.e1rm)
+          // Rep PR: same weight, more reps than ever recorded at that weight
+          const existingRepRecord = currentPR?.repPRs?.[String(w)]?.reps ?? 0
+          const isRepPR = set.completed && w > 0 && r > 0 && !isE1rmPR && r > existingRepRecord && existingRepRecord > 0
+          const isPR = isE1rmPR || isRepPR
           const isDropset = set.type === 'dropset'
 
           // Check if next set is a dropset (for + Drop button logic)
@@ -308,6 +307,7 @@ export const ExerciseCard = memo(function ExerciseCard({
                 set={set}
                 setIndex={i}
                 isPR={isPR}
+                isRepPR={isRepPR}
                 isNext={i === nextIncomplete}
                 isDropset={isDropset}
                 onUpdate={data => onUpdateSet(exercise.id, set.id, data)}

@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ChevronRight, Zap, FileText, Play } from 'lucide-react'
+import { ChevronRight, Zap, FileText, Play, Clock, Layers } from 'lucide-react'
 import { ActiveWorkout } from '../workout/ActiveWorkout.jsx'
-import { getExerciseById } from '../../data/exercises.js'
-import { MUSCLE_NAMES } from '../../data/exercises.js'
+import { getExerciseById, MUSCLE_NAMES, MUSCLE_COLORS } from '../../data/exercises.js'
 import { ensureProgramTemplates } from '../../utils/programs.js'
 import useStore from '../../store/index.js'
 
@@ -40,14 +39,13 @@ function getDaysSince(dateStr) {
   return diff
 }
 
-// ── Day Selector (Apple Weather style) ─────────────────────────────────────
-const DAY_CARD_W = 128
+// ── Day Selector — glassmorphism cards ──────────────────────────────────────
+const DAY_CARD_W = 148
 
 function DaySelector({ program, sessions, selectedDayId, onSelectDay, templates }) {
   const suggestedDay = getSuggestedDay(program, sessions)
   const scrollRef = useRef(null)
 
-  // Build lastDone map from sessions
   const lastDoneMap = {}
   for (const s of sessions) {
     if (s.templateId && !lastDoneMap[s.templateId]) {
@@ -80,6 +78,15 @@ function DaySelector({ program, sessions, selectedDayId, onSelectDay, templates 
           const lastDate = lastDoneMap[day.templateId]
           const daysSince = getDaysSince(lastDate)
 
+          // Collect unique muscles for this day
+          const muscles = []
+          if (template?.exercises) {
+            for (const ex of template.exercises) {
+              const info = getExerciseById(ex.exerciseId)
+              if (info?.muscle && !muscles.includes(info.muscle)) muscles.push(info.muscle)
+            }
+          }
+
           return (
             <button
               key={day.id}
@@ -89,14 +96,18 @@ function DaySelector({ program, sessions, selectedDayId, onSelectDay, templates 
                 flex: '0 0 auto',
                 width: DAY_CARD_W,
                 padding: '14px 14px 12px',
-                borderRadius: 16,
+                borderRadius: 18,
                 background: isSelected
-                  ? 'rgba(232,146,74,0.10)'
-                  : 'rgba(255,255,255,0.03)',
+                  ? 'rgba(232,146,74,0.08)'
+                  : 'rgba(255,255,255,0.025)',
+                backdropFilter: 'blur(20px) saturate(160%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(160%)',
                 border: 'none',
                 borderTop: isSelected
                   ? '2px solid var(--accent)'
-                  : '2px solid transparent',
+                  : isSuggested
+                    ? '2px solid rgba(232,146,74,0.35)'
+                    : '2px solid transparent',
                 outline: isSelected
                   ? '0.5px solid rgba(232,146,74,0.25)'
                   : '0.5px solid rgba(255,255,255,0.06)',
@@ -106,23 +117,26 @@ function DaySelector({ program, sessions, selectedDayId, onSelectDay, templates 
                 scrollSnapAlign: 'start',
                 boxShadow: isSelected
                   ? 'inset 0 1px 0 rgba(255,235,200,0.08), 0 4px 16px rgba(232,146,74,0.12)'
-                  : 'none',
-                transition: 'background 0.2s ease, border-color 0.2s ease, outline-color 0.2s ease, box-shadow 0.2s ease',
+                  : 'inset 0 1px 0 rgba(255,235,200,0.04)',
+                transition: 'all 0.22s cubic-bezier(0.32,0.72,0,1)',
+                overflow: 'hidden',
               }}
             >
-              {/* Suggested dot */}
+              {/* Suggested pulse ring */}
               {isSuggested && !isSelected && (
                 <div style={{
                   position: 'absolute', top: 10, right: 10,
-                  width: 5, height: 5, borderRadius: '50%',
-                  background: 'var(--accent)', opacity: 0.75,
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: 'var(--accent)',
+                  boxShadow: '0 0 6px rgba(232,146,74,0.5)',
+                  animation: 'todayPulse 2s ease-in-out infinite',
                 }} />
               )}
 
               {/* Day letter */}
               <p style={{
-                fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em',
-                color: isSelected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.20)',
+                fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em',
+                color: isSelected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.16)',
                 lineHeight: 1, marginBottom: 8,
                 transition: 'color 0.18s ease',
               }}>
@@ -131,36 +145,47 @@ function DaySelector({ program, sessions, selectedDayId, onSelectDay, templates 
 
               {/* Day name */}
               <p style={{
-                fontSize: 12, fontWeight: 600, letterSpacing: '-0.01em',
-                color: isSelected ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.38)',
+                fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em',
+                color: isSelected ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.38)',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                marginBottom: 3,
+                marginBottom: 6,
                 transition: 'color 0.18s ease',
               }}>
                 {day.name}
               </p>
 
-              {/* Exercise count */}
-              <p style={{
-                fontSize: 11, color: 'rgba(255,255,255,0.22)',
-                letterSpacing: '0',
-              }}>
-                {exerciseCount} ejercicios
-              </p>
+              {/* Muscle dots */}
+              {muscles.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                  {muscles.slice(0, 4).map(m => (
+                    <div key={m} style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: MUSCLE_COLORS[m]?.text || 'var(--text3)',
+                      opacity: isSelected ? 0.9 : 0.4,
+                      transition: 'opacity 0.18s ease',
+                    }} />
+                  ))}
+                </div>
+              )}
 
-              {/* Last performed */}
-              <p style={{
-                fontSize: 10, marginTop: 5,
-                fontWeight: daysSince === null ? 500 : 400,
-                color: daysSince === null
-                  ? 'rgba(232,146,74,0.55)'
-                  : 'rgba(255,255,255,0.18)',
-              }}>
-                {daysSince === null ? 'Sin hacer' :
-                 daysSince === 0 ? 'Hoy' :
-                 daysSince === 1 ? 'Ayer' :
-                 `Hace ${daysSince}d`}
-              </p>
+              {/* Exercise count + last done */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+                  {exerciseCount} ej.
+                </p>
+                <p style={{
+                  fontSize: 10,
+                  fontWeight: daysSince === null ? 600 : 400,
+                  color: daysSince === null
+                    ? 'rgba(232,146,74,0.6)'
+                    : 'rgba(255,255,255,0.2)',
+                }}>
+                  {daysSince === null ? 'Nuevo' :
+                   daysSince === 0 ? 'Hoy' :
+                   daysSince === 1 ? 'Ayer' :
+                   `${daysSince}d`}
+                </p>
+              </div>
             </button>
           )
         })}
@@ -169,66 +194,97 @@ function DaySelector({ program, sessions, selectedDayId, onSelectDay, templates 
   )
 }
 
-// ── Exercise Preview ───────────────────────────────────────────────────────
+// ── Exercise Preview — glassmorphism card ──────────────────────────────────
 function ExercisePreview({ template }) {
   if (!template?.exercises?.length) return null
 
-  const PREVIEW_COUNT = 3
+  const PREVIEW_COUNT = 4
   const preview = template.exercises.slice(0, PREVIEW_COUNT)
   const remaining = template.exercises.length - PREVIEW_COUNT
+  const totalSets = template.exercises.reduce((t, ex) => t + (ex.sets || 0), 0)
+  const estMinutes = Math.round(totalSets * 2.5) // ~2.5 min per set avg
 
   return (
     <div style={{ padding: '0 20px' }}>
-      {preview.map((ex, index) => {
-        const info = getExerciseById(ex.exerciseId)
-        return (
-          <div
-            key={ex.exerciseId + index}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '11px 0',
-              borderBottom: index < preview.length - 1
-                ? '0.5px solid rgba(255,255,255,0.06)'
-                : 'none',
-            }}
-          >
-            <span style={{
-              fontSize: 11, fontWeight: 600,
-              color: 'rgba(255,255,255,0.18)',
-              width: 22, flexShrink: 0,
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '0.04em',
-            }}>
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <span style={{
-              flex: 1, fontSize: 14, fontWeight: 500,
-              color: 'rgba(255,255,255,0.78)',
-              letterSpacing: '-0.01em',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {info?.name || ex.exerciseId}
-            </span>
-            <span style={{
-              fontSize: 12, fontWeight: 500,
-              color: 'rgba(255,255,255,0.26)',
-              fontVariantNumeric: 'tabular-nums',
-              flexShrink: 0,
-            }}>
-              {ex.sets} × {ex.reps}
+      <div style={{
+        borderRadius: 18,
+        background: 'rgba(22,18,12,0.45)',
+        backdropFilter: 'blur(24px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+        border: '0.5px solid rgba(255,235,200,0.07)',
+        boxShadow: 'inset 0 1px 0 rgba(255,235,200,0.05)',
+        overflow: 'hidden',
+      }}>
+        {/* Stats header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16,
+          padding: '10px 16px',
+          borderBottom: '0.5px solid rgba(255,235,200,0.05)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Layers size={12} color="var(--text3)" />
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums' }}>
+              {totalSets} series
             </span>
           </div>
-        )
-      })}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Clock size={12} color="var(--text3)" />
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums' }}>
+              ~{estMinutes} min
+            </span>
+          </div>
+        </div>
 
-      {remaining > 0 && (
-        <p style={{
-          fontSize: 12, color: 'rgba(255,255,255,0.22)',
-          marginTop: 8, letterSpacing: '-0.01em',
-        }}>
-          +{remaining} ejercicios más
-        </p>
-      )}
+        {/* Exercise rows */}
+        {preview.map((ex, index) => {
+          const info = getExerciseById(ex.exerciseId)
+          const mc = info?.muscle ? MUSCLE_COLORS[info.muscle] : null
+          return (
+            <div
+              key={ex.exerciseId + index}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '12px 16px',
+                borderBottom: index < preview.length - 1
+                  ? '0.5px solid rgba(255,255,255,0.04)'
+                  : 'none',
+              }}
+            >
+              {/* Muscle color dot */}
+              <div style={{
+                width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+                background: mc?.text || 'var(--text3)',
+                opacity: 0.7,
+              }} />
+              <span style={{
+                flex: 1, fontSize: 14, fontWeight: 500,
+                color: 'rgba(255,255,255,0.78)',
+                letterSpacing: '-0.01em',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {info?.name || ex.exerciseId}
+              </span>
+              <span style={{
+                fontSize: 12, fontWeight: 500,
+                color: 'rgba(255,255,255,0.28)',
+                fontVariantNumeric: 'tabular-nums',
+                fontFamily: 'DM Mono, monospace',
+                flexShrink: 0,
+              }}>
+                {ex.sets}×{ex.reps}
+              </span>
+            </div>
+          )
+        })}
+
+        {remaining > 0 && (
+          <div style={{ padding: '8px 16px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.22)', letterSpacing: '-0.01em' }}>
+              +{remaining} más
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -417,71 +473,99 @@ export function WorkoutTab({ onSwitchTab }) {
           <ExercisePreview template={selectedTemplate} />
         </div>
 
-        {/* Secondary actions — minimal text links */}
+        {/* Secondary actions — glass pill buttons */}
         <div className="stagger-item" style={{
-          marginTop: 28, padding: '0 20px',
-          display: 'flex', gap: 20,
+          marginTop: 24, padding: '0 20px',
+          display: 'flex', gap: 10,
           animationDelay: '120ms',
         }}>
-          <button
-            onClick={() => setShowSecondary(!showSecondary)}
-            className="pressable"
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, color: 'var(--text3)',
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: 0,
-            }}
-          >
-            <FileText size={14} />
-            Desde template
-          </button>
           <button
             onClick={startEmptyWorkout}
             className="pressable"
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, color: 'var(--text3)',
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: 0,
+              padding: '10px 16px', borderRadius: 14,
+              background: 'rgba(255,255,255,0.04)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '0.5px solid rgba(255,235,200,0.08)',
+              cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, color: 'var(--text2)',
+              display: 'flex', alignItems: 'center', gap: 7,
             }}
           >
-            <Zap size={14} />
+            <Zap size={14} color="var(--accent)" />
             Vacío
+          </button>
+          <button
+            onClick={() => setShowSecondary(!showSecondary)}
+            className="pressable"
+            style={{
+              padding: '10px 16px', borderRadius: 14,
+              background: 'rgba(255,255,255,0.04)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '0.5px solid rgba(255,235,200,0.08)',
+              cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, color: 'var(--text2)',
+              display: 'flex', alignItems: 'center', gap: 7,
+            }}
+          >
+            <FileText size={14} color="var(--text3)" />
+            Templates
+            <ChevronRight size={12} color="var(--text3)" style={{
+              transform: showSecondary ? 'rotate(90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+            }} />
           </button>
         </div>
 
-        {/* Template list — only if toggled */}
+        {/* Template list — collapsible glass section */}
         {showSecondary && templates.length > 0 && (
           <div style={{
             display: 'flex', flexDirection: 'column', gap: 6,
             padding: '12px 20px 0',
           }}>
-            {templates.map(t => (
-              <button
-                key={t.id}
-                className="pressable"
-                onClick={() => startWorkout({ templateId: t.id, programId: null, name: t.name })}
-                style={{
-                  width: '100%', padding: '12px 14px',
-                  borderRadius: 'var(--r-sm)',
-                  background: 'rgba(22,18,12,0.55)',
-                  backdropFilter: 'blur(20px) saturate(160%)',
-                  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-                  border: '0.5px solid rgba(255,235,200,0.06)',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  cursor: 'pointer', textAlign: 'left',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{t.name}</p>
-                  <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>
-                    {(t.exercises || []).length} ejercicios
-                  </p>
-                </div>
-                <ChevronRight size={14} color="var(--text3)" />
-              </button>
-            ))}
+            {templates.map(t => {
+              const muscles = []
+              for (const ex of (t.exercises || [])) {
+                const info = getExerciseById(ex.exerciseId)
+                if (info?.muscle && !muscles.includes(info.muscle)) muscles.push(info.muscle)
+              }
+              return (
+                <button
+                  key={t.id}
+                  className="pressable"
+                  onClick={() => startWorkout({ templateId: t.id, programId: null, name: t.name })}
+                  style={{
+                    width: '100%', padding: '12px 14px',
+                    borderRadius: 14,
+                    background: 'rgba(22,18,12,0.45)',
+                    backdropFilter: 'blur(20px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                    border: '0.5px solid rgba(255,235,200,0.06)',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{t.name}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      {muscles.slice(0, 3).map(m => (
+                        <div key={m} style={{
+                          width: 5, height: 5, borderRadius: '50%',
+                          background: MUSCLE_COLORS[m]?.text || 'var(--text3)',
+                          opacity: 0.6,
+                        }} />
+                      ))}
+                      <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                        {(t.exercises || []).length} ej.
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} color="var(--text3)" />
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
