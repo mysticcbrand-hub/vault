@@ -7,6 +7,8 @@ import { ExercisePicker } from './ExercisePicker.jsx'
 import { getExerciseById, MUSCLE_NAMES } from '../../data/exercises.js'
 import { getMuscleVars, relativeDate } from '../../utils/format.js'
 import { haptics } from '../../utils/haptics.js'
+import { bestCompletedSet, computeE1RM } from '../../utils/prEngine.js'
+import { suggestProgression } from '../../utils/progression.js'
 import useStore from '../../store/index.js'
 
 const FORM_TIPS = {
@@ -48,6 +50,7 @@ export const ExerciseCard = memo(function ExerciseCard({
   dragHandlers, isDragging, isDraggable,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuTop, setMenuTop] = useState(100)
   const [restOverrideOpen, setRestOverrideOpen] = useState(false)
   const [formTipOpen, setFormTipOpen] = useState(false)
   const [swapPickerOpen, setSwapPickerOpen] = useState(false)
@@ -79,23 +82,34 @@ export const ExerciseCard = memo(function ExerciseCard({
     return null
   })()
 
-  const todayMaxWeight = Math.max(
-    ...exercise.sets.filter(s => s.completed && s.weight > 0).map(s => parseFloat(s.weight) || 0),
-    0
-  )
-  const lastMaxWeight = lastSession
-    ? Math.max(...lastSession.sets.map(s => parseFloat(s.weight) || 0), 0)
-    : 0
-  const beating = todayMaxWeight > 0 && lastMaxWeight > 0 && todayMaxWeight > lastMaxWeight
+  // Progreso real: mejor e1RM de hoy vs mejor e1RM de la última sesión.
+  // Más reps al mismo peso TAMBIÉN cuenta como progreso (sube el e1RM).
+  const todayBest = bestCompletedSet(exercise.sets)
+  const lastBest = lastSession ? bestCompletedSet(lastSession.sets) : null
+  const beating = !!todayBest && !!lastBest && todayBest.e1rm > lastBest.e1rm
+
+  // ── Texto mono interactivo: ANT → PR → META (tap para ciclar) ─────────────
+  const [metaView, setMetaView] = useState(0)
+  const target = suggestProgression(sessions, exercise.exerciseId)
+  const views = [
+    lastSession && 'prev',
+    currentPR && 'pr',
+    target && 'meta',
+  ].filter(Boolean)
+  const view = views.length ? views[metaView % views.length] : null
+  const cycleView = () => {
+    if (views.length < 2) return
+    haptics.light?.()
+    setMetaView(v => (v + 1) % views.length)
+  }
 
   const allDone = exercise.sets.length > 0 && exercise.sets.every(s => s.completed)
   const nextIncomplete = exercise.sets.findIndex(s => !s.completed)
 
   const handleComplete = useCallback((setId) => {
-    const currentSet = exercise.sets.find(s => s.id === setId)
     haptics.medium()
     return onCompleteSet(exercise.id, setId)
-  }, [exercise.id, exercise.sets, onCompleteSet])
+  }, [exercise.id, onCompleteSet])
 
   const REST_PRESETS = [45, 60, 90, 120, 180]
 
@@ -191,15 +205,47 @@ export const ExerciseCard = memo(function ExerciseCard({
                 {repRange.range || repRange.label}
               </span>
             )}
-            {lastSession ? (
-              <span style={{
-                fontSize: 10.5, fontFamily: 'DM Mono, monospace',
-                color: beating ? 'var(--green)' : 'var(--text3)',
-                letterSpacing: '-0.01em',
-              }}>
-                {beating ? '↑ ' : ''}
-                {lastSession.sets.slice(0, 3).map(s => `${s.weight}×${s.reps}`).join(', ')}
-              </span>
+            {view ? (
+              <button
+                onClick={cycleView}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'none', border: 'none', cursor: views.length > 1 ? 'pointer' : 'default',
+                  padding: '8px 8px', margin: '-8px -8px',  // hit-area ampliada sin ocupar layout
+                  fontFamily: 'DM Mono, monospace', fontSize: 10.5, letterSpacing: '-0.01em',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {views.length > 1 && (
+                  <span style={{
+                    fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
+                    padding: '1.5px 4px', borderRadius: 3, flexShrink: 0,
+                    background: view === 'pr' ? 'var(--amber-dim)' : view === 'meta' ? 'var(--accent-dim)' : 'rgba(245,239,230,0.06)',
+                    color: view === 'pr' ? 'var(--amber)' : view === 'meta' ? 'var(--accent)' : 'var(--text3)',
+                  }}>
+                    {view === 'prev' ? 'ANT' : view === 'pr' ? 'PR' : 'META'}
+                  </span>
+                )}
+                {view === 'prev' && (
+                  <span style={{ color: beating ? 'var(--green)' : 'var(--text3)' }}>
+                    {beating ? '↑ ' : ''}
+                    {lastSession.sets.slice(0, 3).map(s => `${s.weight}×${s.reps}`).join(', ')}
+                    <span style={{ color: 'var(--text3)', opacity: 0.7 }}> · {relativeDate(lastSession.date)}</span>
+                  </span>
+                )}
+                {view === 'pr' && (
+                  <span style={{ color: 'var(--amber)' }}>
+                    {currentPR.weight}×{currentPR.reps}
+                    <span style={{ color: 'var(--text3)' }}> · 1RM ~{Math.round((currentPR.e1rm || computeE1RM(currentPR.weight, currentPR.reps)) * 10) / 10}kg</span>
+                  </span>
+                )}
+                {view === 'meta' && (
+                  <span style={{ color: 'var(--accent)' }}>
+                    → {target.weight}×{target.reps}
+                    <span style={{ color: 'var(--text3)' }}> · {target.type === 'load' ? 'sube carga' : '+1 rep'}</span>
+                  </span>
+                )}
+              </button>
             ) : (
               <span style={{ fontSize: 10.5, color: 'var(--text3)', fontFamily: 'DM Mono, monospace' }}>
                 Primera vez
@@ -212,7 +258,10 @@ export const ExerciseCard = memo(function ExerciseCard({
         <div style={{ flexShrink: 0 }}>
           <button
             ref={menuBtnRef}
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => {
+              if (!menuOpen) setMenuTop((menuBtnRef.current?.getBoundingClientRect().bottom ?? 96) + 4)
+              setMenuOpen(!menuOpen)
+            }}
             style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 8 }}
           >
             <MoreHorizontal size={16} color="var(--text3)" />
@@ -222,7 +271,7 @@ export const ExerciseCard = memo(function ExerciseCard({
               <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setMenuOpen(false)} />
               <div style={{
                 position: 'fixed',
-                top: menuBtnRef.current ? menuBtnRef.current.getBoundingClientRect().bottom + 4 : 100,
+                top: menuTop,
                 right: 16,
                 zIndex: 9999,
                 background: 'rgba(16,13,9,0.96)',
@@ -286,14 +335,9 @@ export const ExerciseCard = memo(function ExerciseCard({
       {/* Sets */}
       <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column' }}>
         {exercise.sets.map((set, i) => {
-          const w = parseFloat(set.weight) || 0
-          const r = parseInt(set.reps) || 0
-          const e1rm = r > 0 && w > 0 ? (r === 1 ? w : w * 36 / (37 - Math.min(r, 36))) : 0
-          const isE1rmPR = set.completed && e1rm > 0 && (!currentPR || e1rm > currentPR.e1rm)
-          // Rep PR: same weight, more reps than ever recorded at that weight
-          const existingRepRecord = currentPR?.repPRs?.[String(w)]?.reps ?? 0
-          const isRepPR = set.completed && w > 0 && r > 0 && !isE1rmPR && r > existingRepRecord && existingRepRecord > 0
-          const isPR = isE1rmPR || isRepPR
+          // prFlags se graba en completeSet con snapshot previo — única fuente de verdad
+          const isPR = set.completed && !!set.prFlags
+          const isRepPR = set.prFlags === 'reps'
           const isDropset = set.type === 'dropset'
 
           // Check if next set is a dropset (for + Drop button logic)

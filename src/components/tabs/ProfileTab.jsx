@@ -216,7 +216,18 @@ export function ProfileTab() {
     .slice(0, 2)
 
   const handleExport = () => {
-    const data = { user, programs, activeProgram: activeProgramId, templates: useStore.getState().templates, sessions, prs, bodyMetrics, settings, unlockedBadges }
+    const st = useStore.getState()
+    const data = {
+      version: 2,
+      user, programs, activeProgram: activeProgramId, templates: st.templates,
+      sessions, prs, bodyMetrics, settings, unlockedBadges,
+      exerciseNotes: st.exerciseNotes,
+      customExercises: st.customExercises,
+      streak: {
+        current: st.streakCurrentStreak, longest: st.streakLongestStreak,
+        cycleStart: st.streakCycleStart, completedDays: st.streakCompletedDays,
+      },
+    }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -240,6 +251,14 @@ export function ProfileTab() {
       bodyMetrics: data.bodyMetrics || state.bodyMetrics,
       settings: data.settings || state.settings,
       unlockedBadges: data.unlockedBadges || state.unlockedBadges,
+      exerciseNotes: data.exerciseNotes || state.exerciseNotes,
+      customExercises: data.customExercises || state.customExercises,
+      ...(data.streak ? {
+        streakCurrentStreak: data.streak.current ?? state.streakCurrentStreak,
+        streakLongestStreak: data.streak.longest ?? state.streakLongestStreak,
+        streakCycleStart: data.streak.cycleStart ?? state.streakCycleStart,
+        streakCompletedDays: data.streak.completedDays ?? state.streakCompletedDays,
+      } : {}),
     }))
   }
 

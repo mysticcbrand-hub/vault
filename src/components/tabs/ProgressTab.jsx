@@ -1,4 +1,5 @@
-import { TrendingUp, User } from 'lucide-react'
+import { TrendingUp, User, Gauge } from 'lucide-react'
+import { AnalyticsV2 } from '../progress/AnalyticsV2.jsx'
 import { VolumeChart } from '../progress/VolumeChart.jsx'
 import { StrengthCurve } from '../progress/StrengthCurve.jsx'
 import { PRBoard } from '../progress/PRBoard.jsx'
@@ -42,6 +43,12 @@ export function ProgressTab() {
       <div style={{ padding: '24px 20px 8px' }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text)', marginBottom: 4 }}>Progreso</h1>
         <p style={{ fontSize: 13, color: 'var(--text2)' }}>Tu evolución en datos</p>
+      </div>
+
+      {/* ── KPIs & TENDENCIAS ────────────────────── */}
+      <SectionDivider label="KPIs" icon={<Gauge size={13} />} />
+      <div style={{ padding: '0 20px' }} className="si">
+        <AnalyticsV2 />
       </div>
 
       {/* ── RENDIMIENTO ─────────────────────────── */}

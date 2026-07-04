@@ -1,4 +1,47 @@
 import { memo, useRef, useState, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+
+// ── Tutorial de calibración RIR ──────────────────────────────────────────────
+const RIR_GUIDE = [
+  ['0', 'Fallo real — no salía ni una más'],
+  ['1', 'Quedaba 1 rep, técnica al límite'],
+  ['2', 'Quedaban 2 — el punto óptimo de estímulo'],
+  ['3', 'Quedaban 3, esfuerzo moderado'],
+  ['4–5+', 'Cómodo — serie de aproximación o calentamiento'],
+]
+
+function RIRInfoSheet({ onClose }) {
+  return createPortal(
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.55)' }} />
+      <div style={{
+        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 101,
+        background: 'rgba(16,13,9,0.92)',
+        backdropFilter: 'blur(48px) saturate(220%)', WebkitBackdropFilter: 'blur(48px) saturate(220%)',
+        borderRadius: '28px 28px 0 0',
+        boxShadow: 'inset 0 1.5px 0 rgba(255,235,200,0.1)',
+        padding: '20px 20px calc(20px + env(safe-area-inset-bottom,0px))',
+        animation: 'popIn 0.3s cubic-bezier(0.32,0.72,0,1) both',
+      }}>
+        <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 16px' }} />
+        <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>RIR — Reps en Recámara</p>
+        <p style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 14 }}>
+          ¿Cuántas reps más podrías haber hecho con buena técnica? Es el dato que permite a GRAW medir tu esfuerzo real y detectar fatiga.
+        </p>
+        {RIR_GUIDE.map(([v, txt], i) => (
+          <div key={v} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 0', borderBottom: i < RIR_GUIDE.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 13, fontWeight: 700, color: 'var(--accent)', minWidth: 34 }}>{v}</span>
+            <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.4 }}>{txt}</span>
+          </div>
+        ))}
+        <p style={{ fontSize: 11.5, color: 'var(--text3)', lineHeight: 1.5, marginTop: 12 }}>
+          Calibración: si nunca has llegado al fallo, tu estimación será optimista. Una vez por mesociclo, lleva una serie segura (máquina o aislamiento) a RIR 0 real para recalibrar tu percepción.
+        </p>
+      </div>
+    </>,
+    document.body
+  )
+}
 
 const CheckIcon = ({ done }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -90,7 +133,7 @@ function SwipeableRow({ onDelete, children, canDelete }) {
         <div
           onClick={(e) => {
             e.stopPropagation()
-            try { navigator.vibrate(12) } catch {}
+            try { navigator.vibrate(12) } catch { /* sin soporte */ }
             onDelete()
             setTranslateX(0)
           }}
@@ -129,11 +172,64 @@ function SwipeableRow({ onDelete, children, canDelete }) {
   )
 }
 
+// ── RIR chips — opcional, 1 tap, aparece al completar la serie ──────────────
+const RIR_OPTIONS = [0, 1, 2, 3, 4, 5]
+
+function RIRChips({ value, onSelect, onDismiss }) {
+  const [infoOpen, setInfoOpen] = useState(false)
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '2px 4px 8px 32px',
+      animation: 'popIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both',
+    }}>
+      <button
+        onClick={() => setInfoOpen(true)}
+        style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text3)', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', textDecoration: 'underline dotted rgba(245,239,230,0.3)', textUnderlineOffset: 2 }}
+      >RIR</button>
+      {infoOpen && <RIRInfoSheet onClose={() => setInfoOpen(false)} />}
+      {RIR_OPTIONS.map(v => (
+        <button
+          key={v}
+          onClick={() => onSelect(v)}
+          className="pressable"
+          style={{
+            minWidth: 30, height: 30, borderRadius: 8, padding: 0,
+            fontFamily: 'DM Mono, monospace', fontSize: 12, fontWeight: 700,
+            background: value === v ? 'var(--accent-dim)' : 'rgba(255,235,200,0.05)',
+            border: `1px solid ${value === v ? 'var(--accent-border)' : 'var(--border2)'}`,
+            color: value === v ? 'var(--accent)' : 'var(--text2)',
+            cursor: 'pointer',
+          }}
+        >
+          {v === 5 ? '5+' : v}
+        </button>
+      ))}
+      <button
+        onClick={onDismiss}
+        style={{
+          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--text3)', fontSize: 12,
+        }}
+      >✕</button>
+    </div>
+  )
+}
+
 // ── Main SetRow ─────────────────────────────────────────────────────────────
 export const SetRow = memo(function SetRow({
   set, setIndex, onUpdate, onComplete, onDelete, isPR, isRepPR, isNext, isDropset,
 }) {
   const isCompleted = set.completed
+  const [rirOpen, setRirOpen] = useState(false)
+
+  const handleComplete = () => {
+    const willComplete = !isCompleted
+    onComplete()
+    // Nudge RIR: solo al completar y si aún no hay valor. Nunca bloquea.
+    setRirOpen(willComplete && set.rir == null)
+  }
 
   return (
     <SwipeableRow onDelete={onDelete} canDelete={!!onDelete}>
@@ -218,6 +314,21 @@ export const SetRow = memo(function SetRow({
 
         <div style={{ flex: 1 }} />
 
+        {/* RIR badge — tap para editar */}
+        {isCompleted && set.rir != null && !rirOpen && (
+          <button
+            onClick={() => setRirOpen(true)}
+            style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+              fontFamily: 'DM Mono, monospace',
+              padding: '2px 5px', borderRadius: 5,
+              background: 'rgba(255,235,200,0.06)', color: 'var(--text3)',
+              border: '1px solid var(--border2)',
+              marginRight: 6, flexShrink: 0, cursor: 'pointer',
+            }}
+          >RIR {set.rir === 5 ? '5+' : set.rir}</button>
+        )}
+
         {/* PR badge — amber for e1rm, green for rep PR */}
         {isPR && isCompleted && (
           <span style={{
@@ -233,7 +344,7 @@ export const SetRow = memo(function SetRow({
 
         {/* Check — always tappable (toggle) */}
         <button
-          onClick={onComplete}
+          onClick={handleComplete}
           className="pressable"
           style={{
             width: 44, height: 44, borderRadius: 12, flexShrink: 0,
@@ -247,6 +358,15 @@ export const SetRow = memo(function SetRow({
           <CheckIcon done={isCompleted} />
         </button>
       </div>
+
+      {/* RIR chips — nudge post-completar, opcional */}
+      {rirOpen && isCompleted && (
+        <RIRChips
+          value={set.rir ?? null}
+          onSelect={v => { onUpdate({ rir: v }); setRirOpen(false) }}
+          onDismiss={() => setRirOpen(false)}
+        />
+      )}
     </SwipeableRow>
   )
 })

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { SEED_PROGRAMS, SEED_TEMPLATES } from './seedData.js'
+import { evaluateSet, applySetToPR, buildPRsFromSessions, computeE1RM } from '../utils/prEngine.js'
+import { getExerciseById } from '../data/exercises.js'
 
 function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
@@ -10,24 +12,6 @@ function calcSessionVolume(exercises) {
   return exercises.reduce((t, ex) =>
     t + (ex.sets || []).reduce((s, set) =>
       s + (set.completed ? (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0) : 0), 0), 0)
-}
-
-function computeE1RM(weight, reps) {
-  if (!weight || !reps || reps <= 0) return 0
-  if (reps === 1) return weight
-  return weight * 36 / (37 - Math.min(reps, 36))
-}
-
-// ── PR detection: weight PR OR reps-at-weight PR ─────────────────────────────
-// prs[exerciseId] = { weight, reps, e1rm, date, repPRs: { [weight]: { reps, date } } }
-function isPRSet(weight, reps, existingPR) {
-  if (!weight || !reps) return { isE1rmPR: false, isRepPR: false }
-  const e1rm = computeE1RM(weight, reps)
-  const isE1rmPR = e1rm > 0 && (!existingPR || e1rm > existingPR.e1rm)
-  // Rep PR: same weight, more reps than ever done at that weight
-  const existingRepPR = existingPR?.repPRs?.[String(weight)]?.reps ?? 0
-  const isRepPR = !isE1rmPR && reps > existingRepPR
-  return { isE1rmPR, isRepPR, e1rm }
 }
 
 const initialState = () => ({
@@ -50,6 +34,8 @@ const initialState = () => ({
   sessions: [],
   activeWorkout: null,
   prs: {},
+  // Notas persistentes por ejercicio: { [exerciseId]: { text, updatedAt } }
+  exerciseNotes: {},
   bodyMetrics: [],
   // Badge-specific counters — only incremented by intentional user actions
   userCreatedPrograms: 0,
@@ -83,7 +69,7 @@ const useStore = create(
       // ── CUSTOM EXERCISES ──────────────────────────────────────────────────
       saveCustomExercise: (exercise) => set(s => {
         const list = [...(s.customExercises ?? []), exercise]
-        try { localStorage.setItem('graw_custom_exercises', JSON.stringify(list)) } catch (e) {}
+        try { localStorage.setItem('graw_custom_exercises', JSON.stringify(list)) } catch { /* storage lleno */ }
         return { customExercises: list }
       }),
       deleteCustomExercise: (id) => set(s => ({
@@ -144,7 +130,7 @@ const useStore = create(
 
       // ── ACTIVE WORKOUT ────────────────────────────────────────────────────
       startWorkout: ({ templateId, programId, name }) => {
-        const { templates } = get()
+        const { templates, exerciseNotes } = get()
         const template = templates.find(t => t.id === templateId)
         let exercises = []
 
@@ -152,6 +138,7 @@ const useStore = create(
           exercises = template.exercises.map(ex => ({
             id: uid(),
             exerciseId: ex.exerciseId,
+            note: exerciseNotes?.[ex.exerciseId]?.text || '',
             sets: Array.from({ length: ex.sets }, (_, i) => ({
               id: uid(),
               weight: ex.weight || 0,
@@ -205,6 +192,7 @@ const useStore = create(
         const newExercise = {
           id: uid(),
           exerciseId,
+          note: s.exerciseNotes?.[exerciseId]?.text || '',
           sets: [{ id: uid(), weight: 0, reps: 0, completed: false, setNumber: 1 }],
         }
         return {
@@ -233,7 +221,7 @@ const useStore = create(
             ...s.activeWorkout,
             exercises: s.activeWorkout.exercises.map(ex =>
               ex.id === exerciseId
-                ? { ...ex, exerciseId: newExerciseId, note: '' }
+                ? { ...ex, exerciseId: newExerciseId, note: s.exerciseNotes?.[newExerciseId]?.text || '' }
                 : ex
             ),
           }
@@ -310,59 +298,31 @@ const useStore = create(
         if (nowCompleted) {
           const weight = parseFloat(set_.weight) || 0
           const reps = parseInt(set_.reps) || 0
-          const currentPR = prs[ex.exerciseId]
-          const { isE1rmPR, isRepPR, e1rm } = isPRSet(weight, reps, currentPR)
+          // Snapshot del PR ANTES de aplicar el set — evita compararse contra sí mismo
+          const prevPR = prs[ex.exerciseId]
+          const { isE1rmPR, isRepPR, e1rm } = evaluateSet(weight, reps, prevPR)
+          // prFlags queda grabado en el set: la UI lo lee sin recalcular nada
+          const prFlags = isE1rmPR ? 'e1rm' : isRepPR ? 'reps' : null
 
-          set(s => {
-            const newPRs = { ...s.prs }
-            if (isE1rmPR || isRepPR) {
-              const existing = newPRs[ex.exerciseId] || {}
-              const repPRs = { ...(existing.repPRs || {}) }
-              // Always update per-weight rep record
-              if (!repPRs[String(weight)] || reps > repPRs[String(weight)].reps) {
-                repPRs[String(weight)] = { reps, date: new Date().toISOString() }
-              }
-              if (isE1rmPR) {
-                newPRs[ex.exerciseId] = {
-                  weight, reps, e1rm,
-                  date: new Date().toISOString(),
-                  repPRs,
+          set(s => ({
+            prs: { ...s.prs, [ex.exerciseId]: applySetToPR(prevPR, weight, reps) },
+            activeWorkout: {
+              ...s.activeWorkout,
+              exercises: s.activeWorkout.exercises.map(e => {
+                if (e.id !== exerciseId) return e
+                return {
+                  ...e,
+                  sets: e.sets.map(st =>
+                    st.id === setId ? { ...st, completed: true, prFlags } : st
+                  )
                 }
-              } else {
-                // Rep PR only — update repPRs but don't overwrite weight/e1rm PR
-                newPRs[ex.exerciseId] = { ...existing, repPRs }
-              }
-            } else {
-              // Still update per-weight rep record even if no PR
-              const existing = newPRs[ex.exerciseId]
-              if (existing) {
-                const repPRs = { ...(existing.repPRs || {}) }
-                if (!repPRs[String(weight)] || reps > repPRs[String(weight)].reps) {
-                  repPRs[String(weight)] = { reps, date: new Date().toISOString() }
-                  newPRs[ex.exerciseId] = { ...existing, repPRs }
-                }
-              }
+              })
             }
-            return {
-              prs: newPRs,
-              activeWorkout: {
-                ...s.activeWorkout,
-                exercises: s.activeWorkout.exercises.map(e => {
-                  if (e.id !== exerciseId) return e
-                  return {
-                    ...e,
-                    sets: e.sets.map(st =>
-                      st.id === setId ? { ...st, completed: true } : st
-                    )
-                  }
-                })
-              }
-            }
-          })
+          }))
 
           return { isPR: isE1rmPR, isRepPR, e1rm, exerciseId: ex.exerciseId, weight, reps, wasCompleted: false }
         } else {
-          // Uncomplete
+          // Uncomplete — limpia prFlags (el PR global queda; se corrige al borrar sesión)
           set(s => ({
             activeWorkout: {
               ...s.activeWorkout,
@@ -371,7 +331,7 @@ const useStore = create(
                 return {
                   ...e,
                   sets: e.sets.map(st =>
-                    st.id === setId ? { ...st, completed: false } : st
+                    st.id === setId ? { ...st, completed: false, prFlags: null } : st
                   )
                 }
               })
@@ -421,21 +381,28 @@ const useStore = create(
         }
       }),
 
-      // Add/update note on an exercise
+      // Nota de ejercicio — se guarda en el workout activo Y persiste por exerciseId
       updateExerciseNote: (exerciseId, note) => set(s => {
         if (!s.activeWorkout) return {}
+        const ex = s.activeWorkout.exercises.find(e => e.id === exerciseId)
+        const notes = { ...s.exerciseNotes }
+        if (ex) {
+          if (note?.trim()) notes[ex.exerciseId] = { text: note, updatedAt: new Date().toISOString() }
+          else delete notes[ex.exerciseId]
+        }
         return {
+          exerciseNotes: notes,
           activeWorkout: {
             ...s.activeWorkout,
-            exercises: s.activeWorkout.exercises.map(ex =>
-              ex.id === exerciseId ? { ...ex, note } : ex
+            exercises: s.activeWorkout.exercises.map(e =>
+              e.id === exerciseId ? { ...e, note } : e
             )
           }
         }
       }),
 
       finishWorkout: (notes = '') => {
-        const { activeWorkout, prs } = get()
+        const { activeWorkout } = get()
         if (!activeWorkout) return null
 
         const endTime = new Date()
@@ -443,35 +410,29 @@ const useStore = create(
         const duration = Math.floor((endTime - startTime) / 1000)
         const totalVolume = calcSessionVolume(activeWorkout.exercises)
 
-        // Detect new PRs — e1rm and rep PRs
+        // PRs de la sesión — leídos de prFlags grabados en completeSet (sin recalcular)
         const newPRs = {}
         activeWorkout.exercises.forEach(ex => {
           ex.sets.forEach(set => {
-            if (!set.completed) return
+            if (!set.completed || !set.prFlags) return
             const w = parseFloat(set.weight) || 0
             const r = parseInt(set.reps) || 0
-            if (!w || !r) return
-            const currentPR = prs[ex.exerciseId]
-            const { isE1rmPR, isRepPR, e1rm } = isPRSet(w, r, currentPR)
-            if (isE1rmPR || isRepPR) {
-              if (!newPRs[ex.exerciseId]) newPRs[ex.exerciseId] = { isE1rmPR: false, isRepPR: false, weight: w, reps: r, e1rm: e1rm || 0 }
-              if (isE1rmPR && e1rm > (newPRs[ex.exerciseId].e1rm || 0)) {
-                newPRs[ex.exerciseId] = { ...newPRs[ex.exerciseId], isE1rmPR: true, weight: w, reps: r, e1rm, date: new Date().toISOString() }
-              }
-              if (isRepPR) {
-                newPRs[ex.exerciseId] = { ...newPRs[ex.exerciseId], isRepPR: true }
-              }
+            const e1rm = computeE1RM(w, r)
+            const prev = newPRs[ex.exerciseId]
+            if (set.prFlags === 'e1rm' && (!prev || e1rm > (prev.e1rm || 0))) {
+              newPRs[ex.exerciseId] = { ...(prev || {}), isE1rmPR: true, weight: w, reps: r, e1rm, date: new Date().toISOString() }
+            } else if (set.prFlags === 'reps') {
+              newPRs[ex.exerciseId] = prev
+                ? { ...prev, isRepPR: true }
+                : { isE1rmPR: false, isRepPR: true, weight: w, reps: r, e1rm }
             }
           })
         })
 
-        // Muscle groups
+        // Grupos musculares reales de la sesión (via catálogo de ejercicios)
         const muscles = [...new Set(
           activeWorkout.exercises
-            .map(ex => {
-              const stored = activeWorkout.exercises.find(e => e.id === ex.id)
-              return stored?.muscle || null
-            })
+            .map(ex => getExerciseById(ex.exerciseId)?.muscle || null)
             .filter(Boolean)
         )]
 
@@ -564,9 +525,11 @@ const useStore = create(
       },
 
       // ── SESSIONS ──────────────────────────────────────────────────────────
-      deleteSession: (id) => set(s => ({
-        sessions: s.sessions.filter(s2 => s2.id !== id)
-      })),
+      // Al borrar una sesión, los PRs se reconstruyen desde el historial restante
+      deleteSession: (id) => set(s => {
+        const sessions = s.sessions.filter(s2 => s2.id !== id)
+        return { sessions, prs: buildPRsFromSessions(sessions) }
+      }),
 
       updateSessionNotes: (id, notes) => set(s => ({
         sessions: s.sessions.map(s2 => s2.id === id ? { ...s2, notes } : s2)
@@ -632,6 +595,22 @@ const useStore = create(
     }),
     {
       name: 'liftvault-storage',
+      version: 2,
+      // ── MIGRACIÓN V1 → V2 ──────────────────────────────────────────────────
+      // 1. Reconstruye prs desde sessions (corrige huérfanos y repPRs faltantes)
+      // 2. Siembra exerciseNotes con la nota más reciente de cada ejercicio
+      migrate: (state, version) => {
+        if (version >= 2 || !state) return state
+        const sessions = state.sessions || []
+        const exerciseNotes = {}
+        const ordered = [...sessions].sort((a, b) => new Date(a.date) - new Date(b.date))
+        for (const session of ordered) {
+          for (const ex of session.exercises || []) {
+            if (ex.note?.trim()) exerciseNotes[ex.exerciseId] = { text: ex.note, updatedAt: session.date }
+          }
+        }
+        return { ...state, prs: buildPRsFromSessions(sessions), exerciseNotes }
+      },
       storage: createJSONStorage(() => {
         try {
           return localStorage
@@ -651,6 +630,7 @@ const useStore = create(
         sessions: state.sessions,
         activeWorkout: state.activeWorkout,
         prs: state.prs,
+        exerciseNotes: state.exerciseNotes,
         bodyMetrics: state.bodyMetrics,
         userCreatedPrograms: state.userCreatedPrograms,
         manualWeightLogs: state.manualWeightLogs,
