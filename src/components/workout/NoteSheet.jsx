@@ -48,7 +48,7 @@ export function NoteSheet({ exerciseId, exerciseName, existingNote, onSave, onCl
           <button
             onClick={onClose}
             style={{
-              width: 32, height: 32, borderRadius: 10,
+              width: 36, height: 36, borderRadius: 11,
               background: 'rgba(255,235,200,0.07)', border: 'none',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}

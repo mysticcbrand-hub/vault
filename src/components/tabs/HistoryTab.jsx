@@ -148,7 +148,7 @@ export function HistoryTab() {
                               flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3,
                               padding: '2px 6px', borderRadius: 'var(--r-pill)',
                               background: 'rgba(212,168,67,0.14)', border: '0.5px solid rgba(212,168,67,0.25)',
-                              fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+                              fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
                               color: '#D4A843', textTransform: 'uppercase',
                             }}>
                               🏆 {prCount > 1 ? `${prCount} PRs` : 'PR'}

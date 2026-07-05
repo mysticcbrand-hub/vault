@@ -50,7 +50,7 @@ function BadgeShowcaseItem({ badge }) {
       )}
       <div style={{ fontSize: 22, lineHeight: 1, position: 'relative', zIndex: 1 }}>{iconEmoji}</div>
       <div style={{
-        fontSize: 8, fontWeight: 700, letterSpacing: '0.06em',
+        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
         textTransform: 'uppercase', color: style.labelColor,
         position: 'relative', zIndex: 1,
       }}>
@@ -515,7 +515,7 @@ export function ProfileTab() {
               { label: 'Sesiones',          value: stats.totalSessions,                                              accent: '#E8924A' },
               { label: 'Volumen total',      value: formatVolumeShort(stats.totalVolume),                            accent: '#34C77B' },
               { label: 'Tiempo total',       value: formatMinutes(sessions.reduce((t, s) => t + (s.duration || 0), 0)), accent: '#E8924A' },
-              { label: 'Mejor racha',        value: `${stats.maxStreak}d`,                                           accent: '#D4A843' },
+              { label: 'Semanas perfectas',  value: stats.maxStreak,                                                 accent: '#D4A843' },
               { label: 'Ejercicios únicos',  value: stats.uniqueExercisesCount ?? stats.uniqueExercises ?? 0,        accent: '#A37FD4' },
               { label: 'Semanas activas',    value: stats.activeWeeks ?? 0,                                          accent: '#34C77B' },
             ].map((item, i) => (

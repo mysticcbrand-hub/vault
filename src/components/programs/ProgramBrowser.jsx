@@ -22,7 +22,7 @@ function ScheduleDots({ schedule }) {
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
       {schedule.map((s, i) => (
         <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <span style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 600 }}>{DAY_LETTERS[i] || ''}</span>
+          <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>{DAY_LETTERS[i] || ''}</span>
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
             background: s === 'rest' ? 'var(--border2)' : 'var(--accent)',

@@ -75,7 +75,7 @@ function PresetProgramCard({ program, isActive, isRecommended, onActivate }) {
               </span>
               {isActive && (
                 <span style={{
-                  fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
                   textTransform: 'uppercase', color: accentHex,
                   background: `${accentHex}20`, border: `0.5px solid ${accentHex}40`,
                   borderRadius: 6, padding: '2px 6px',
@@ -84,7 +84,7 @@ function PresetProgramCard({ program, isActive, isRecommended, onActivate }) {
               {isRecommended && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 3,
-                  fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
                   textTransform: 'uppercase', color: '#E8924A',
                   background: 'rgba(232,146,74,0.12)', border: '0.5px solid rgba(232,146,74,0.3)',
                   borderRadius: 6, padding: '2px 6px',
@@ -135,7 +135,7 @@ function PresetProgramCard({ program, isActive, isRecommended, onActivate }) {
                 background: isTraining ? `${accentHex}20` : 'rgba(255,235,200,0.04)',
                 border: `0.5px solid ${isTraining ? `${accentHex}40` : 'rgba(255,235,200,0.07)'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 9, fontWeight: 700,
+                fontSize: 10, fontWeight: 700,
                 color: isTraining ? accentHex : 'rgba(245,239,230,0.2)',
                 transition: 'all 0.15s ease',
               }}>{day}</div>
@@ -220,7 +220,7 @@ function ScheduleDots({ schedule }) {
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
       {schedule.map((s, i) => (
         <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <span style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 600 }}>{DAY_LETTERS[i] || ''}</span>
+          <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>{DAY_LETTERS[i] || ''}</span>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: s === 'rest' ? 'var(--border2)' : 'var(--accent)', opacity: s === 'rest' ? 0.4 : 1 }} />
         </div>
       ))}

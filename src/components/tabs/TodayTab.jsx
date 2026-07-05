@@ -361,7 +361,7 @@ function StreakCard({ streak, completedDays, program }) {
           </div>
 
           <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4, fontWeight: 600, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
-            {streak === 1 ? 'ciclo completado' : 'ciclos completados'}
+            {streak === 1 ? 'semana perfecta' : 'semanas perfectas'}
           </p>
 
           {/* Longest streak secondary stat */}
@@ -375,7 +375,7 @@ function StreakCard({ streak, completedDays, program }) {
           {inCycle && cycleDays > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Ciclo actual</span>
+                <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Semana actual</span>
                 <span style={{ fontSize: 11, color: almostDone ? '#F0A55E' : 'var(--accent)', fontWeight: 700, fontFamily: 'DM Mono, monospace' }}>
                   {daysInCycle}/{cycleDays}
                 </span>
@@ -404,7 +404,7 @@ function StreakCard({ streak, completedDays, program }) {
                   fontSize: 11, color: 'var(--accent-bright)', fontWeight: 600, marginTop: 6,
                   animation: 'fadeIn 0.4s ease both',
                 }}>
-                  ¡Un entrenamiento más y completas el ciclo! 🎯
+                  ¡Un entrenamiento más y sumas una semana perfecta! 🎯
                 </p>
               )}
             </div>
@@ -413,7 +413,7 @@ function StreakCard({ streak, completedDays, program }) {
       ) : (
         <div>
           <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Sin racha aún</p>
-          <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>Completa todos los días de tu programa para iniciar tu racha 🔥</p>
+          <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>Completa todos los días de tu programa y sumarás tu primera semana perfecta 🔥</p>
         </div>
       )}
     </div>
@@ -579,7 +579,7 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
         </motion.div>
 
         {/* Hero workout card */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} data-tour="today-hero">
           {todayDone ? (
             <div style={{
               background: 'rgba(52,199,123,0.08)', border: '1px solid rgba(52,199,123,0.25)',
@@ -687,7 +687,7 @@ export function TodayTab({ onStartWorkout, onOpenProfile, onNavigate }) {
         </motion.div>
 
         {/* Streak */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} data-tour="streak-card">
           <StreakCard streak={streak} completedDays={streakCompletedDays} program={program} />
         </motion.div>
 

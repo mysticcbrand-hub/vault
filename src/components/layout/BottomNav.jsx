@@ -45,6 +45,7 @@ export const BottomNav = memo(function BottomNav({ activeTab, onTabChange }) {
               <button
                 onClick={() => handleTabChange('workout')}
                 aria-label="Entrenar"
+                data-tour="nav-workout"
                 style={{
                   position: 'relative',
                   width: 52,
@@ -110,6 +111,7 @@ export const BottomNav = memo(function BottomNav({ activeTab, onTabChange }) {
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
             aria-label={tab.label}
+            data-tour={`nav-${tab.id}`}
             className="pressable"
             style={{
               display: 'flex',

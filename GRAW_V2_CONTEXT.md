@@ -4,6 +4,8 @@
 > Auditoría del código actual (jul 2026). Fuente para diseñar la V2 de tracking/KPIs.
 > Complementa `GRAW_CONTEXT.txt` (identidad de marca y reglas de diseño — sigue vigente).
 
+> **AUDITORÍA UX/UI (jul 2026) — aplicada.** (1) Racha unificada como **"semanas perfectas"** en StreakCard, Perfil (antes mostraba "Xd" contando ciclos) y badges de consistencia renombrados. (2) **Tour guiado** post-onboarding (`components/GuidedTour.jsx`): 6 coach marks con spotlight sobre la UI real (hero de hoy, racha, y los 4 tabs), anclados por `data-tour`, se muestra una vez (`graw_tour_done` en localStorage), saltable, no aparece si hay entreno activo. (3) **Legibilidad**: `--text2` 0.48→0.56, `--text3` 0.26→0.34, `.t-label` 10.5→11px, `.nav-label` 10→11px, barrido global de micro-fuentes (suelo 10px, 32 instancias de 8–9.5px subidas). (4) **Touch targets**: chips RIR 30→34px, menú de ExerciseCard 32→40px, botones de cierre de sheets 32→36px. (5) Bug muerto eliminado: App.jsx llamaba a `personalizeFromOnboarding` sin importarla (silenciado por try/catch); la llamada real vive en Onboarding.jsx. **Deuda conocida**: App.jsx lee/escribe la key `graw_store` para el flag de onboarding aunque el store persiste en `liftvault-storage` (funciona por el useEffect de respaldo, unificar en V2.1); dos componentes Sheet duplicados (layout/ y ui/).
+
 ---
 
 ## 1. STACK Y ARQUITECTURA

@@ -66,8 +66,8 @@ body {
   --border3:  rgba(255, 235, 200, 0.18);
 
   --text:     #F5EFE6;
-  --text2:    rgba(245, 239, 230, 0.48);
-  --text3:    rgba(245, 239, 230, 0.26);
+  --text2:    rgba(245, 239, 230, 0.56);
+  --text3:    rgba(245, 239, 230, 0.34);
 
   --green:     #34C77B;
   --green-dim: rgba(52, 199, 123, 0.12);
@@ -147,7 +147,7 @@ input[type=number] { -moz-appearance: textfield; }
 /* ─── TYPOGRAPHY ─────────────────────────────────────────────────────────── */
 .t-hero  { font-size: 28px; font-weight: 800; letter-spacing: -0.04em; }
 .t-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
-.t-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2); }
+.t-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2); }
 .t-mono  { font-family: 'DM Mono', 'SF Mono', monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .t-body  { font-size: 14px; font-weight: 450; line-height: 1.55; }
 
@@ -574,7 +574,7 @@ input::placeholder {
 
 /* ─── NAV LABELS ─────────────────────────────────────────────────────────── */
 .nav-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;

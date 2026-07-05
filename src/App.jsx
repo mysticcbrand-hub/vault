@@ -5,6 +5,7 @@ import { SplashScreen } from './components/SplashScreen.jsx'
 import { FocusMode } from './components/workout/FocusMode.jsx'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import Onboarding from './components/Onboarding.jsx'
+import { GuidedTour } from './components/GuidedTour.jsx'
 import { TodayTab } from './components/tabs/TodayTab.jsx'
 import { WorkoutTab } from './components/tabs/WorkoutTab.jsx'
 import { HistoryTab } from './components/tabs/HistoryTab.jsx'
@@ -132,6 +133,8 @@ export default function App() {
   )
   const [offline, setOffline] = useState(!navigator.onLine)
   const [recoveryElapsed, setRecoveryElapsed] = useState(null)
+  // Tour guiado — una sola vez, tras onboarding (o tras esta actualización)
+  const [tourActive, setTourActive] = useState(false)
 
   const user = useStore(s => s.user)
   const updateUser = useStore(s => s.updateUser)
@@ -162,13 +165,26 @@ export default function App() {
 
     try {
       useStore.getState().updateUser({ ...userData, onboardingComplete: true })
-    } catch (e) {}
+    } catch { /* store no disponible */ }
 
-    try {
-      personalizeFromOnboarding(userData.experience, userData.goal, useStore.getState())
-    } catch (e) {}
+    // personalizeFromOnboarding ya se ejecuta dentro de Onboarding.jsx
 
     setIsOnboarded(true)
+  }
+
+  // Lanza el tour cuando la app está lista y aún no se ha visto
+  useEffect(() => {
+    if (!isOnboarded || !splashDone) return
+    if (localStorage.getItem('graw_tour_done')) return
+    if (activeWorkout) return // nunca sobre un entreno en curso
+    const t = setTimeout(() => setTourActive(true), 700)
+    return () => clearTimeout(t)
+  }, [isOnboarded, splashDone]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const finishTour = () => {
+    localStorage.setItem('graw_tour_done', '1')
+    setTourActive(false)
+    handleTabChange('today')
   }
 
   // Keyboard detection — hide bottom nav
@@ -400,6 +416,11 @@ export default function App() {
         </div>
 
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+
+        {/* Tour guiado post-onboarding */}
+        {tourActive && (
+          <GuidedTour activeTab={activeTab} onTabChange={handleTabChange} onDone={finishTour} />
+        )}
 
         {/* Focus Mode — renders progress bar + focus nav via portal when workout active */}
         <FocusMode onFinish={() => {

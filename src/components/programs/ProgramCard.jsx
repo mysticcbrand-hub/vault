@@ -24,7 +24,7 @@ export function ProgramCard({ program }) {
       <div style={{ padding: '14px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            {isActive && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 7px', borderRadius: 4, background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid rgba(124,111,247,0.3)' }}>ACTIVO</span>}
+            {isActive && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 7px', borderRadius: 4, background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid rgba(124,111,247,0.3)' }}>ACTIVO</span>}
             <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{program.name}</p>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text3)' }}>{program.days?.length || 0} días{program.totalWeeks ? ` · ${program.totalWeeks} semanas` : ''}</p>
@@ -61,7 +61,7 @@ export function ProgramCard({ program }) {
                   <div style={{ display: 'flex', gap: 4 }}>
                     {(day.muscles || []).slice(0, 2).map(m => {
                       const c = MUSCLE_COLORS[m]
-                      return <span key={m} style={{ fontSize: 9, fontWeight: 600, padding: '2px 5px', borderRadius: 4, background: c?.bg, color: c?.text }}>{MUSCLE_NAMES[m]}</span>
+                      return <span key={m} style={{ fontSize: 10, fontWeight: 600, padding: '2px 5px', borderRadius: 4, background: c?.bg, color: c?.text }}>{MUSCLE_NAMES[m]}</span>
                     })}
                   </div>
                 </div>

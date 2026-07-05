@@ -126,7 +126,7 @@ export const ALL_BADGES = [
   {
     id: 'streak_3',
     name: 'Tres en Raya',
-    description: 'Completa 3 ciclos de programa',
+    description: '3 semanas perfectas seguidas',
     flavor: 'El hábito empieza a formarse.',
     category: 'consistency',
     rarity: 'common',
@@ -138,9 +138,9 @@ export const ALL_BADGES = [
 
   {
     id: 'streak_7',
-    name: 'Una Semana Sólida',
-    description: '7 ciclos completados',
-    flavor: 'Siete ciclos completos. Sin excusas.',
+    name: 'Siete de Siete',
+    description: '7 semanas perfectas seguidas',
+    flavor: 'Siete semanas sin fallar un día. Sin excusas.',
     category: 'consistency',
     rarity: 'common',
     icon: 'Shield',
@@ -151,8 +151,8 @@ export const ALL_BADGES = [
 
   {
     id: 'streak_14',
-    name: 'Dos Semanas de Hierro',
-    description: '14 ciclos completados',
+    name: 'Trimestre de Hierro',
+    description: '14 semanas perfectas seguidas',
     flavor: 'Cuando apareces aunque no apetezca, eso es carácter.',
     category: 'consistency',
     rarity: 'rare',
@@ -164,9 +164,9 @@ export const ALL_BADGES = [
 
   {
     id: 'streak_30',
-    name: 'Un Mes Imparable',
-    description: '30 ciclos completados',
-    flavor: 'Treinta ciclos. No todos lo consiguen.',
+    name: 'Medio Año Imparable',
+    description: '30 semanas perfectas seguidas',
+    flavor: 'Treinta semanas perfectas. No todos lo consiguen.',
     category: 'consistency',
     rarity: 'epic',
     icon: 'ShieldCheck',
@@ -178,8 +178,8 @@ export const ALL_BADGES = [
   {
     id: 'streak_60',
     name: 'Máquina de Guerra',
-    description: '60 ciclos completados',
-    flavor: 'Sesenta ciclos sin rendirse. Eres diferente.',
+    description: '60 semanas perfectas seguidas',
+    flavor: 'Sesenta semanas sin rendirse. Eres diferente.',
     category: 'consistency',
     rarity: 'epic',
     icon: 'Flame',
@@ -191,8 +191,8 @@ export const ALL_BADGES = [
   {
     id: 'streak_100',
     name: 'Centurión',
-    description: '100 ciclos completados',
-    flavor: 'Cien ciclos. Una transformación completa.',
+    description: '100 semanas perfectas seguidas',
+    flavor: 'Cien semanas perfectas. Una transformación completa.',
     category: 'consistency',
     rarity: 'legendary',
     icon: 'Crown',

@@ -98,7 +98,7 @@ function FocusNav({ activeWorkout, onFinish }) {
             {formatElapsed(elapsed)}
           </div>
           <div style={{
-            fontSize: 9, fontWeight: 700,
+            fontSize: 10, fontWeight: 700,
             color: 'rgba(245,239,230,0.35)',
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
@@ -145,7 +145,7 @@ function FocusNav({ activeWorkout, onFinish }) {
             {fmtVol(currentVolume)}
           </div>
           <div style={{
-            fontSize: 9, fontWeight: 700,
+            fontSize: 10, fontWeight: 700,
             color: 'rgba(245,239,230,0.35)',
             letterSpacing: '0.06em',
             textTransform: 'uppercase',

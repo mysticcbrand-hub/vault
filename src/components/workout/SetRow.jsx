@@ -185,7 +185,7 @@ function RIRChips({ value, onSelect, onDismiss }) {
     }}>
       <button
         onClick={() => setInfoOpen(true)}
-        style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text3)', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', textDecoration: 'underline dotted rgba(245,239,230,0.3)', textUnderlineOffset: 2 }}
+        style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text3)', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', textDecoration: 'underline dotted rgba(245,239,230,0.3)', textUnderlineOffset: 2 }}
       >RIR</button>
       {infoOpen && <RIRInfoSheet onClose={() => setInfoOpen(false)} />}
       {RIR_OPTIONS.map(v => (
@@ -194,7 +194,7 @@ function RIRChips({ value, onSelect, onDismiss }) {
           onClick={() => onSelect(v)}
           className="pressable"
           style={{
-            minWidth: 30, height: 30, borderRadius: 8, padding: 0,
+            minWidth: 34, height: 34, borderRadius: 9, padding: 0,
             fontFamily: 'DM Mono, monospace', fontSize: 12, fontWeight: 700,
             background: value === v ? 'var(--accent-dim)' : 'rgba(255,235,200,0.05)',
             border: `1px solid ${value === v ? 'var(--accent-border)' : 'var(--border2)'}`,
@@ -208,7 +208,7 @@ function RIRChips({ value, onSelect, onDismiss }) {
       <button
         onClick={onDismiss}
         style={{
-          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+          width: 34, height: 34, borderRadius: 9, flexShrink: 0,
           background: 'none', border: 'none', cursor: 'pointer',
           color: 'var(--text3)', fontSize: 12,
         }}
@@ -268,7 +268,7 @@ export const SetRow = memo(function SetRow({
         {/* Set # or DROP badge */}
         {isDropset ? (
           <span style={{
-            fontSize: 8, fontWeight: 700, letterSpacing: '0.06em',
+            fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
             padding: '2px 5px', borderRadius: 4,
             background: 'rgba(245,158,11,0.12)', color: 'rgba(245,158,11,0.75)',
             marginRight: 4, flexShrink: 0,
@@ -319,7 +319,7 @@ export const SetRow = memo(function SetRow({
           <button
             onClick={() => setRirOpen(true)}
             style={{
-              fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
               fontFamily: 'DM Mono, monospace',
               padding: '2px 5px', borderRadius: 5,
               background: 'rgba(255,235,200,0.06)', color: 'var(--text3)',
@@ -332,7 +332,7 @@ export const SetRow = memo(function SetRow({
         {/* PR badge — amber for e1rm, green for rep PR */}
         {isPR && isCompleted && (
           <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
             padding: '2px 5px', borderRadius: 5,
             background: isRepPR ? 'var(--green-dim)' : 'var(--amber-dim)',
             color: isRepPR ? 'var(--green)' : 'var(--amber)',

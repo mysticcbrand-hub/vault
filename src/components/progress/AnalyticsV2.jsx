@@ -38,7 +38,7 @@ function MuscleVolumeBars({ weeklySets }) {
     <div style={card}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Sets semanales por músculo</p>
-        <span style={{ fontSize: 9.5, color: 'var(--text3)' }}>vs MEV · MRV</span>
+        <span style={{ fontSize: 10, color: 'var(--text3)' }}>vs MEV · MRV</span>
       </div>
       <p style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 14 }}>Compuestos suman 0.5 a músculos secundarios</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -51,7 +51,7 @@ function MuscleVolumeBars({ weeklySets }) {
             <div key={m}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 11.5, fontWeight: 600, color: getMuscleVars(m).color }}>{MUSCLE_NAMES[m] || m}</span>
-                <span style={{ ...mono, fontSize: 11, color }}>{v} <span style={{ color: 'var(--text3)', fontSize: 9.5 }}>{status}</span></span>
+                <span style={{ ...mono, fontSize: 11, color }}>{v} <span style={{ color: 'var(--text3)', fontSize: 10 }}>{status}</span></span>
               </div>
               <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'rgba(255,235,200,0.05)', overflow: 'visible' }}>
                 {/* Zona MEV–MRV */}

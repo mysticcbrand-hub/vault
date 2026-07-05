@@ -243,7 +243,7 @@ export function CreateExerciseSheet({ open, onClose, onCreated }) {
                           {MUSCLE_EMOJI[m] ?? '💪'}
                         </span>
                         <span style={{
-                          fontSize: 9, fontWeight: 700,
+                          fontSize: 10, fontWeight: 700,
                           color: selected ? mv.color : 'rgba(245,239,230,0.38)',
                           letterSpacing: '0.03em', textTransform: 'uppercase',
                           lineHeight: 1,
@@ -265,7 +265,7 @@ export function CreateExerciseSheet({ open, onClose, onCreated }) {
                 }}>
                   Equipamiento
                   <span style={{
-                    fontSize: 9, color: 'rgba(245,239,230,0.22)',
+                    fontSize: 10, color: 'rgba(245,239,230,0.22)',
                     fontWeight: 500, letterSpacing: '0.05em', textTransform: 'none',
                   }}>— opcional</span>
                 </div>

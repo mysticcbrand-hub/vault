@@ -144,7 +144,7 @@ function DayCard({ day, dayIndex, programDayIndex, isNext, isToday, sessions, on
             </span>
             {isNext && (
               <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.07em',
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
                 textTransform: 'uppercase', color: '#E8924A',
                 background: 'rgba(232,146,74,0.14)',
                 border: '0.5px solid rgba(232,146,74,0.3)',
@@ -155,7 +155,7 @@ function DayCard({ day, dayIndex, programDayIndex, isNext, isToday, sessions, on
             )}
             {trainedThisWeek && (
               <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.07em',
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
                 textTransform: 'uppercase', color: '#34C77B',
                 background: 'rgba(52,199,123,0.12)',
                 border: '0.5px solid rgba(52,199,123,0.25)',

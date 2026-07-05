@@ -59,7 +59,7 @@ export function VolumeChart() {
                   transition: 'height 0.5s cubic-bezier(0.32,0.72,0,1), background 0.15s ease',
                   animation: `fadeUp 0.5s cubic-bezier(0.32,0.72,0,1) ${i * 0.05}s both`,
                 }} />
-                <span style={{ fontSize: 9, color: isLast ? 'var(--accent)' : 'var(--text3)', fontWeight: isLast ? 700 : 500, whiteSpace: 'nowrap', fontFamily: 'DM Mono,monospace' }}>
+                <span style={{ fontSize: 10, color: isLast ? 'var(--accent)' : 'var(--text3)', fontWeight: isLast ? 700 : 500, whiteSpace: 'nowrap', fontFamily: 'DM Mono,monospace' }}>
                   {week.label}
                 </span>
               </div>

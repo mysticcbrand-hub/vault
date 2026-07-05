@@ -679,7 +679,7 @@ export function BodyMetricsDashboard() {
               <div style={{ width: 30, height: 30, borderRadius: '50%', background: day.hasEntry ? 'var(--green)' : day.isFuture ? 'var(--surface3)' : 'var(--surface2)', border: `1px solid ${day.hasEntry ? 'var(--green)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>
                 {day.hasEntry && <span style={{ fontSize: 11, color: 'white' }}>✓</span>}
               </div>
-              <p style={{ fontSize: 9.5, color: day.hasEntry ? 'var(--green)' : 'var(--text3)', fontWeight: day.hasEntry ? 700 : 400 }}>{day.label}</p>
+              <p style={{ fontSize: 10, color: day.hasEntry ? 'var(--green)' : 'var(--text3)', fontWeight: day.hasEntry ? 700 : 400 }}>{day.label}</p>
             </div>
           ))}
         </div>

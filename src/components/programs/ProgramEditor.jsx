@@ -147,7 +147,7 @@ function DayTabStrip({ days, activeDayId, onSelect, onAdd, onDelete }) {
                   width: 16, height: 16, borderRadius: '50%',
                   background: isActive ? 'rgba(232,146,74,0.22)' : 'rgba(255,235,200,0.06)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, fontWeight: 800,
+                  fontSize: 10, fontWeight: 800,
                   color: isActive ? '#E8924A' : 'rgba(245,239,230,0.35)',
                   flexShrink: 0,
                 }}>
@@ -320,7 +320,7 @@ function ExerciseCard({ exercise, index, onRemove, onUpdate, dragHandlers, isDra
         }}>
           {/* Sets */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)' }}>
               Series
             </span>
             <StepperButton value={exercise.sets} min={1} max={10} onChange={v => onUpdate('sets', v)} />
@@ -330,7 +330,7 @@ function ExerciseCard({ exercise, index, onRemove, onUpdate, dragHandlers, isDra
 
           {/* Reps */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)' }}>
               Reps
             </span>
             <StepperButton value={exercise.reps} min={1} max={50} onChange={v => onUpdate('reps', v)} />
@@ -340,7 +340,7 @@ function ExerciseCard({ exercise, index, onRemove, onUpdate, dragHandlers, isDra
 
           {/* Rest */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1.2 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(245,239,230,0.3)', display: 'flex', alignItems: 'center', gap: 3 }}>
               <Clock size={8} /> Descanso
             </span>
             <select
@@ -663,7 +663,7 @@ function ExercisePickerSheet({ isOpen, onClose, onSelect }) {
                     )}
                   </div>
                   {ex.isCustom && (
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--r-pill)', background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid var(--accent-border)', flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--r-pill)', background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid var(--accent-border)', flexShrink: 0 }}>
                       PROPIO
                     </span>
                   )}

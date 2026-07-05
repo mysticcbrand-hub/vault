@@ -27,7 +27,7 @@ function FormTipSheet({ exerciseName, tips, onClose }) {
         <div style={{ width: 38, height: 5, borderRadius: 100, background: 'rgba(245,239,230,0.18)', margin: '0 auto 16px' }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Tips: {exerciseName}</p>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,235,200,0.07)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} color="var(--text2)" /></button>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 11, background: 'rgba(255,235,200,0.07)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} color="var(--text2)" /></button>
         </div>
         {tips.map((tip, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: i < tips.length - 1 ? '1px solid var(--border)' : 'none' }}>
@@ -188,7 +188,7 @@ export const ExerciseCard = memo(function ExerciseCard({
           {/* Meta row — muscle tag, rep range, last session */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{
-              fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
               padding: '1.5px 5px', borderRadius: 4,
               background: mv.dim, color: mv.color,
             }}>
@@ -218,7 +218,7 @@ export const ExerciseCard = memo(function ExerciseCard({
               >
                 {views.length > 1 && (
                   <span style={{
-                    fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
+                    fontSize: 9.5, fontWeight: 800, letterSpacing: '0.08em',
                     padding: '1.5px 4px', borderRadius: 3, flexShrink: 0,
                     background: view === 'pr' ? 'var(--amber-dim)' : view === 'meta' ? 'var(--accent-dim)' : 'rgba(245,239,230,0.06)',
                     color: view === 'pr' ? 'var(--amber)' : view === 'meta' ? 'var(--accent)' : 'var(--text3)',
@@ -262,7 +262,7 @@ export const ExerciseCard = memo(function ExerciseCard({
               if (!menuOpen) setMenuTop((menuBtnRef.current?.getBoundingClientRect().bottom ?? 96) + 4)
               setMenuOpen(!menuOpen)
             }}
-            style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 8 }}
+            style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 10, margin: '-4px -4px 0 0' }}
           >
             <MoreHorizontal size={16} color="var(--text3)" />
           </button>

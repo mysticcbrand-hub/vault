@@ -119,7 +119,7 @@ export function WeeklySummaryCard({ stats, onDismiss }) {
                     {stat.value}
                   </div>
                   <div style={{
-                    fontSize: 9, fontWeight: 700,
+                    fontSize: 10, fontWeight: 700,
                     color: 'rgba(245,239,230,0.35)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
