@@ -1,10 +1,50 @@
 import { useState, useMemo } from 'react'
-import { Search, X, Trophy } from 'lucide-react'
+import { Search, X, Trophy, FileDown } from 'lucide-react'
 import { Sheet } from '../ui/Sheet.jsx'
 import { groupSessionsByWeek, formatDate, formatDuration, isSameDayAs } from '../../utils/dates.js'
 import { formatKg, getMuscleVars, relativeDate } from '../../utils/format.js'
 import { getExerciseById, MUSCLE_NAMES } from '../../data/exercises.js'
+import { haptics } from '../../utils/haptics.js'
 import useStore from '../../store/index.js'
+
+// ── Export a Markdown ────────────────────────────────────────────────────────
+function sessionsToMarkdown(sessions) {
+  const fmtSet = (s, i) => {
+    const rir = s.rir != null ? ` @RIR${s.rir}` : ''
+    const pr = s.prFlags === 'e1rm' ? ' 🏆 PR' : s.prFlags === 'reps' ? ' 🟢 +reps' : ''
+    return `${i + 1}. ${s.weight} kg × ${s.reps}${rir}${pr}`
+  }
+  const total = sessions.reduce((t, s) => t + (s.totalVolume || 0), 0)
+  let md = `# GRAW — Historial de entrenamientos\n\n`
+  md += `Exportado: ${formatDate(new Date().toISOString())} · ${sessions.length} sesiones · ${formatKg(total)} kg de volumen total\n`
+  for (const { label, items } of groupSessionsByWeek(sessions)) {
+    md += `\n## ${label}\n`
+    for (const s of items) {
+      md += `\n### ${s.name} — ${formatDate(s.date)}\n`
+      md += `${formatDuration(s.duration)} · ${formatKg(s.totalVolume)} kg\n`
+      for (const ex of s.exercises || []) {
+        const done = (ex.sets || []).filter(st => st.completed)
+        if (!done.length) continue
+        md += `\n**${getExerciseById(ex.exerciseId)?.name || ex.exerciseId}**\n\n`
+        md += done.map(fmtSet).join('\n') + '\n'
+        if (ex.note?.trim()) md += `\n> ${ex.note.trim()}\n`
+      }
+      if (s.notes?.trim()) md += `\n> Notas de sesión: ${s.notes.trim()}\n`
+    }
+  }
+  return md
+}
+
+function downloadMarkdown(sessions) {
+  haptics.light?.()
+  const blob = new Blob([sessionsToMarkdown(sessions)], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `graw_historial_${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export function HistoryTab() {
   const sessions = useStore(s => s.sessions)
@@ -67,7 +107,25 @@ export function HistoryTab() {
       <div style={{ padding: 'calc(var(--header-h) + 24px) 20px 14px', flexShrink: 0 }}>
         <div className="si" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
           <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text)' }}>Historial</h1>
-          <span style={{ fontSize: 13, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums' }}>{sessions.length} sesiones</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums' }}>{sessions.length} sesiones</span>
+            {sessions.length > 0 && (
+              <button
+                onClick={() => downloadMarkdown(filtered)}
+                className="pressable"
+                aria-label="Exportar historial en Markdown"
+                title="Exportar .md"
+                style={{
+                  width: 36, height: 36, borderRadius: 11,
+                  background: 'var(--surface2)', border: '1px solid var(--border2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <FileDown size={15} color="var(--text2)" />
+              </button>
+            )}
+          </div>
         </div>
         <p className="si" style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', marginBottom: 16, animationDelay: '0.04s' }}>
           {formatKg(totalVolume)} <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text3)' }}>kg total</span>
