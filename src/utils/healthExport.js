@@ -25,9 +25,14 @@ export function estimateCalories(durationMin, volumeKg) {
  * @returns {object} Payload object ready to be JSON-stringified
  */
 export function buildHealthPayload(session, user) {
-  const durationMin = Math.round((session.duration || 0) / 60)
+  // Ensure duration is at least 1 minute so HealthKit (endDate > startDate) validation passes
+  const durationMin = Math.max(1, Math.round((session.duration || 0) / 60))
   const volumeKg = session.totalVolume || 0
-  const calories = estimateCalories(durationMin, volumeKg)
+  const calories = Math.max(1, estimateCalories(durationMin, volumeKg))
+
+  const startDateStr = session.startTime || session.date || new Date().toISOString()
+  const startDateObj = new Date(startDateStr)
+  const endDateObj = new Date(startDateObj.getTime() + durationMin * 60000)
 
   const exercises = (session.exercises || []).map(ex => {
     const exData = getExerciseById(ex.exerciseId)
@@ -45,7 +50,9 @@ export function buildHealthPayload(session, user) {
   return {
     source: 'LiftVault',
     workout_name: session.name || 'Entrenamiento',
-    date: session.startTime || session.date,
+    date: startDateStr,
+    start_date: startDateStr,
+    end_date: endDateObj.toISOString(),
     duration_min: durationMin,
     total_volume_kg: volumeKg,
     calories_estimated: calories,
