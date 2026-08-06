@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
-import { CheckCircle, TrendingUp, Zap, Clock, Dumbbell } from 'lucide-react'
+import { CheckCircle, TrendingUp, Zap, Clock, Dumbbell, Heart } from 'lucide-react'
 import { haptics } from '../../utils/haptics.js'
 import { getExerciseById } from '../../data/exercises.js'
 import { formatKg } from '../../utils/format.js'
+import { buildHealthPayload, exportToHealth } from '../../utils/healthExport.js'
+import useStore from '../../store/index.js'
 
 // ── Confetti particle ─────────────────────────────────────────────────────────
 function Particle({ delay, x, color }) {
@@ -153,6 +155,8 @@ export function WorkoutComplete({ session, newPRs, onSave }) {
   const [particles, setParticles] = useState([])
   const [notesValue, setNotesValue] = useState('')
   const savedRef = useRef(false)
+  const [healthExportState, setHealthExportState] = useState('idle') // 'idle' | 'exporting' | 'done' | 'error'
+  const user = useStore(s => s.user)
 
   const COLORS = ['#E8924A', '#34C77B', '#D4A843', '#A37FD4', '#E5534B', '#4DB896']
   const duration = session?.duration || 0
@@ -187,6 +191,22 @@ export function WorkoutComplete({ session, newPRs, onSave }) {
     savedRef.current = true
     haptics.medium()
     onSave(notesValue.trim())
+  }
+
+  const handleHealthExport = async () => {
+    if (healthExportState === 'exporting') return
+    haptics.medium()
+    setHealthExportState('exporting')
+    try {
+      const payload = buildHealthPayload(session, user)
+      const result = await exportToHealth(payload)
+      setHealthExportState(result === 'error' ? 'error' : 'done')
+      // Reset after 4s
+      setTimeout(() => setHealthExportState('idle'), 4000)
+    } catch {
+      setHealthExportState('error')
+      setTimeout(() => setHealthExportState('idle'), 3000)
+    }
   }
 
   return createPortal(
@@ -402,6 +422,61 @@ export function WorkoutComplete({ session, newPRs, onSave }) {
             className="input"
             style={{ fontSize: 15, lineHeight: 1.5, resize: 'none' }}
           />
+        </motion.div>
+
+        {/* Apple Health Export */}
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={showContent ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.38, delay: 0.74, ease: [0.34, 1.56, 0.64, 1] }}
+          style={{ marginBottom: 12 }}
+        >
+          <button
+            onClick={handleHealthExport}
+            className="pressable"
+            disabled={healthExportState === 'exporting'}
+            style={{
+              width: '100%', height: 52, borderRadius: 16,
+              background: healthExportState === 'done'
+                ? 'rgba(52,199,123,0.12)'
+                : healthExportState === 'error'
+                  ? 'rgba(229,83,75,0.12)'
+                  : 'rgba(255,45,85,0.08)',
+              border: `1px solid ${
+                healthExportState === 'done' ? 'rgba(52,199,123,0.35)'
+                : healthExportState === 'error' ? 'rgba(229,83,75,0.35)'
+                : 'rgba(255,45,85,0.25)'
+              }`,
+              cursor: healthExportState === 'exporting' ? 'default' : 'pointer',
+              fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
+              color: healthExportState === 'done' ? '#34C77B'
+                : healthExportState === 'error' ? '#E5534B'
+                : '#FF6B8A',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'all 0.25s ease',
+              opacity: healthExportState === 'exporting' ? 0.7 : 1,
+            }}
+          >
+            {healthExportState === 'exporting' && (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,107,138,0.3)', borderTopColor: '#FF6B8A' }}
+              />
+            )}
+            {healthExportState === 'idle' && <Heart size={16} strokeWidth={2.5} />}
+            {healthExportState === 'done' && <CheckCircle size={16} strokeWidth={2.5} />}
+            {healthExportState === 'error' && <span style={{ fontSize: 16 }}>⚠️</span>}
+            {healthExportState === 'idle' && '¡Buen entrene! — Exportar a Apple Health'}
+            {healthExportState === 'exporting' && 'Copiando al portapapeles...'}
+            {healthExportState === 'done' && 'Copiado · Abriendo Atajos...'}
+            {healthExportState === 'error' && 'Error — inténtalo de nuevo'}
+          </button>
+          {healthExportState === 'idle' && (
+            <p style={{ textAlign: 'center', fontSize: 10.5, color: 'rgba(245,239,230,0.28)', marginTop: 6, lineHeight: 1.4 }}>
+              Copia los datos al portapapeles y abre el Atajo de iOS
+            </p>
+          )}
         </motion.div>
 
         {/* CTA */}
