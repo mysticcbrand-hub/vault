@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence } from 'framer-motion'
 import { SplashScreen } from './components/SplashScreen.jsx'
 import { FocusMode } from './components/workout/FocusMode.jsx'
+import { WorkoutComplete } from './components/workout/WorkoutComplete.jsx'
 import { BottomNav } from './components/layout/BottomNav.jsx'
 import Onboarding from './components/Onboarding.jsx'
 import { GuidedTour } from './components/GuidedTour.jsx'
@@ -146,6 +147,8 @@ export default function App() {
   }, [user])
 
   const activeWorkout = useStore(s => s.activeWorkout)
+  const completedWorkout = useStore(s => s.completedWorkout)
+  const clearCompletedWorkout = useStore(s => s.clearCompletedWorkout)
   const cancelWorkout = useStore(s => s.cancelWorkout)
   const [editName, setEditName] = useState(user?.name || '')
 
@@ -311,6 +314,20 @@ export default function App() {
 
         <ToastContainer />
         <BadgeUnlockToast />
+
+        {/* Workout Complete Summary Modal */}
+        {completedWorkout && (
+          <WorkoutComplete
+            session={completedWorkout.session}
+            newPRs={completedWorkout.newPRs}
+            onSave={(notes) => {
+              if (notes && completedWorkout.session?.id) {
+                useStore.getState().updateSession(completedWorkout.session.id, { notes })
+              }
+              clearCompletedWorkout()
+            }}
+          />
+        )}
 
         {/* ══ App header — TRUE Frosted Glass ══
             - blur fuerte + transparencia real

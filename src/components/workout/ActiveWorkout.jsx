@@ -36,7 +36,6 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const [showPicker, setShowPicker] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
   const [showFinish, setShowFinish] = useState(false)
-  const [completedData, setCompletedData] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [restingExerciseId, setRestingExerciseId] = useState(null)
   const [noteSheet, setNoteSheet] = useState(null) // { exerciseId, name, note }
@@ -71,22 +70,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
     scrollContainerRef: scrollAreaRef,
   })
 
-  // Show completion overlay even after activeWorkout is cleared from store
-  if (!activeWorkout && !completedData) return null
-  if (!activeWorkout && completedData) {
-    return (
-      <WorkoutComplete
-        session={completedData.session}
-        newPRs={completedData.newPRs}
-        onSave={(notes) => {
-          if (notes && completedData.session?.id) {
-            useStore.getState().updateSession(completedData.session.id, { notes })
-          }
-          setCompletedData(null)
-        }}
-      />
-    )
-  }
+  if (!activeWorkout) return null
 
   const totalVolume = exercises.reduce((t, ex) =>
     t + ex.sets.reduce((s, set) =>
@@ -153,10 +137,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
   const handleFinishConfirm = () => {
     setShowFinish(false)
     haptics.success()
-    const result = finishWorkout('')
-    if (result) {
-      setCompletedData(result)
-    }
+    finishWorkout('')
   }
 
   const nextExercise = (() => {
@@ -484,19 +465,7 @@ export const ActiveWorkout = memo(function ActiveWorkout() {
         </ConfirmOverlay>
       )}
 
-      {/* Workout complete overlay */}
-      {completedData && (
-        <WorkoutComplete
-          session={completedData.session}
-          newPRs={completedData.newPRs}
-          onSave={(notes) => {
-            if (notes && completedData.session?.id) {
-              useStore.getState().updateSession(completedData.session.id, { notes })
-            }
-            setCompletedData(null)
-          }}
-        />
-      )}
+
     </>
   )
 })

@@ -33,6 +33,7 @@ const initialState = () => ({
   templates: SEED_TEMPLATES,
   sessions: [],
   activeWorkout: null,
+  completedWorkout: null,
   prs: {},
   // Notas persistentes por ejercicio: { [exerciseId]: { text, updatedAt } }
   exerciseNotes: {},
@@ -518,11 +519,14 @@ const useStore = create(
         set(s => ({
           sessions: [session, ...s.sessions],
           activeWorkout: null,
+          completedWorkout: { session, newPRs },
           ...streakUpdates,
         }))
 
         return { session, newPRs }
       },
+
+      clearCompletedWorkout: () => set({ completedWorkout: null }),
 
       // ── SESSIONS ──────────────────────────────────────────────────────────
       // Al borrar una sesión, los PRs se reconstruyen desde el historial restante
